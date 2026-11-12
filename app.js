@@ -235,6 +235,7 @@ function renderChrome(){
   document.getElementById("railScan").textContent=L("Rechnung scannen","Scan invoice");
   document.getElementById("railProj").innerHTML=`<span class="l">${L("Projekt","Project")}</span><span class="n">${p?esc(p.name):L("Kein Projekt","No project")}</span>`;
   document.getElementById("topProj").textContent=p?p.name:L("Kein Projekt","No project");
+  const fn=(D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name");["railFirm","topFirm"].forEach(id=>{const e=document.getElementById(id);if(e){e.textContent=fn;e.title=L("Büro bearbeiten","Edit firm");}});
   document.getElementById("railData").textContent=L("Daten und Sicherung","Data and backup");
   document.querySelectorAll(".lang button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.l===S.lang)));
   const nb=v=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span></button>`;

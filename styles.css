@@ -338,3 +338,11 @@ details.site>summary .sc{white-space:nowrap;margin-left:0}
   .row:not(.brow) .rm{display:block;grid-column:2;grid-row:2;max-width:none;font-size:.82rem}
   .row:not(.brow) .ra{grid-column:3;grid-row:1/span 2;align-self:center}
 }
+
+/* firm name */
+.firm{all:unset;cursor:pointer;color:var(--muted);font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.firm:hover{color:var(--ink)}
+.rail .firm{margin:-36px 0 0 0;display:block;white-space:normal;line-height:1.3}
+.topbar .tp{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.topbar .tp .firm{font-size:.72rem;display:block}
+.topbar .tp .proj{flex:none;display:block}

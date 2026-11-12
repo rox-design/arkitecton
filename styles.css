@@ -314,3 +314,8 @@ details.site>summary .sc{white-space:nowrap;margin-left:0}
 .row:not(.brow){grid-template-columns:8px minmax(0,1fr) auto 132px 112px}
 .row .ra{text-align:right}
 @media (max-width:820px){.row:not(.brow){grid-template-columns:8px minmax(0,1fr) auto}}
+
+.dtools{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.ghost.link{padding:0;text-decoration:underline;color:inherit}
+.calc .sp{color:var(--muted)}
+.ic.n{background:var(--faint)}

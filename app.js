@@ -36,7 +36,7 @@ const RTYPE={schule:{de:"Schulbauten",en:"School buildings"},instandsetzung:{de:
 const PROC={sel:{de:"Selektiv, Präqualifikation",en:"Selective, prequalification"},offen:{de:"Offenes Verfahren",en:"Open procedure"}};
 const TST={neu:{de:"Neu",en:"New",c:"acc"},arbeit:{de:"In Arbeit",en:"In progress",c:"warn"},eingereicht:{de:"Eingereicht",en:"Submitted",c:"ok"},verzichtet:{de:"Verzichtet",en:"Declined",c:"n"}};
 const FIT={ok:{de:"Erfüllt",en:"Eligible",c:"ok"},partner:{de:"Mit Partner",en:"With partner",c:"warn"},no:{de:"Nicht erfüllt",en:"Not eligible",c:"crit"}};
-const STATUS={pruefen:{de:"Zu prüfen",en:"To check",c:"warn"},rueckfrage:{de:"Rückfrage",en:"Query open",c:"crit"},frei:{de:"Freigegeben",en:"Approved",c:"acc"},bezahlt:{de:"Bezahlt",en:"Paid",c:"ok"}};
+const STATUS={pruefen:{de:"Zu prüfen",en:"To check",c:"warn"},rueckfrage:{de:"Rückfrage",en:"Query open",c:"crit"},frei:{de:"Freigegeben",en:"Approved",c:"acc"},bezahlt:{de:"Bezahlt",en:"Paid",c:"ok"},ersetzt:{de:"Ersetzt",en:"Replaced",c:"n"}};
 
 /* ---------- example data (dates relative to today) ---------- */
 function seedTenders(){
@@ -120,7 +120,8 @@ const W=id=>D.contracts.find(c=>c.id===id);
 const INV=id=>D.invoices.find(i=>i.id===id);
 const T=id=>D.tenders.find(t=>t.id===id);
 const PC=()=>{const p=P();return p?D.contracts.filter(w=>w.pid===p.id):[];};
-const PI=()=>{const ids=PC().map(w=>w.id);return D.invoices.filter(i=>ids.includes(i.w));};
+const PIx=()=>{const ids=PC().map(w=>w.id);return D.invoices.filter(i=>ids.includes(i.w));};
+const PI=()=>PIx().filter(live);
 const CW=kid=>PC().find(w=>w.k===kid)||null;
 const B=bkp=>{const p=P();return p?p.budget.find(b=>b.bkp===bkp):null;};
 const bName=bkp=>{const b=B(bkp);if(b)return tx(b);const s=STD_BKP.find(x=>x[0]===bkp);return s?(S.lang==="de"?s[1]:s[2]):"";};
@@ -130,17 +131,19 @@ const KC=kid=>D.contracts.filter(w=>w.k===kid);
 const counted=i=>i.status==="frei"||i.status==="bezahlt";
 const sumLines=ls=>r2((ls||[]).reduce((a,l)=>a+l.qty*l.price,0));
 const retPct=w=>w&&typeof w.ret==="number"?w.ret:10;
+const net=i=>r2(i.gross-(i.ded&&i.ded.amt?i.ded.amt:0));
+const live=i=>i.status!=="ersetzt";
 function retention(i){
   const w=W(i.w);
-  if(i.type==="akonto") return r2(i.gross*retPct(w)/100);
-  if(i.type==="schluss") return -r2(D.invoices.filter(x=>x.w===i.w&&x.type==="akonto"&&counted(x)).reduce((a,x)=>a+r2(x.gross*retPct(w)/100),0));
+  if(i.type==="akonto") return r2(net(i)*retPct(w)/100);
+  if(i.type==="schluss") return -r2(D.invoices.filter(x=>x.w===i.w&&x.type==="akonto"&&counted(x)).reduce((a,x)=>a+r2(net(x)*retPct(w)/100),0));
   return 0;
 }
-const payout=i=>r2(i.gross-retention(i));
+const payout=i=>r2(net(i)-retention(i));
 const missingOf=k=>{const m=[];if(!k.street||!k.zip||!k.city)m.push(L("Adresse","Address"));if(!k.iban)m.push("IBAN");if(!k.email)m.push(L("E-Mail","Email"));return m;};
 const typeLabel=i=>i.type==="akonto"?L("Akonto ","Progress payment ")+i.n:i.type==="regie"?L("Regie","Time & materials"):L("Schlussrechnung","Final invoice");
 const stLabel=st=>tx(STATUS[st]);
-const billedOn=(wid,except)=>D.invoices.filter(i=>i.w===wid&&i.id!==except&&counted(i)).reduce((a,i)=>a+i.gross,0);
+const billedOn=(wid,except)=>D.invoices.filter(i=>i.w===wid&&i.id!==except&&counted(i)).reduce((a,i)=>a+net(i),0);
 const dot=c=>`<i class="dot d-${c}" aria-hidden="true"></i>`;
 const row=o=>`<button type="button" class="row" data-act="${o.act}"${o.id?` data-id="${o.id}"`:""}${o.v?` data-v="${o.v}"`:""}>${dot(o.c)}<span class="rt">${o.title}</span>${o.meta!==undefined?`<span class="rm">${o.meta}</span>`:""}<span class="ra">${o.amt||""}</span><span class="rl l-${o.lc||o.c}">${o.label||""}</span></button>`;
 
@@ -160,9 +163,9 @@ function budgetRows(){
   const p=P(); if(!p) return [];
   return p.budget.map(b=>{
     const ws=PC().filter(w=>w.bkp===b.bkp), ids=ws.map(w=>w.id), inv=D.invoices.filter(i=>ids.includes(i.w));
-    const awarded=ws.reduce((a,w)=>a+w.sum,0), billed=inv.filter(counted).reduce((a,i)=>a+i.gross,0);
+    const awarded=ws.reduce((a,w)=>a+w.sum,0), billed=inv.filter(counted).reduce((a,i)=>a+net(i),0);
     const paid=inv.filter(i=>i.status==="bezahlt").reduce((a,i)=>a+payout(i),0), approved=inv.filter(i=>i.status==="frei").reduce((a,i)=>a+payout(i),0);
-    const open=inv.filter(i=>!counted(i)).reduce((a,i)=>a+i.gross,0), ret=inv.filter(counted).reduce((a,i)=>a+retention(i),0);
+    const open=inv.filter(i=>!counted(i)).reduce((a,i)=>a+net(i),0), ret=inv.filter(counted).reduce((a,i)=>a+retention(i),0);
     const forecast=Math.max(awarded,billed);
     return {b,awarded,billed,paid,approved,open,ret,rest:b.kv-forecast,over:b.kv>0&&forecast>b.kv};
   });
@@ -173,7 +176,7 @@ function flags(){
   D.events.filter(e=>e.pid===p.id).forEach(e=>out.push(e));
   PI().filter(i=>!counted(i)).forEach(i=>{
     const w=W(i.w),k=K(w.k);
-    if(w.sum>0){const over=r2(billedOn(w.id,i.id)+i.gross-w.sum);if(over>0)out.push({c:"warn",t:k.name,m:L("über Werkvertrag","above contract"),chf:over,act:"open-inv",id:i.id});}
+    if(w.sum>0){const over=r2(billedOn(w.id,i.id)+net(i)-w.sum);if(over>0)out.push({c:"warn",t:k.name,m:L("über Werkvertrag","above contract"),chf:over,act:"open-inv",id:i.id});}
     if(i.type==="regie") out.push({c:"warn",t:k.name,m:L("Regie ausserhalb Werkvertrag","time & materials outside contract"),chf:i.gross,act:"open-inv",id:i.id});
   });
   PC().forEach(w=>{const c=compare(w);if(c&&c.hasFinal&&c.newSum>0)out.push({c:"warn",t:K(w.k).name,m:L("nicht offerierte Positionen","items not in the offer"),chf:c.newSum,act:"open-cmp",id:w.id});});
@@ -286,7 +289,7 @@ function viewOverview(){
 
 function viewInvoices(){
   const p=P(); if(!p) return noProject();
-  const F=["pruefen","rueckfrage","frei","bezahlt","all"], all=PI();
+  const F=["pruefen","rueckfrage","frei","bezahlt","all"], all=PIx();
   const cnt=f=>f==="all"?all.length:all.filter(i=>i.status===f).length;
   const list=all.filter(i=>S.filter==="all"||i.status===S.filter).slice().sort((a,b)=>toDate(b.date)-toDate(a.date));
   const rows=list.map(i=>{const w=W(i.w),k=K(w.k);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:esc(k.name),meta:typeLabel(i)+" · "+esc(i.no),amt:chf(i.gross,false),label:stLabel(i.status)});}).join("");
@@ -339,11 +342,11 @@ function viewContractor(k){
     body=`<button type="button" class="back" data-act="back-w">← ${L("Alle Verträge","All contracts")}</button>
       <div class="ctx">${esc(PJ(w.pid).name)} · BKP ${w.bkp} ${esc(bName(w.bkp))}</div>${cmpBody(w)}`;
   } else if(S.ktab==="konto"){
-    const open=invOf(all).filter(i=>i.status!=="bezahlt").reduce((a,i)=>a+payout(i),0);
+    const open=invOf(all).filter(i=>i.status!=="bezahlt"&&live(i)).reduce((a,i)=>a+payout(i),0);
     const top=all.length?`<div class="total"><span>${L("Offen total","Open in total")}</span><span class="tv">${chf(open,false)}</span><span class="ts">${pids.length} ${pids.length===1?L("Baustelle","site"):L("Baustellen","sites")}</span></div>`:"";
     body=top+addHere+pids.map(pid=>{
       const ws=all.filter(w=>w.pid===pid),inv=invOf(ws),multi=ws.length>1;
-      const stats=ws.map(w=>{const iv=inv.filter(i=>i.w===w.id),billed=iv.filter(counted).reduce((a,i)=>a+i.gross,0),paid=iv.filter(i=>i.status==="bezahlt").reduce((a,i)=>a+payout(i),0),ret=iv.filter(counted).reduce((a,i)=>a+retention(i),0);
+      const stats=ws.map(w=>{const iv=inv.filter(i=>i.w===w.id),billed=iv.filter(counted).reduce((a,i)=>a+net(i),0),paid=iv.filter(i=>i.status==="bezahlt").reduce((a,i)=>a+payout(i),0),ret=iv.filter(counted).reduce((a,i)=>a+retention(i),0);
         return `${multi?`<div class="ctx">BKP ${w.bkp} ${esc(bName(w.bkp))}</div>`:""}<div class="stats">
         <button type="button" class="stat" data-act="form" data-f="contract" data-id="${k.id}" data-w="${w.id}"><span class="sl">${multi?"":"BKP "+w.bkp+" · "}${L("Werkvertrag","Contract")} · ${retPct(w)}% ${L("Rückbehalt","retention")}</span><span class="sv">${w.sum?chf(w.sum,false):"–"}</span><span class="ss">${L("abgerechnet","billed")} ${chf(billed,false)}</span></button>
         <div class="stat"><span class="sl">${L("Ausbezahlt","Paid out")}</span><span class="sv">${chf(paid,false)}</span><span class="ss">${iv.filter(i=>i.status==="bezahlt").length} ${L("Zahlungen","payments")}</span></div>
@@ -452,12 +455,12 @@ function checksFor(i){
   const w=W(i.w),k=K(w.k),out=[],m=missingOf(k);
   const blocking=m.filter(x=>x!==L("E-Mail","Email"));
   out.push(blocking.length?{s:"crit",t:L("Für die Zahlung fehlt: ","Missing for payment: ")+blocking.join(", "),fix:k.id}:m.length?{s:"warn",t:L("E-Mail für Rückfragen fehlt","Email for queries missing"),fix:k.id}:{s:"ok",t:L("Handwerkerdaten vollständig","Contractor details complete")});
-  if(w.sum>0){const after=billedOn(w.id,i.id)+i.gross;out.push({s:"ok",t:"BKP "+w.bkp+" "+bName(w.bkp)});out.push(after<=w.sum?{s:"ok",t:L("Im Werkvertrag: ","Within contract: ")+chf(after,false)+" / "+chf(w.sum,false)}:{s:"warn",t:L("Über Werkvertrag: +","Above contract: +")+chf(after-w.sum)});}
+  if(w.sum>0){const after=billedOn(w.id,i.id)+net(i);out.push({s:"ok",t:"BKP "+w.bkp+" "+bName(w.bkp)});out.push(after<=w.sum?{s:"ok",t:L("Im Werkvertrag: ","Within contract: ")+chf(after,false)+" / "+chf(w.sum,false)}:{s:"warn",t:L("Über Werkvertrag: +","Above contract: +")+chf(after-w.sum)});}
   else out.push({s:"warn",t:"BKP "+w.bkp+L(": keine Werkvertragssumme",": no contract sum")});
   if(i.type==="regie") out.push({s:"warn",t:L("Regie: Rapporte prüfen","Time & materials: check time sheets")});
   if(i.type==="schluss"){const c=compare(w);out.push(c&&c.hasFinal?{s:c.diff>0?"warn":"ok",t:L("Gegenüber Offerte: ","Against offer: ")+sgn(c.diff),link:w.id}:{s:"info",t:L("Offertvergleich: Schlussabrechnung laden","Offer comparison: load final account"),link:w.id});}
   if(i.type==="akonto"&&i.n>1){const have=new Set(D.invoices.filter(x=>x.w===w.id&&x.type==="akonto"&&x.id!==i.id).map(x=>x.n));const miss=[];for(let n=1;n<i.n;n++)if(!have.has(n))miss.push(n);if(miss.length)out.push({s:"warn",t:L("Akonto ","Progress payment ")+miss.join(", ")+L(" nicht erfasst"," not recorded")});}
-  const dup=i.ref&&D.invoices.some(x=>x.id!==i.id&&norm(x.ref)===norm(i.ref));
+  const dup=i.ref&&live(i)&&D.invoices.some(x=>x.id!==i.id&&live(x)&&norm(x.ref)===norm(i.ref));
   out.push(dup?{s:"crit",t:L("Mögliche Doppelrechnung","Possible duplicate")}:i.ref?{s:"ok",t:L("Keine Doppelrechnung","No duplicate")}:{s:"warn",t:L("Ohne QR-Referenz","No QR reference")});
   const dd=daysTo(i.due);if(dd<=7&&!counted(i))out.push({s:"warn",t:dd<0?L("Zahlungsfrist überschritten","Payment overdue"):L("Fällig in "+dd+" Tagen","Due in "+dd+" days")});
   return out;
@@ -487,20 +490,23 @@ function drawerHTML(i){
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px"><span class="big">${chf(i.gross)}</span><span class="l-${STATUS[i.status].c}">${stLabel(i.status)}</span></div>
       <div class="payline"><span>${L("Auszahlung","Payout")}</span><span>${chf(payout(i))}</span></div>
       ${done}
+      ${i.repl&&INV(i.repl)?`<div class="notice"><span class="ic info" aria-hidden="true">i</span><span>${L("Ersetzt durch Rechnung ","Replaced by invoice ")}<button type="button" class="ghost link" data-act="open-inv" data-id="${i.repl}">${esc(INV(i.repl).no)}</button>. ${L("Zählt nicht mehr.","No longer counted.")}</span></div>`:""}
+      ${i.replaces&&INV(i.replaces)?`<div class="notice"><span class="ic info" aria-hidden="true">i</span><span>${L("Ersetzt Rechnung ","Replaces invoice ")}<button type="button" class="ghost link" data-act="open-inv" data-id="${i.replaces}">${esc(INV(i.replaces).no)}</button></span></div>`:""}
       ${issues.length?`<ul class="checks" style="border-top:1px solid var(--line)">${issues.map(li).join("")}</ul>`:`<div class="notice"><span class="ic ok" aria-hidden="true">✓</span><span>${L("Alle Prüfungen in Ordnung","All checks passed")}</span></div>`}
-      <div class="calc"><span>${L("Rechnung","Invoice")}</span><span class="r">${nf2.format(i.gross)}</span><span>${retLine[0]}</span><span class="r">${retLine[1]}</span><span class="sum">${L("Auszahlung","Payout")}</span><span class="r sum">${chf(payout(i))}</span></div>
+      <div class="calc"><span>${L("Rechnung","Invoice")}</span><span class="r">${nf2.format(i.gross)}</span>${i.ded&&i.ded.amt?`<span>${L("Abzug","Deduction")} <span class="sp">· ${esc(i.ded.why)}</span></span><span class="r">− ${nf2.format(i.ded.amt)}</span>`:""}<span>${retLine[0]}</span><span class="r">${retLine[1]}</span><span class="sum">${L("Auszahlung","Payout")}</span><span class="r sum">${chf(payout(i))}</span></div>
       <div>
         ${oks.length&&issues.length?`<details><summary>${oks.length} ${oks.length===1?L("Prüfung in Ordnung","check passed"):L("Prüfungen in Ordnung","checks passed")}</summary><div class="in"><ul class="checks">${oks.map(li).join("")}</ul></div></details>`:""}
         <details><summary>${L("Zahlungsdaten","Payment details")}</summary><div class="in"><dl class="kv"><dt>IBAN</dt><dd>${k.iban?esc(k.iban):`<span class="neg">${L("fehlt","missing")}</span>`}</dd><dt>${L("Referenz","Reference")}</dt><dd>${i.ref?esc(i.ref):"–"}</dd><dt>${L("Fällig","Due")}</dt><dd>${fdate(i.due)}</dd></dl></div></details>
         ${log}
         ${S.queryOpen?`<details open><summary>${L("Rückfrage an ","Query to ")+esc(k.name)}</summary><div class="in" style="display:flex;flex-direction:column;gap:10px"><textarea id="qtext" aria-label="${L("Nachricht","Message")}">${esc(queryText(i))}</textarea><div class="qtools">${ib("copy",L("Kopieren","Copy"),'data-act="copy-query"')}${navigator.share?ib("share",L("Teilen (Mail, WhatsApp …)","Share (Mail, WhatsApp …)"),`data-act="share-query" data-id="${i.id}"`):""}${k.email?ib("mail",L("In Gmail öffnen","Open in Gmail"),`data-act="gmail-query" data-id="${i.id}"`):""}${k.email&&!navigator.share?`<a class="ib" title="${L("Im Mailprogramm öffnen","Open in mail app")}" aria-label="${L("Im Mailprogramm öffnen","Open in mail app")}" href="mailto:${esc(k.email)}?subject=${encodeURIComponent(L("Rechnung ","Invoice ")+i.no)}" data-act="mail-query">${ico("share")}</a>`:""}<span class="qsep"></span><button type="button" class="btn" data-act="mark-query" data-id="${i.id}">${L("Rückfrage gesendet","Query sent")}</button></div>${k.email?"":`<span class="hint">${L("Keine E-Mail-Adresse hinterlegt. Text kopieren und per Telefon oder WhatsApp senden, oder die E-Mail ergänzen.","No email on file. Copy the text and send it another way, or add the email.")}</span>`}</div></details>`:""}
       </div>
-      <div>${delBtn}</div>
+      ${i.status==="ersetzt"?"":`<div class="dtools">${!counted(i)?`<button type="button" class="ghost" data-act="form" data-f="ded" data-id="${i.id}">${i.ded?L("Abzug ändern","Edit deduction"):L("Abzug","Deduction")}</button><button type="button" class="ghost" data-act="replace" data-id="${i.id}">${L("Durch neue Rechnung ersetzen","Replace with new invoice")}</button>`:""}<span class="qsep"></span>${delBtn}</div>`}
     </div>
     ${actions?`<div class="ofoot">${actions}</div>`:""}
   </div>`;
 }
 const logInv=(i,t)=>{(i.log=i.log||[]).push({d:iso(new Date()),t});};
+function linkReplace(oldId,ni){const o=D.invoices.find(x=>x.id===oldId);if(!o)return;o.status="ersetzt";o.repl=ni.id;if(ni.w===o.w){ni.type=o.type;ni.n=o.n;}ni.replaces=o.id;logInv(o,L("Ersetzt durch ","Replaced by ")+ni.no);logInv(ni,L("Ersetzt Rechnung ","Replaces invoice ")+o.no);}
 
 /* ---------- QR-bill ---------- */
 function parseSPC(txt){
@@ -579,7 +585,7 @@ async function onScanFile(file){
 }
 function resolveCapture(d){
   const k=D.contractors.find(c=>(c.iban&&norm(c.iban)===norm(d.iban))||c.name.trim().toLowerCase()===d.name.trim().toLowerCase())||null;
-  const dup=D.invoices.find(x=>(d.ref&&x.ref&&norm(x.ref)===norm(d.ref))||(k&&d.no&&W(x.w).k===k.id&&x.no===d.no&&x.gross===d.amount))||null;
+  const dup=D.invoices.find(x=>live(x)&&!(S.modal&&S.modal.rep===x.id)&&((d.ref&&x.ref&&norm(x.ref)===norm(d.ref))||(k&&d.no&&W(x.w).k===k.id&&x.no===d.no&&x.gross===d.amount)))||null;
   return {k,dup,w:k?CW(k.id):null};
 }
 const bkpOptions=sel=>{const p=P();const own=p?p.budget.map(b=>[b.bkp,tx(b)]):[];const rest=STD_BKP.filter(s=>!own.some(o=>o[0]===s[0])).map(s=>[s[0],S.lang==="de"?s[1]:s[2]]);return own.concat(rest).map(([c,n])=>`<option value="${c}"${c===sel?" selected":""}>${c} ${esc(n)}</option>`).join("");};
@@ -588,7 +594,7 @@ function captureHTML(){
   if(!P()){
     body=`<div class="empty">${L("Bitte zuerst ein Projekt anlegen.","Please create a project first.")}<button type="button" class="btn primary" data-act="form" data-f="project">${L("Projekt anlegen","Create project")}</button></div>`;
   } else if(M.step===1){
-    body=`<div class="scanbox">
+    body=(M.rep&&INV(M.rep)?`<div class="notice"><span class="ic info" aria-hidden="true">i</span><span>${L("Neue Rechnung scannen. Sie ersetzt ","Scan the new invoice. It replaces ")}${esc(INV(M.rep).no)}.</span></div>`:"")+`<div class="scanbox">
       ${M.camErr?`<span class="err">${esc(M.camErr)}</span>`:`<div class="cam"><video id="camv" playsinline muted autoplay></video><div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div></div><span class="camhint" id="camhint">${M.busy?L("Foto wird gelesen …","Reading photo …"):L("QR-Code des Zahlteils in den Rahmen halten","Hold the payment part's QR code in the frame")}</span>`}
       ${M.err?`<span class="err">${esc(M.err)}</span>`:""}
       <label class="btn${M.camErr?" primary":""} block">${L("Foto aufnehmen oder wählen","Take or choose a photo")}<input type="file" id="scanIn" accept="image/*" aria-label="${L("Foto der QR-Rechnung","Photo of the QR-bill")}"></label>
@@ -638,7 +644,7 @@ function confirmCapture(){
   const n=type==="akonto"?(d.akN||D.invoices.filter(x=>x.w===w.id&&x.type==="akonto").length+1):0;
   const ni={id:newId("i"),no:d.no||L("ohne Nr.","no number"),w:w.id,type,n,date:d.date||iso(TODAY),due:d.due||addDays(d.date||iso(TODAY),30),gross:r2(d.amount),status:"pruefen",ref:d.ref||""};
   logInv(ni,L("Per QR erfasst","Captured via QR"));
-  D.invoices.push(ni);
+  D.invoices.push(ni);if(S.modal&&S.modal.rep)linkReplace(S.modal.rep,ni);
   if(type==="akonto")items.push(L("Rückbehalt ","Retention ")+nf2.format(retention(ni)));
   if(d.ref)items.push(L("Keine Doppelrechnung","No duplicate"));
   S.done={id:ni.id,items};S.modal=null;S.drawer=ni.id;S.queryOpen=false;render();
@@ -660,6 +666,8 @@ function formDef(){
       +fld("fNo",L("Rechnungsnummer","Invoice number"),"")+fld("fAmt",L("Betrag CHF","Amount CHF"),"",{mode:"decimal",req:true})+fld("fDate",L("Datum","Date"),iso(TODAY),{type:"date"})+fld("fDue",L("Fällig am","Due"),addDays(iso(TODAY),30),{type:"date"})+fld("fRef",L("Referenz (optional)","Reference (optional)"),"",{wide:true}),noSubmit:!ks.length};}
   if(F.f==="bkp"){return {title:L("BKP-Position hinzufügen","Add BKP item"),body:`<div class="f wide"><label for="fStd">${L("Position","Item")}</label><select id="fStd">${STD_BKP.filter(s=>!p.budget.some(b=>b.bkp===s[0])).map(s=>`<option value="${s[0]}">${s[0]} ${esc(S.lang==="de"?s[1]:s[2])}</option>`).join("")}<option value="_">${L("Eigene Position …","Custom item …")}</option></select></div>`+fld("fCode",L("Eigene: BKP-Nummer","Custom: BKP number"),"",{mode:"numeric"})+fld("fLabel",L("Eigene: Bezeichnung","Custom: name"),"")+fld("fKv",L("Kostenvoranschlag CHF","Cost estimate CHF"),"",{mode:"decimal",wide:true})};}
   if(F.f==="kv"){const b=B(F.id);return {title:"BKP "+b.bkp+" "+tx(b),body:fld("fLabel",L("Bezeichnung","Name"),tx(b),{wide:true})+fld("fKv",L("Kostenvoranschlag CHF","Cost estimate CHF"),b.kv||"",{mode:"decimal",wide:true}),del:!PC().some(w=>w.bkp===b.bkp)};}
+  if(F.f==="answer"){const i=INV(F.id);return {title:L("Antwort erhalten","Reply received"),body:`<div class="f wide"><label for="fNote">${L("Was war die Antwort?","What was the reply?")}</label><textarea id="fNote" rows="3" placeholder="${L("z. B. Rapporte erhalten, 6 h bestätigt","e.g. time sheets received, 6 h confirmed")}"></textarea><span class="hint">${L("Wird im Verlauf gespeichert. Die Rechnung ist danach wieder zu prüfen.","Saved in the history. The invoice goes back to review.")}</span></div>`};}
+  if(F.f==="ded"){const i=INV(F.id),d=i.ded||{};return {title:L("Abzug · ","Deduction · ")+i.no,body:fld("fDedAmt",L("Abzug CHF","Deduction CHF"),d.amt||"",{mode:"decimal",req:true})+`<div class="f wide"><label for="fDedWhy">${L("Begründung","Reason")}</label><textarea id="fDedWhy" rows="2" placeholder="${L("z. B. 2 h Regie nicht belegt","e.g. 2 h not supported by time sheets")}">${esc(d.why||"")}</textarea><span class="hint">${L("Rechnung ","Invoice ")}${nf2.format(i.gross)} · ${L("0 eingeben, um den Abzug zu entfernen.","Enter 0 to remove the deduction.")}</span></div>`};}
   if(F.f==="firm"){return {title:L("Büro","Office"),body:fld("fName",L("Firmenname","Company name"),D.firm.name,{wide:true,hint:L("Erscheint in Rückfragen an Handwerker.","Used in queries to contractors.")})};}
   return null;
 }
@@ -703,9 +711,9 @@ function submitForm(){
     if(!w) return fail(L("Handwerker wählen.","Choose a contractor."));
     if(!amt||amt<=0) return fail(L("Betrag eingeben.","Enter the amount."));
     const type=val("fType"),ref=val("fRef");
-    if(ref&&D.invoices.some(x=>x.ref&&norm(x.ref)===norm(ref))) return fail(L("Diese Referenz ist bereits erfasst (Doppelrechnung).","This reference is already recorded (duplicate)."));
+    if(ref&&D.invoices.some(x=>x.ref&&live(x)&&x.id!==F.rep&&norm(x.ref)===norm(ref))) return fail(L("Diese Referenz ist bereits erfasst (Doppelrechnung).","This reference is already recorded (duplicate)."));
     const ni={id:newId("i"),no:val("fNo")||L("ohne Nr.","no number"),w:w.id,type,n:type==="akonto"?D.invoices.filter(x=>x.w===w.id&&x.type==="akonto").length+1:0,date:val("fDate")||iso(TODAY),due:val("fDue")||addDays(iso(TODAY),30),gross:r2(amt),status:"pruefen",ref:ref?fmtRef(ref):""};
-    logInv(ni,L("Von Hand erfasst","Entered by hand"));D.invoices.push(ni);
+    logInv(ni,L("Von Hand erfasst","Entered by hand"));D.invoices.push(ni);if(F.rep)linkReplace(F.rep,ni);
     closeAll();S.drawer=ni.id;render();return toast(L("Rechnung erfasst","Invoice added"));
   }
   if(F.f==="bkp"){
@@ -722,6 +730,13 @@ function submitForm(){
     b.kv=r2(kv);const lab=val("fLabel");if(lab){if(S.lang==="de")b.de=lab;else b.en=lab;}
     closeAll();render();return toast(L("Gespeichert","Saved"));
   }
+  if(F.f==="answer"){const i=INV(F.id),note=(document.getElementById("fNote").value||"").trim();i.status="pruefen";logInv(i,L("Antwort erhalten","Reply received")+(note?": "+note:""));const id=i.id;closeAll();S.drawer=id;render();return toast(L("Wieder zu prüfen","Back to review"));}
+  if(F.f==="ded"){const i=INV(F.id),amt=num(val("fDedAmt")),why=(document.getElementById("fDedWhy").value||"").trim();
+    if(amt===null||amt<0) return fail(L("Betrag eingeben.","Enter an amount."));
+    if(amt>=i.gross) return fail(L("Der Abzug muss kleiner als die Rechnung sein.","The deduction must be less than the invoice."));
+    if(amt>0&&!why) return fail(L("Bitte kurz begründen.","Please give a short reason."));
+    if(amt>0){i.ded={amt:r2(amt),why};logInv(i,L("Abzug CHF ","Deduction CHF ")+nf2.format(r2(amt))+": "+why);}else if(i.ded){delete i.ded;logInv(i,L("Abzug entfernt","Deduction removed"));}
+    const id=i.id;closeAll();S.drawer=id;render();return toast(amt>0?L("Abzug gespeichert","Deduction saved"):L("Abzug entfernt","Deduction removed"));}
   if(F.f==="firm"){D.firm.name=val("fName");closeAll();render();return toast(L("Gespeichert","Saved"));}
 }
 function formDelete(){
@@ -935,9 +950,10 @@ document.addEventListener("click",e=>{
     case "gmail-query":{const q=document.getElementById("qtext"),inv=D.invoices.find(x=>x.id===id),k=inv&&K(W(inv.w).k);if(!k)break;window.open("https://mail.google.com/mail/?view=cm&fs=1&to="+encodeURIComponent(k.email)+"&su="+encodeURIComponent(L("Rechnung ","Invoice ")+inv.no)+"&body="+encodeURIComponent(q?q.value:""),"_blank","noopener");break;}
     case "mail-query":{const q=document.getElementById("qtext");if(q)el.href=el.href.split("&body=")[0]+"&body="+encodeURIComponent(q.value);break;}
     case "mark-query":{const i=INV(id);i.status="rueckfrage";logInv(i,L("Rückfrage gesendet","Query sent"));S.queryOpen=false;render();toast(L("Rückfrage gesendet · wartet auf Antwort","Query sent · waiting for reply"));break;}
-    case "answer":{const i=INV(id);i.status="pruefen";logInv(i,L("Antwort erhalten","Reply received"));render();toast(L("Wieder zu prüfen","Back to review"));break;}
+    case "answer":openForm("answer",id);break;
     case "capture":closeAll();S.modal={step:1,data:null,err:"",busy:false};renderOverlay();break;
-    case "manual":{closeAll();openForm("invoice");break;}
+    case "manual":{const rep=S.modal&&S.modal.rep,ro=rep&&INV(rep);closeAll();openForm("invoice",ro?W(ro.w).k:null);S.form.rep=rep||null;break;}
+    case "replace":{closeAll();S.modal={step:1,data:null,err:"",busy:false,rep:id};renderOverlay();break;}
     case "use-sample":stopCam();S.modal.data=Object.assign({},SAMPLE);S.modal.err="";S.modal.step=2;renderOverlay();break;
     case "to-step3":{const amt=num(document.getElementById("capAmt").value);if(!amt||amt<=0){S.modal.err=L("Betrag eingeben","Enter the amount");return renderOverlay();}
       S.modal.data.amount=r2(amt);S.modal.data.no=document.getElementById("capNo").value.trim();S.modal.err="";S.modal.step=3;if(resolveCapture(S.modal.data).dup)logDup();renderOverlay();break;}

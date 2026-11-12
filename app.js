@@ -476,6 +476,9 @@ function parseSPC(txt){
 }
 function swicoNo(b){if(!b)return "";const parts=b.slice(4).replace(/\\\//g,"\u0000").split("/").map(x=>x.replace(/\u0000/g,"/"));for(let i=0;i<parts.length-1;i++)if(parts[i]==="10")return parts[i+1].trim();return "";}
 function guessNo(d){const sw=swicoNo(d.bill);if(sw)return sw;const m=(d.msg||"").match(/(?:rechnungs?(?:nummer|nr\.?)?|rg\.?|re\.?|invoice(?:\s*no\.?)?|nr\.?)\s*(?:nr\.?|no\.?)?\s*[:#]?\s*(\d[A-Za-z0-9\-\/\.]{2,}|[A-Za-z]{1,4}[\-\.]?\d[A-Za-z0-9\-\/\.]*)/i);return m?m[1]:"";}
+function guessKind(d){const m=d.msg||"";let x=m.match(/akonto\s*(?:nr\.?|no\.?)?\s*(\d{1,2})/i);if(x)return {type:"akonto",n:+x[1]};if(/schluss/i.test(m))return {type:"schluss",n:0};if(/regie/i.test(m))return {type:"regie",n:0};if(/akonto/i.test(m))return {type:"akonto",n:0};return {type:"",n:0};}
+const BKP_KEYS=[["maler","285"],["elektr","230"],["sanitä","250"],["sanita","250"],["schrein","273"],["gipser","271"],["spengl","222"],["bedach","224"],["dach","224"],["heizung","240"],["lüftung","240"],["boden","281"],["küche","258"],["fenster","221"],["reinigung","287"],["baumeister","211"],["metallbau","272"],["holzbau","214"],["fassade","226"],["putz","226"]];
+function guessBkp(d){const t=((d.msg||"")+" "+(d.name||"")).toLowerCase();const h=BKP_KEYS.find(([k])=>t.includes(k));return h?h[1]:"";}
 let cam=null;
 async function startCam(){
   const M=S.modal; if(!M||M.step!==1||cam) return;
@@ -568,11 +571,11 @@ function captureHTML(){
       foot=`<button type="button" class="btn" data-act="open-inv" data-id="${R.dup.id}">${L("Öffnen","Open")}</button><button type="button" class="btn primary" data-act="close">OK</button>`;
     } else {
       title=R.k?esc(R.k.name):L("Neuer Handwerker","New contractor");
-      const nAk=R.w?D.invoices.filter(x=>x.w===R.w.id&&x.type==="akonto").length+1:1;
+      const G=guessKind(d),nAk=G.n||(R.w?D.invoices.filter(x=>x.w===R.w.id&&x.type==="akonto").length+1:1);d.akN=nAk;const so=v=>G.type===v?" selected":"";
       body=`<div class="fields">
         ${R.w?`<div class="f wide"><span class="l">${L("Werkvertrag","Contract")}</span><span class="v">BKP ${R.w.bkp} ${esc(bName(R.w.bkp))}${R.w.sum?" · "+chf(R.w.sum,false):""}</span></div>`
-          :`<div class="f wide"><label for="capBkp">BKP</label><select id="capBkp">${bkpOptions()}</select><span class="hint">${L("Werkvertragssumme können Sie später ergänzen.","You can add the contract sum later.")}</span></div>`}
-        <div class="f"><label for="capType">${L("Art","Type")}</label><select id="capType"><option value="akonto">${L("Akonto ","Progress payment ")+nAk}</option><option value="schluss">${L("Schlussrechnung","Final invoice")}</option><option value="regie">${L("Regie","Time & materials")}</option></select></div>
+          :`<div class="f wide"><label for="capBkp">BKP</label><select id="capBkp">${bkpOptions(guessBkp(d))}</select><span class="hint">${L("Werkvertragssumme können Sie später ergänzen.","You can add the contract sum later.")}</span></div>`}
+        <div class="f"><label for="capType">${L("Art","Type")}</label><select id="capType"><option value="akonto"${so("akonto")}>${L("Akonto ","Progress payment ")+nAk}</option><option value="schluss"${so("schluss")}>${L("Schlussrechnung","Final invoice")}</option><option value="regie"${so("regie")}>${L("Regie","Time & materials")}</option></select></div>
         <div class="f"><span class="l">${L("Betrag","Amount")}</span><span class="v">${chf(d.amount)}</span></div></div>`;
       foot=`<button type="button" class="btn primary" data-act="confirm-capture">${L("Übernehmen","Add invoice")}</button>`;
     }
@@ -590,7 +593,7 @@ function confirmCapture(){
   else{const add=[];if(!k.street&&d.street){k.street=d.street;k.zip=d.zip;k.city=d.city;add.push(L("Adresse","address"));}if(!k.iban&&d.iban){k.iban=d.iban;add.push("IBAN");}if(add.length)items.push(add.join(L(" und "," and "))+L(" ergänzt"," added"));}
   if(!w){const bkp=(document.getElementById("capBkp")||{}).value||"211";ensureBkp(bkp);w={id:newId("w"),pid:D.pid,k:k.id,bkp,sum:0,ret:10};D.contracts.push(w);}
   items.push("BKP "+w.bkp);
-  const n=type==="akonto"?D.invoices.filter(x=>x.w===w.id&&x.type==="akonto").length+1:0;
+  const n=type==="akonto"?(d.akN||D.invoices.filter(x=>x.w===w.id&&x.type==="akonto").length+1):0;
   const ni={id:newId("i"),no:d.no||L("ohne Nr.","no number"),w:w.id,type,n,date:iso(TODAY),due:addDays(iso(TODAY),30),gross:r2(d.amount),status:"pruefen",ref:d.ref||""};
   logInv(ni,L("Per QR erfasst","Captured via QR"));
   D.invoices.push(ni);

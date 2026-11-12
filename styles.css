@@ -356,3 +356,7 @@ details.site>summary .sc{white-space:nowrap;margin-left:0}
 .prow:not(.cur) .pname{padding-left:16px}
 .pdot{width:6px;height:6px;background:var(--mark);flex:none}
 .prow .pname:hover{color:var(--ink)}
+
+.firm[aria-current="page"]{color:var(--ink)}
+.sh .right{margin-left:auto}
+.topbar.home .tp .firm{display:none}

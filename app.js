@@ -13,7 +13,7 @@ const fdate=s=>{if(!s)return "–";const d=toDate(s);return String(d.getDate()).
 const daysTo=s=>Math.round((toDate(s)-TODAY)/86400000);
 
 /* ---------- text and numbers ---------- */
-const S={lang:"de",view:"uebersicht",filter:"pruefen",drawer:null,queryOpen:false,modal:null,sheet:null,form:null,confirm:null,
+const S={lang:"de",view:"buero",filter:"pruefen",drawer:null,queryOpen:false,modal:null,sheet:null,form:null,confirm:null,
   kid:null,wid:null,kOpen:null,ktab:"konto",cmpAll:false,tid:null,ttab:"verfahren",allFlags:false,done:null};
 const L=(de,en)=>S.lang==="de"?de:en;
 const nf2=new Intl.NumberFormat("de-CH",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -219,7 +219,7 @@ function docsOf(t){
 }
 
 /* ---------- chrome ---------- */
-const VIEWS=["uebersicht","rechnungen","handwerker","budget","ausschreibungen"];
+const VIEWS=["buero","uebersicht","rechnungen","handwerker","budget","ausschreibungen"];
 const NAV_ICO={
 uebersicht:'<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
 rechnungen:'<path d="M6.5 3h8l3.5 3.5V21h-11.5Z"/><path d="M14 3v4h4"/><path d="M9.5 11.5h5"/><path d="M9.5 15h5"/>',
@@ -227,15 +227,16 @@ handwerker:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20.5c.8-3.6 3.6-5.5 7-5.
 budget:'<path d="M4 20h16"/><path d="M7 20v-6"/><path d="M12 20V8"/><path d="M17 20v-9"/>',
 ausschreibungen:'<path d="M6 21V4"/><path d="M6 4h11l-2 4 2 4H6"/>'};
 const navIco=v=>`<svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICO[v]}</svg>`;
-const vName=v=>({uebersicht:L("Übersicht","Overview"),rechnungen:L("Rechnungen","Invoices"),handwerker:L("Handwerker","Contractors"),budget:"Budget",ausschreibungen:L("Ausschreibungen","Tenders")})[v];
+const vName=v=>({buero:L("Büro","Firm"),uebersicht:L("Übersicht","Overview"),rechnungen:L("Rechnungen","Invoices"),handwerker:L("Handwerker","Contractors"),budget:"Budget",ausschreibungen:L("Ausschreibungen","Tenders")})[v];
 const SCAN_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M8 8h3v3H8zM13 13h3v3h-3zM13 8h3M8 13v3"/></svg>';
 function renderChrome(){
   document.documentElement.lang=S.lang;
   const p=P();
   document.getElementById("railScan").textContent=L("Rechnung scannen","Scan invoice");
   document.getElementById("railProj").innerHTML=`<span class="l">${L("Projekt","Project")}</span><span class="n">${p?esc(p.name):L("Kein Projekt","No project")}</span>`;
-  document.getElementById("topProj").textContent=p?p.name:L("Kein Projekt","No project");
-  const fn=(D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name");["railFirm","topFirm"].forEach(id=>{const e=document.getElementById(id);if(e){e.textContent=fn;e.title=L("Büro bearbeiten","Edit firm");}});
+  document.getElementById("topProj").textContent=S.view==="buero"?L("Alle Projekte","All projects"):(p?p.name:L("Kein Projekt","No project"));
+  document.querySelector(".topbar").classList.toggle("home",S.view==="buero");
+  const fn=(D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name");["railFirm","topFirm"].forEach(id=>{const e=document.getElementById(id);if(e){e.textContent=fn;e.title=L("Alle Projekte","All projects");e.setAttribute("aria-current",S.view==="buero"?"page":"false");}});
   document.getElementById("railData").textContent=L("Daten und Sicherung","Data and backup");
   document.querySelectorAll(".lang button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.l===S.lang)));
   const nb=v=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span></button>`;
@@ -270,6 +271,25 @@ function viewWelcome(){
   </div></div>`;
 }
 
+const withP=(pid,fn)=>{const o=D.pid;D.pid=pid;try{return fn();}finally{D.pid=o;}};
+function viewFirm(){
+  const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
+  const ps=D.projects.map(p=>withP(p.id,()=>{const chk=PI().filter(i=>!counted(i));return {p,n:chk.length,sum:chk.reduce((a,i)=>a+net(i),0),fl:flags().length};}));
+  const tot=ps.reduce((a,x)=>a+x.sum,0),nChk=ps.reduce((a,x)=>a+x.n,0),nFl=ps.reduce((a,x)=>a+x.fl,0);
+  const tOpen=D.tenders.filter(x=>!closedT(x)&&fitOf(x).fit!=="no"&&daysTo(x.due)>=0).length;
+  const parts=x=>[x.n?x.n+" "+L("zu prüfen","to check"):"",x.fl?x.fl+" "+L("gefunden","found"):""].filter(Boolean).join(" · ")||L("nichts offen","nothing open");
+  const rows=ps.map(x=>row({act:"open-project",id:x.p.id,c:x.fl?"warn":x.n?"n":"ok",title:esc(x.p.name),meta:(x.p.place?esc(x.p.place)+" · ":"")+parts(x),amt:x.sum?chf(x.sum,false):"",label:""})).join("");
+  const name=(D.firm&&D.firm.name)||L("Ihr Büro","Your firm");
+  return `<div class="page">
+    ${ph(esc(today),esc(name),"",ib("edit",L("Büro bearbeiten","Edit firm"),'data-act="form" data-f="firm"'))}
+    <div class="stats">
+      <div class="stat"><span class="sl">${L("Zu prüfen","To check")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${nChk} ${nChk===1?L("Rechnung","invoice"):L("Rechnungen","invoices")}</span></div>
+      <div class="stat"><span class="sl">${L("Von arkitecton gefunden","Found by arkitecton")}</span><span class="sv${nFl?" warn":""}">${nFl}</span><span class="ss">${L("in allen Projekten","across all projects")}</span></div>
+      <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tOpen}</span><span class="ss">${L("offen","open")}</span></button>
+    </div>
+    <section><div class="sh"><h2>${L("Projekte","Projects")}</h2><span class="cnt">${ps.length}</span><span class="right">${ib("plus",L("Neues Projekt","New project"),'data-act="form-project"')}</span></div><div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div></section>
+  </div>`;
+}
 function viewOverview(){
   const p=P(); if(!p) return noProject();
   const t=totals(budgetRows());
@@ -455,7 +475,7 @@ function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]
   }
   app.style.display="";document.querySelector(".rail").style.display="";document.querySelector(".topbar").style.display="";document.getElementById("tabbar").style.display="";
   renderChrome();
-  document.getElementById("main").innerHTML=({uebersicht:viewOverview,rechnungen:viewInvoices,handwerker:viewContractors,budget:viewBudget,ausschreibungen:viewTenders})[S.view]();
+  document.getElementById("main").innerHTML=({buero:viewFirm,uebersicht:viewOverview,rechnungen:viewInvoices,handwerker:viewContractors,budget:viewBudget,ausschreibungen:viewTenders})[S.view]();
   renderOverlay();
 }
 
@@ -979,6 +999,8 @@ document.addEventListener("click",e=>{
     case "form-project-edit":openForm("project",id);break;
     case "form-firm":openForm("firm");break;
     case "form-del":formDelete();break;
+    case "open-project":D.pid=id;S.kid=null;go("uebersicht");break;
+    case "home":go("buero");break;
     case "pick-project":D.pid=id;closeAll();S.kid=null;render();toast(P().name);break;
     case "ask":S.confirm=el.dataset.c;renderOverlay();break;
     case "reset-ex":D=seedExample();closeAll();S.view="uebersicht";S.kid=null;S.tid=null;render();toast(L("Beispieldaten geladen","Example data loaded"));break;

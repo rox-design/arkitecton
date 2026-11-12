@@ -275,3 +275,12 @@ textarea{width:100%;min-height:170px;border:1px solid var(--line);background:tra
 .danger{color:var(--crit)!important}
 .btn.danger{border-color:var(--crit)}
 .row .rt small{color:var(--muted);margin-left:8px;font-size:.86rem}
+
+/* fixes 2026-11-12 */
+.in .checks li:last-child{border-bottom:0}
+.payline{display:flex;justify-content:space-between;align-items:baseline;margin-top:-18px;color:var(--muted)}
+.payline span:last-child{color:var(--ink);font-weight:500}
+.btn.primary:disabled{opacity:.45}
+@media (max-width:820px){input,select,textarea,.f input,.f select{font-size:16px}}
+.hint{font-size:.82rem;color:var(--muted)}
+@media (hover:none){.btn.primary:hover{opacity:1}.btn:hover{border-color:var(--line)}.row:hover{background:none}.x:hover{background:none}}

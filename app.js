@@ -580,7 +580,7 @@ function captureHTML(){
       title=esc(R.k?R.k.name:d.name);
       const G=guessKind(d),nAk=G.n||(R.w?D.invoices.filter(x=>x.w===R.w.id&&x.type==="akonto").length+1:1);d.akN=nAk;const so=v=>G.type===v?" selected":"";
       body=`<div class="fields">
-        <div class="f wide"><span class="l">${L("Handwerker","Contractor")}</span><span class="v">${R.k?L("Bereits erfasst","Already on file"):L("Neu, wird angelegt","New, will be added")}${d.street||d.city?` · ${esc([d.street,[d.zip,d.city].filter(Boolean).join(" ")].filter(Boolean).join(", "))}`:""}</span></div>
+        ${(()=>{const src=R.k||d,adr=[src.street,[src.zip,src.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");return `<div class="f wide"><span class="l">${L("Adresse","Address")}</span><span class="v">${adr?esc(adr):"–"}</span>${R.k?"":`<span class="hint">${L("Wird neu angelegt","Will be added as new contractor")}</span>`}</div>`;})()}
         ${R.w?`<div class="f wide"><span class="l">${L("Werkvertrag","Contract")}</span><span class="v">BKP ${R.w.bkp} ${esc(bName(R.w.bkp))}${R.w.sum?" · "+chf(R.w.sum,false):""}</span></div>`
           :`<div class="f wide"><label for="capBkp">BKP</label><select id="capBkp">${bkpOptions(guessBkp(d))}</select><span class="hint">${L("Werkvertragssumme können Sie später ergänzen.","You can add the contract sum later.")}</span></div>`}
         <div class="f"><label for="capType">${L("Art","Type")}</label><select id="capType"><option value="akonto"${so("akonto")}>${L("Akonto ","Progress payment ")+nAk}</option><option value="schluss"${so("schluss")}>${L("Schlussrechnung","Final invoice")}</option><option value="regie"${so("regie")}>${L("Regie","Time & materials")}</option></select></div>

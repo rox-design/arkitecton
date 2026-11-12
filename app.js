@@ -290,7 +290,7 @@ function viewOverview(){
     </div>
     <section><div class="sh"><h2>${L("Zu erledigen","To do")}</h2><span class="cnt">${toCheck.length+tTodo.length}</span></div><div class="rows">${todo||`<div class="empty">${L("Alles erledigt.","All done.")}</div>`}</div></section>
     <section id="flags"><div class="sh"><h2>${L("Gefunden","Found")}</h2><span class="cnt">${fl.length}</span></div><div class="rows">${flagRows||`<div class="empty">${L("Nichts Auffälliges.","Nothing unusual.")}</div>`}</div>
-      ${fl.length>3?`<button type="button" class="more" data-act="all-flags">${S.allFlags?L("Weniger anzeigen","Show less"):L("Alle "+fl.length+" anzeigen","Show all "+fl.length)}</button>`:""}</section>
+      ${fl.length>3?`<button type="button" class="more" data-act="all-flags">${S.allFlags?L("Weniger anzeigen","Show less"):L("Alle anzeigen","Show all")}</button>`:""}</section>
   </div>`;
 }
 

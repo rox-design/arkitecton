@@ -309,6 +309,16 @@ const firmMissing=()=>{const f=D.firm||{},m=[];if(!f.name)m.push(L("Name","name"
 const nextFeeNo=()=>{const y=TODAY.getFullYear(),n=FEES().filter(f=>String(f.no).startsWith(y+"-")).reduce((a,f)=>Math.max(a,parseInt(String(f.no).slice(5),10)||0),0)+1;return y+"-"+String(n).padStart(3,"0");};
 const splitStreet=s=>{const m=String(s||"").trim().match(/^(.*?)\s+(\d+\s?[a-zA-Z]?)$/);return m?[m[1],m[2].replace(/\s/g,"")]:[String(s||"").trim(),""];};
 
+function addDemoFees(){const pidKeep=D.pid;if(!D.projects.some(p=>p.id===D.pid)&&D.projects[0])D.pid=D.projects[0].id;
+
+      const F=D.firm;if(!F.street){Object.assign(F,{street:"Zugerstrasse 18",zip:"8820",city:"Wädenswil"});}if(!ibanValid(F.iban||"")){F.iban="CH6700700110004357712";}if(!F.email)F.email="info@beispiel-architekten.example";if(!F.phone)F.phone="044 780 12 34";if(F.vat===undefined){F.vat=true;F.vatNo="CHE-123.456.788 MWST";}
+      const p=P();if(p&&!p.ccity){Object.assign(p,{cstreet:p.cstreet||"Rebhalde 5",czip:"8820",ccity:p.place||"Wädenswil",client:p.client||"Familie Graf"});}
+      const ad=n=>iso(new Date(TODAY.getTime()+n*864e5));
+      const mk=(no,days,title,lines,paid)=>{const r=makeRef(no),f={id:newId("h"),pid:D.pid,no,date:ad(days),title,lines,vat:!!F.vat,refType:r.type,ref:r.ref,rem:[],paid:paid?ad(paid):null,log:[{d:ad(days),t:L("Erstellt","Created")}]};if(paid)f.log.push({d:ad(paid),t:L("Zahlung eingegangen","Payment received")});FEES().push(f);};
+      mk("2026-011",-150,L("Honorar Akonto 1, Vorprojekt","Fee progress payment 1"),[{t:L("Akonto 1, Phase Vorprojekt","Progress payment 1"),q:1,u:L("pauschal","lump sum"),p:24000}],-122);
+      mk("2026-014",-66,L("Honorar Akonto 2, Bauprojekt","Fee progress payment 2"),[{t:L("Akonto 2, Phase Bauprojekt","Progress payment 2"),q:1,u:L("pauschal","lump sum"),p:31000}],0);
+      mk("2026-017",-12,L("Honorar Bauleitung Oktober","Site supervision October"),[{t:L("Bauleitung","Site supervision"),q:38,u:"h",p:145},{t:L("Nebenkosten, Fahrten","Expenses, travel"),q:1,u:L("pauschal","lump sum"),p:240}],0);
+      D.pid=pidKeep;}
 function viewFees(){
   const list=PF().slice().sort((a,b)=>toDate(b.date)-toDate(a.date));
   const open=list.filter(f=>!f.paid),sum=open.reduce((a,f)=>a+feeTotal(f),0),due=list.filter(f=>remDue(f)).length;
@@ -1201,15 +1211,7 @@ document.addEventListener("click",e=>{
     case "fee-unpaid":{const f=FE(id);f.paid=null;logInv(f,L("Zahlung zurückgenommen","Payment undone"));render();break;}
     case "fee-pdf":{const f=FE(id);feePDF(f,0).then(()=>{if(!(f.log||[]).some(x=>x.t===L("PDF erstellt","PDF created"))){logInv(f,L("PDF erstellt","PDF created"));render();}}).catch(()=>toast(L("PDF konnte nicht erstellt werden","Could not create PDF")));break;}
     case "fee-remind":{const f=FE(id),n=remDue(f);if(!n)break;feePDF(f,n).then(()=>{(f.rem=f.rem||[]).push({n,d:iso(TODAY)});logInv(f,remName(n)+L(" erstellt"," created"));render();toast(remName(n)+L(" erstellt"," created"));}).catch(()=>toast(L("PDF konnte nicht erstellt werden","Could not create PDF")));break;}
-    case "fee-demo":{
-      const F=D.firm;if(!F.street){Object.assign(F,{street:"Zugerstrasse 18",zip:"8820",city:"Wädenswil"});}if(!ibanValid(F.iban||"")){F.iban="CH6700700110004357712";}if(!F.email)F.email="info@beispiel-architekten.example";if(!F.phone)F.phone="044 780 12 34";if(F.vat===undefined){F.vat=true;F.vatNo="CHE-123.456.788 MWST";}
-      const p=P();if(p&&!p.ccity){Object.assign(p,{cstreet:p.cstreet||"Rebhalde 5",czip:"8820",ccity:p.place||"Wädenswil",client:p.client||"Familie Graf"});}
-      const ad=n=>iso(new Date(TODAY.getTime()+n*864e5));
-      const mk=(no,days,title,lines,paid)=>{const r=makeRef(no),f={id:newId("h"),pid:D.pid,no,date:ad(days),title,lines,vat:!!F.vat,refType:r.type,ref:r.ref,rem:[],paid:paid?ad(paid):null,log:[{d:ad(days),t:L("Erstellt","Created")}]};if(paid)f.log.push({d:ad(paid),t:L("Zahlung eingegangen","Payment received")});FEES().push(f);};
-      mk("2026-011",-150,L("Honorar Akonto 1, Vorprojekt","Fee progress payment 1"),[{t:L("Akonto 1, Phase Vorprojekt","Progress payment 1"),q:1,u:L("pauschal","lump sum"),p:24000}],-122);
-      mk("2026-014",-66,L("Honorar Akonto 2, Bauprojekt","Fee progress payment 2"),[{t:L("Akonto 2, Phase Bauprojekt","Progress payment 2"),q:1,u:L("pauschal","lump sum"),p:31000}],0);
-      mk("2026-017",-12,L("Honorar Bauleitung Oktober","Site supervision October"),[{t:L("Bauleitung","Site supervision"),q:38,u:"h",p:145},{t:L("Nebenkosten, Fahrten","Expenses, travel"),q:1,u:L("pauschal","lump sum"),p:240}],0);
-      render();toast(L("3 Beispielrechnungen angelegt","3 example invoices added"));break;}
+    case "fee-demo":{addDemoFees();render();toast(L("3 Beispielrechnungen angelegt","3 example invoices added"));break;}
     case "fee-del":{D.fees=FEES().filter(x=>x.id!==id);closeAll();render();toast(L("Rechnung gelöscht","Invoice deleted"));break;}
     case "logo-del":readFirmForm();delete D.firm.logo;renderOverlay();break;
     case "jump-flags":{const f=document.getElementById("flags");if(f)f.scrollIntoView({behavior:"smooth",block:"start"});break;}
@@ -1277,6 +1279,7 @@ window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(D&&v
 
 try{const l=localStorage.getItem("arkitecton:lang");if(l==="de"||l==="en")S.lang=l;}catch(e){}
 D=loadData();
+if(D&&D.example){D.mig=D.mig||{};if(!D.mig.fees){if(!(D.fees||[]).length)addDemoFees();D.mig.fees=1;}}
 const h0=location.hash.slice(1);if(VIEWS.includes(h0))S.view=h0;
 render();
 window.__ark={get D(){return D;},S,compare,budgetRows,totals,retention,payout,parseSPC,parseLines,flags};

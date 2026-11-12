@@ -250,7 +250,8 @@ share:'<path d="M12 3v12"/><path d="m7.5 7.5 4.5-4.5 4.5 4.5"/><path d="M5 12v6.
 mail:'<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/>',
 edit:'<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="m14 7 3 3"/>',
 trash:'<path d="M4 7h16"/><path d="M9 7V4.5h6V7"/><path d="M6.5 7l1 13h9l1-13"/>',
-flag:'<path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/>'};
+flag:'<path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/>',
+plus:'<path d="M12 5v14"/><path d="M5 12h14"/>'};
 const ico=n=>`<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[n]}</svg>`;
 const ib=(n,label,attrs)=>`<button type="button" class="ib" title="${label}" aria-label="${label}" ${attrs||""}>${ico(n)}</button>`;
 const excelBtn=key=>`<button type="button" class="btn" data-act="sheet" data-k="${key}">Excel</button>`;
@@ -673,7 +674,7 @@ function logDup(){const M=S.modal;if(!M||M.logged||!M.data)return;M.logged=true;
 const fld=(id,label,val,o={})=>`<div class="f${o.wide?" wide":""}"><label for="${id}">${label}</label><input id="${id}" name="${id}" value="${esc(val==null?"":val)}"${o.type?` type="${o.type}"`:""}${o.mode?` inputmode="${o.mode}"`:""}${o.req?" required":""}${o.ph?` placeholder="${esc(o.ph)}"`:""}>${o.hint?`<span class="hint">${o.hint}</span>`:""}</div>`;
 function formDef(){
   const F=S.form, p=P();
-  if(F.f==="project"){const x=F.id?D.projects.find(q=>q.id===F.id):{};return {title:F.id?L("Projekt bearbeiten","Edit project"):L("Neues Projekt","New project"),body:fld("fName",L("Projektname","Project name"),x.name,{wide:true,req:true,ph:"MFH Seestrasse 12"})+fld("fPlace",L("Ort","Place"),x.place)+fld("fClient",L("Bauherrschaft","Client"),x.client)+fld("fDesc",L("Beschreibung","Description"),x.desc,{wide:true,ph:L("Neubau, 8 Wohnungen","New build, 8 flats")})};}
+  if(F.f==="project"){const x=F.id?D.projects.find(q=>q.id===F.id):{};return {title:F.id?L("Projekt bearbeiten","Edit project"):L("Neues Projekt","New project"),body:fld("fName",L("Projektname","Project name"),x.name,{wide:true,req:true,ph:L("z. B. EFH Bergstrasse 4","e.g. Bergstrasse 4 house")})+fld("fPlace",L("Ort","Place"),x.place,{ph:L("z. B. Horgen","e.g. Horgen")})+fld("fClient",L("Bauherrschaft","Client"),x.client)+fld("fDesc",L("Beschreibung","Description"),x.desc,{wide:true,ph:L("z. B. Umbau Einfamilienhaus","e.g. house conversion")})};}
   if(F.f==="contractor"){const x=F.id?K(F.id):{};return {title:F.id?L("Handwerker bearbeiten","Edit contractor"):L("Neuer Handwerker","New contractor"),body:fld("fName",L("Firma","Company"),x.name,{wide:true,req:true})+fld("fStreet",L("Strasse","Street"),x.street,{wide:true})+fld("fZip",L("PLZ","ZIP"),x.zip,{mode:"numeric"})+fld("fCity",L("Ort","City"),x.city)+fld("fIban","IBAN",x.iban,{wide:true})+fld("fEmail",L("E-Mail","Email"),x.email,{type:"email"})+fld("fPhone",L("Telefon","Phone"),x.phone,{type:"tel"}),del:F.id&&!D.contracts.some(w=>w.k===F.id)};}
   if(F.f==="contract"){const k=K(F.id),w=(F.w&&W(F.w))||{};return {title:L("Werkvertrag · ","Contract · ")+k.name,body:`<div class="f wide"><label for="fBkp">BKP</label><select id="fBkp">${bkpOptions(w.bkp)}</select></div>`+fld("fSum",L("Werkvertragssumme CHF","Contract sum CHF"),w.sum||"",{mode:"decimal",req:true})+fld("fRet",L("Rückbehalt %","Retention %"),w.ret!=null?w.ret:10,{mode:"decimal"}),del:w.id&&!D.invoices.some(i=>i.w===w.id)};}
   if(F.f==="invoice"){
@@ -803,7 +804,14 @@ function kvHTML(){
     <div class="obody"><div class="calc kvx">${rows}</div></div>
     <div class="ofoot"><button type="button" class="btn" data-act="kv-budget" data-id="${esc(r.b.bkp)}">${L("Budget","Budget")}</button>${cmpBtns}</div></div>`;
 }
+function projectsHTML(){
+  const rows=D.projects.map(p=>{const cur=p.id===D.pid;return `<div class="prow${cur?" cur":""}"><button type="button" class="pname" data-act="pick-project" data-id="${p.id}" data-c="${p.id}">${cur?'<i class="pdot" aria-hidden="true"></i>':""}<span>${esc(p.name)}</span>${p.place?`<span class="sp">· ${esc(p.place)}</span>`:""}</button>${cur?ib("edit",L("Projekt bearbeiten","Edit project"),`data-act="form-project-edit" data-id="${p.id}" data-c="${p.id}"`):""}</div>`;}).join("");
+  return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pT">
+    <div class="ohead"><h2 id="pT" style="font-size:1.25rem;font-weight:500">${L("Projekte","Projects")}</h2><div class="hact">${ib("plus",L("Neues Projekt","New project"),'data-act="form-project"')}<button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div></div>
+    <div class="obody"><div class="plist">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div></div></div>`;
+}
 function sheetHTML(){
+  if(S.sheet==="projects") return projectsHTML();
   const d=sheetDef(S.sheet);if(!d)return "";
   const items=d.groups.filter(g=>g[1].length).map(([g,list])=>(g?`<div class="grp">${g}</div>`:"")+list.map(x=>x.imp
     ?`<label class="mi"><span>${esc(x.label)}</span><span class="k">${x.acc===".json"?".json ↑":".xlsx ↑"}</span><input type="file" accept="${x.acc||".xlsx,.xls,.csv"}" data-imp="${x.imp}"${x.id?` data-id="${x.id}"`:""} aria-label="${esc(x.label)}"></label>`

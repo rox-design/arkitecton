@@ -478,7 +478,8 @@ function guessNo(d){const m=(d.msg||"").match(/(?:rechnung|rg\.?|re\.?|invoice|n
 let cam=null;
 async function startCam(){
   const M=S.modal; if(!M||M.step!==1||cam) return;
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||typeof jsQR!=="function"){M.camErr=L("Live-Kamera hier nicht verfügbar. Bitte ein Foto aufnehmen.","Live camera not available here. Please take a photo.");return renderOverlay();}
+  if(typeof jsQR!=="function"){M.camErr=L("Der QR-Leser wurde nicht geladen. Bitte die Seite neu laden.","The QR reader did not load. Please reload the page.");return renderOverlay();}
+  if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){M.camErr=L("Live-Kamera hier nicht verfügbar. Bitte ein Foto aufnehmen.","Live camera not available here. Please take a photo.");return renderOverlay();}
   try{
     const stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}});
     if(!S.modal||S.modal.step!==1){stream.getTracks().forEach(t=>t.stop());return;}

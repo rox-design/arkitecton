@@ -308,6 +308,7 @@ function viewContractor(k){
         <div class="stat"><span class="sl">${L("Ausbezahlt","Paid out")}</span><span class="sv">${chf(paid,false)}</span><span class="ss">${inv.filter(i=>i.status==="bezahlt").length} ${L("Zahlungen","payments")}</span></div>
         <div class="stat"><span class="sl">${L("Rückbehalt","Retention")}</span><span class="sv">${chf(ret,false)}</span><span class="ss">${L("bis Schlusszahlung","until final payment")}</span></div>
       </div>
+      ${(()=>{const c=compare(w);return `<section><div class="sh"><h2>${L("Offerte und Abrechnung","Offer and final account")}</h2></div><div class="rows">${row({act:"to-cmp",lc:"n",c:c?(c.hasFinal?(c.diff>0?"warn":"ok"):"n"):"warn",title:c?L("Offerte","Offer")+" "+chf(c.ot,false):L("Noch keine Offerte","No offer yet"),meta:c?(c.hasFinal?L("Schlussabrechnung ","Final account ")+chf(c.ft,false):L("Schlussabrechnung fehlt","Final account missing")):L("Hochladen und vergleichen","Upload and compare"),amt:c&&c.hasFinal?sgn(c.diff):"",label:L("Öffnen →","Open →")})}</div></section>`;})()}
       <section><div class="sh"><h2>${L("Rechnungen","Invoices")}</h2><span class="cnt">${inv.length}</span><button type="button" class="add" data-act="form" data-f="invoice" data-id="${k.id}">${L("+ Erfassen","+ Add")}</button></div><div class="rows">${inv.map(i=>row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:typeLabel(i),meta:esc(i.no)+" · "+fdate(i.date),amt:chf(i.gross,false),label:stLabel(i.status)})).join("")||`<div class="empty">${L("Noch keine Rechnungen.","No invoices yet.")}</div>`}</div></section>`;
   } else {
     const c=compare(w);
@@ -399,7 +400,7 @@ function viewTender(t){
   </div>`;
 }
 
-function render(){
+function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
   saveData();
   const app=document.getElementById("app");
   if(!D){
@@ -731,7 +732,7 @@ function sheetHTML(){
     <div class="obody"><div class="menu">${items}</div>${d.note?`<span class="fine" style="color:var(--faint);font-size:.82rem">${esc(d.note)}</span>`:""}</div></div>`;
 }
 
-function renderOverlay(){
+function renderOverlay(){queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
   const o=document.getElementById("overlay");let h="";
   if(S.form) h=formHTML(); else if(S.modal) h=captureHTML(); else if(S.sheet) h=sheetHTML(); else if(S.drawer&&INV(S.drawer)) h=drawerHTML(INV(S.drawer));
   o.innerHTML=h;o.classList.toggle("on",!!h);
@@ -828,7 +829,7 @@ const EXPORT={
     wbSave("Budget-BKP-"+pslug()+".xlsx",[{name:"Budget BKP",widths:[8,30,18,14,14,14,14,14,14],rows:headRows(L("Budget nach BKP","Budget by BKP")).concat([["BKP",L("Arbeitsgattung","Trade"),L("Kostenvoranschlag","Estimate"),L("Vergeben","Awarded"),L("Abgerechnet","Billed"),L("Ausbezahlt","Paid out"),L("Rückbehalt","Retention"),L("Zu prüfen","To check"),L("Rest","Remaining")]],body)}]);},
   "x-invoices"(){wbSave("Rechnungen-"+pslug()+".xlsx",[{name:L("Rechnungen","Invoices"),widths:[16,26,7,18,12,12,14,14,14,14,34],rows:headRows(L("Rechnungsliste","Invoice list")).concat(invRows(PI().slice().sort((a,b)=>toDate(a.date)-toDate(b.date)),true))}]);},
   "x-contractors"(){wbSave("Handwerkerliste.xlsx",[{name:L("Handwerker","Contractors"),widths:[28,26,8,18,30,34,16],rows:[[L("Firma","Company"),L("Strasse","Street"),L("PLZ","ZIP"),L("Ort","City"),"IBAN",L("E-Mail","Email"),L("Telefon","Phone")]].concat(D.contractors.map(k=>[k.name,k.street,k.zip,k.city,k.iban,k.email,k.phone]))}]);},
-  "x-template"(){wbSave("Vorlage-Offerte.xlsx",[{name:L("Offerte","Offer"),widths:[6,40,10,10,14],rows:[["Pos",L("Beschreibung","Description"),L("Einheit","Unit"),L("Menge","Quantity"),L("Einheitspreis","Unit price")],["1",L("Wände streichen, 2 Anstriche","Painting walls, 2 coats"),"m²",100,14]]}]);},
+  "x-template"(){wbSave("Vorlage-Offerte.xlsx",[{name:L("Offerte","Offer"),widths:[6,40,10,10,14],rows:[["Pos",L("Beschreibung","Description"),L("Einheit","Unit"),L("Menge","Quantity"),L("Einheitspreis","Unit price")]]}]);},
   "x-dossier"(id){const k=K(id),w=CW(id);if(!w)return toast(L("Kein Werkvertrag","No contract"));
     const inv=D.invoices.filter(i=>i.w===w.id).sort((a,b)=>toDate(a.date)-toDate(b.date)),c=compare(w);
     const info=headRows(L("Dossier ","File ")+k.name).concat([[L("Adresse","Address"),[k.street,k.zip,k.city].filter(Boolean).join(", ")],["IBAN",k.iban],[L("E-Mail","Email"),k.email],[L("Werkvertrag","Contract"),"BKP "+w.bkp+" "+bName(w.bkp)],[L("Werkvertragssumme CHF","Contract sum CHF"),w.sum],[L("Rückbehalt %","Retention %"),retPct(w)],[]]);
@@ -870,6 +871,7 @@ document.addEventListener("click",e=>{
     case "open-cmp":S.kid=id;S.ktab="vergleich";go("handwerker");S.kid=id;render();break;
     case "back-k":S.kid=null;render();break;
     case "ktab":S.ktab=el.dataset.t;render();break;
+    case "to-cmp":S.ktab="vergleich";render();break;
     case "cmp-all":S.cmpAll=!S.cmpAll;render();break;
     case "open-t":go("ausschreibungen");S.tid=id;render();break;
     case "back-t":S.tid=null;render();break;

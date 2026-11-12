@@ -233,7 +233,7 @@ function renderChrome(){
   const nb=v=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${vName(v)}</button>`;
   document.getElementById("nav").innerHTML=["uebersicht","rechnungen","handwerker","budget"].map(nb).join("")+'<div class="sep"></div>'+nb("ausschreibungen");
   const tb=(v,l)=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${l}</button>`;
-  document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Heute","Today"))+tb("rechnungen",L("Rechnungen","Invoices"))+`<button type="button" class="fab" data-act="capture" aria-label="${L("Rechnung scannen","Scan invoice")}">${SCAN_ICON}</button>`+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget");
+  document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Übersicht","Overview"))+tb("rechnungen",L("Rechnungen","Invoices"))+`<button type="button" class="fab" data-act="capture" aria-label="${L("Rechnung scannen","Scan invoice")}">${SCAN_ICON}</button>`+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget");
 }
 const ph=(eyebrow,title,lead,tools)=>`<header class="ph"><span class="eyebrow">${eyebrow}</span><h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;
 const ICO={
@@ -789,11 +789,11 @@ function kvHTML(){
   else{ws.forEach(w=>{rows+=line(L("Werkvertrag ","Contract ")+esc(K(w.k).name),nfq.format(w.sum),"");});rows+=line(L("Vergeben total","Awarded total"),nfq.format(r.awarded),"("+sg(r.awarded-kv)+")");}
   if(r.billed>r.awarded) rows+=line(L("Abgerechnet (freigegeben)","Billed (approved)"),nfq.format(r.billed),"("+sg(r.billed-r.awarded)+")");
   rows+=line(L("Über Kostenvoranschlag","Over cost estimate"),nfq.format(-r.rest),"","sum");
-  const cmpBtns=ws.filter(w=>compare(w)).map(w=>`<button type="button" class="btn primary" data-act="open-cmp" data-id="${w.id}">${L("Abweichungen ansehen","View differences")}${ws.length>1?" · "+esc(K(w.k).name):""}</button>`).join("");
+  const cmpBtns=ws.filter(w=>compare(w)).map(w=>`<button type="button" class="btn primary" data-act="open-cmp" data-id="${w.id}">${L("Abweichungen","Differences")}${ws.length>1?" · "+esc(K(w.k).name):""}</button>`).join("");
   return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="kT">
     <div class="ohead"><div><h2 id="kT" style="font-size:1.25rem;font-weight:500">BKP ${esc(r.b.bkp)} ${esc(tx(r.b))}</h2><div class="sub">CHF ${nfq.format(-r.rest)} ${L("über Kostenvoranschlag","over cost estimate")}</div></div><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <div class="obody"><div class="calc kvx">${rows}</div></div>
-    <div class="ofoot"><button type="button" class="btn" data-act="kv-budget" data-id="${esc(r.b.bkp)}">${L("Budget öffnen","Open budget")}</button>${cmpBtns}</div></div>`;
+    <div class="ofoot"><button type="button" class="btn" data-act="kv-budget" data-id="${esc(r.b.bkp)}">${L("Budget","Budget")}</button>${cmpBtns}</div></div>`;
 }
 function sheetHTML(){
   const d=sheetDef(S.sheet);if(!d)return "";

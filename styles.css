@@ -433,3 +433,21 @@ details.site>summary .sc{white-space:nowrap;margin-left:0}
 .dn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dm{grid-column:2;font-size:.85rem;color:var(--muted)}
 .drow .ghost.danger{white-space:nowrap}
+/* getting started */
+.steps ol{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.steps li{border-bottom:1px solid var(--line)}
+.steps li button{all:unset;cursor:pointer;display:flex;gap:14px;align-items:flex-start;padding:13px 0;width:100%}
+.steps li button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.steps .sn{flex:none;width:26px;height:26px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:.85rem;color:var(--muted)}
+.steps .st{display:flex;flex-direction:column;gap:2px}
+.steps .st .ss{font-size:.85rem;color:var(--muted)}
+.steps li.done .st{color:var(--muted)}
+.steps li.done .sn{border-color:var(--ok);color:var(--ok)}
+.steps li.next .sn{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.steps li.next .st{font-weight:550}
+/* data notice */
+.notice{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);padding:12px 12px 12px 16px;margin:0 0 28px;font-size:.9rem;color:var(--muted)}
+.notice p{margin:0;flex:1;line-height:1.45}
+.notice b{color:var(--ink);font-weight:550}
+.notice .lnk{all:unset;cursor:pointer;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.notice .ib{flex:none;width:30px;height:30px;font-size:.8rem}

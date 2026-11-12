@@ -581,6 +581,24 @@ async function feePDF(f,level){
 }
 
 const withP=(pid,fn)=>{const o=D.pid;D.pid=pid;try{return fn();}finally{D.pid=o;}};
+function clearFiles(){try{FDB.open().then(db=>{const t=db.transaction("files","readwrite");t.objectStore("files").clear();}).catch(()=>{});}catch(e){}}
+const standalone=()=>window.navigator.standalone===true||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches);
+function dataNotice(){
+  if(D.noticeOk)return "";
+  const ios=/iPhone|iPad|iPod/.test(navigator.userAgent)&&!standalone();
+  return `<div class="notice"><p><b>${L("Testversion.","Test version.")}</b> ${L("Ihre Daten und Dokumente bleiben in diesem Browser auf diesem Gerät. Nichts geht an einen Server.","Your data and documents stay in this browser on this device. Nothing goes to a server.")}${ios?" "+L("Tipp: Über Teilen → «Zum Home-Bildschirm» wird arkitecton zur App, und Safari löscht die Daten nicht nach 7 Tagen ohne Nutzung.","Tip: Share → Add to Home Screen turns arkitecton into an app, and Safari will not delete the data after 7 days of non-use."):""} <button type="button" class="lnk" data-act="sheet" data-k="daten">${L("Sicherung","Backup")}</button></p><button type="button" class="ib" data-act="notice-ok" aria-label="${L("Verstanden","Got it")}" title="${L("Verstanden","Got it")}">✕</button></div>`;
+}
+function startSteps(){
+  if(D.example)return "";
+  const f=D.firm||{},steps=[
+    {ok:!!(f.name&&f.iban&&f.city),t:L("Büro erfassen","Add your firm"),s:L("Name, Adresse, IBAN. Erscheint auf den Honorarrechnungen.","Name, address, IBAN. Shown on fee invoices."),a:'data-act="form" data-f="firm"'},
+    {ok:D.projects.length>0,t:L("Erstes Projekt anlegen","Create your first project"),s:L("Name, Ort, Bauherrschaft.","Name, place, client."),a:'data-act="form" data-f="project"'},
+    {ok:D.projects.some(p=>(p.budget||[]).length),t:L("Kostenvoranschlag erfassen","Enter the cost estimate"),s:L("BKP-Positionen mit Betrag. Daran misst arkitecton die Rechnungen.","BKP items with amounts. Invoices are measured against them."),a:D.projects.length?'data-act="nav" data-v="budget"':'data-act="form" data-f="project"'},
+    {ok:D.invoices.length>0,t:L("Erste Rechnung scannen","Scan your first invoice"),s:L("QR-Rechnung fotografieren oder PDF wählen.","Photograph a QR bill or pick a PDF."),a:'data-act="capture"'}];
+  const n=steps.filter(x=>x.ok).length;if(n===steps.length)return "";
+  const next=steps.findIndex(x=>!x.ok);
+  return `<section class="steps"><div class="sh"><h2>${L("Erste Schritte","Getting started")}</h2><span class="cnt">${n}/${steps.length}</span></div><ol>${steps.map((x,i)=>`<li class="${x.ok?"done":i===next?"next":""}"><button type="button" ${x.a}><span class="sn">${x.ok?"✓":i+1}</span><span class="st">${x.t}<span class="ss">${x.s}</span></span></button></li>`).join("")}</ol></section>`;
+}
 function viewFirm(){
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
   const ps=D.projects.map(p=>withP(p.id,()=>{const chk=PI().filter(i=>!counted(i)),fo=PF().filter(f=>!f.paid);return {p,n:chk.length,sum:chk.reduce((a,i)=>a+net(i),0),fl:flags().length,fees:fo.reduce((a,f)=>a+feeTotal(f),0),rem:fo.filter(f=>remDue(f)).length};}));
@@ -591,9 +609,10 @@ function viewFirm(){
   const name=(D.firm&&D.firm.name)||L("Ihr Büro","Your firm");
   const tl=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0).sort((a,b)=>toDate(a.due)-toDate(b.due));
   const tRows=tl.slice(0,4).map(t=>{const f=fitOf(t).fit,dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:FIT[f].c,title:esc(tx(t.title)),meta:esc(t.client)+" · "+tx(FIT[f]),amt:"",label:L("Eingabe in "+dd+" T.","due in "+dd+" d"),lc:dd<=14?"warn":"n"});}).join("");
-  const tSec=`<section><div class="sh"><h2>${L("Ausschreibungen","Tenders")}</h2><span class="cnt">${tl.length}</span><span class="right">${tl.length>4?`<button type="button" class="ghost" data-act="nav" data-v="ausschreibungen">${L("Alle anzeigen","Show all")}</button>`:""}</span></div><div class="rows">${tRows||`<div class="empty">${L("Keine offenen Ausschreibungen.","No open tenders.")}</div>`}</div></section>`;
+  const tSec=`<section><div class="sh"><h2>${L("Ausschreibungen","Tenders")}</h2><span class="cnt">${tl.length}${D.example?"":" · "+L("Beispiele","examples")}</span><span class="right">${tl.length>4?`<button type="button" class="ghost" data-act="nav" data-v="ausschreibungen">${L("Alle anzeigen","Show all")}</button>`:""}</span></div><div class="rows">${tRows||`<div class="empty">${L("Keine offenen Ausschreibungen.","No open tenders.")}</div>`}</div></section>`;
   return `<div class="page">
     ${ph(esc(today),esc(name),"",ib("edit",L("Büro bearbeiten","Edit firm"),'data-act="form" data-f="firm"'))}
+    ${dataNotice()}${startSteps()}
     <div class="stats">
       <div class="stat"><span class="sl">${L("Zu prüfen","To check")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${nChk} ${nChk===1?L("Rechnung","invoice"):L("Rechnungen","invoices")}</span></div>
       <div class="stat"><span class="sl">${L("Von arkitecton gefunden","Found by arkitecton")}</span><span class="sv${nFl?" warn":""}">${nFl}</span><span class="ss">${L("in allen Projekten","across all projects")}</span></div>
@@ -622,6 +641,7 @@ function viewOverview(){
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
   return `<div class="page">
     ${ph(esc(today),esc(p.name),esc([p.place,p.desc].filter(Boolean).join(" · ")))}
+    ${startSteps()}
     <div class="stats">
       <button type="button" class="stat" data-act="nav" data-v="rechnungen"><span class="sl">${L("Zu prüfen","To check")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${toCheck.length} ${toCheck.length===1?L("Rechnung","invoice"):L("Rechnungen","invoices")}</span></button>
       <button type="button" class="stat" data-act="jump-flags"><span class="sl">${L("Von arkitecton gefunden","Found by arkitecton")}</span><span class="sv${fl.length?" warn":""}">${fl.length}</span><span class="ss">${L("Auffälligkeiten","issues")} · ${chf(flSum,false)}</span></button>
@@ -1058,7 +1078,7 @@ function submitForm(){
   if(F.f==="project"){
     if(!val("fName")) return fail(L("Projektname fehlt.","Project name missing."));
     if(F.id){const x=D.projects.find(q=>q.id===F.id);Object.assign(x,{name:val("fName"),place:val("fPlace"),client:val("fClient"),cstreet:val("fCStreet"),czip:val("fCZip"),ccity:val("fCCity"),desc:val("fDesc")});}
-    else{const x={id:newId("p"),name:val("fName"),place:val("fPlace"),client:val("fClient"),cstreet:val("fCStreet"),czip:val("fCZip"),ccity:val("fCCity"),desc:val("fDesc"),budget:[]};D.projects.push(x);D.pid=x.id;S.view="budget";}
+    else{const x={id:newId("p"),name:val("fName"),place:val("fPlace"),client:val("fClient"),cstreet:val("fCStreet"),czip:val("fCZip"),ccity:val("fCCity"),desc:val("fDesc"),budget:[]};D.projects.push(x);D.pid=x.id;S.view="uebersicht";}
     closeAll();render();return toast(L("Projekt gespeichert","Project saved"));
   }
   if(F.f==="contractor"){
@@ -1138,7 +1158,7 @@ function sheetDef(key){
       [L("Büro","Office"),[bt(L("Firmenname: ","Company name: ")+(D.firm.name||"–"),"form-firm")]],
       [L("Neu beginnen","Start over"),[bt(c==="reset-ex"?L("Wirklich alles durch Beispieldaten ersetzen?","Really replace everything with example data?"):L("Beispieldaten laden","Load example data"),c==="reset-ex"?"reset-ex":"ask",c==="reset-ex"?null:"reset-ex",c==="reset-ex"?"danger":""),
         bt(c==="reset-all"?L("Wirklich alle Daten löschen?","Really delete all data?"):L("Alle Daten löschen","Delete all data"),c==="reset-all"?"reset-all":"ask",c==="reset-all"?null:"reset-all","danger")]]],
-      note:L("Die Daten liegen nur in diesem Browser. Laden Sie regelmässig eine Sicherung herunter.","Data lives only in this browser. Download a backup regularly.")};
+      note:L("Testversion: Alle Daten und Dokumente liegen nur in diesem Browser auf diesem Gerät. Es wird nichts an einen Server gesendet. Die Sicherung enthält die Daten, aber nicht die Dokumente. Safari kann Daten löschen, wenn arkitecton länger als 7 Tage nicht geöffnet wird: Auf dem iPhone deshalb über Teilen → «Zum Home-Bildschirm» hinzufügen und regelmässig sichern.","Test version: all data and documents stay in this browser on this device. Nothing is sent to a server. The backup contains the data but not the documents. Safari may delete data if arkitecton is not opened for more than 7 days: on iPhone add it via Share → Add to Home Screen and back up regularly.")};
   }
   if(key==="rechnungen") return {title:"Excel",groups:[[L("Herunterladen","Download"),[ex(L("Rechnungsliste","Invoice list"),"x-invoices")]]]};
   if(key==="handwerker") return {title:"Excel",groups:[[L("Hochladen","Upload"),[im(L("Handwerkerliste importieren","Import contractor list"),"contractors")]],[L("Herunterladen","Download"),[ex(L("Handwerkerliste","Contractor list"),"x-contractors")]]]};
@@ -1314,7 +1334,7 @@ document.addEventListener("click",e=>{
   if(EXPORT[a])return void EXPORT[a](id);
   switch(a){
     case "start-example":D=seedExample();runMigrations();S.view="uebersicht";render();break;
-    case "start-empty":D=seedEmpty();render();openForm("project");break;
+    case "start-empty":D=seedEmpty();S.view="buero";render();openForm("firm");break;
     case "nav":S.kid=null;S.tid=null;go(el.dataset.v);break;
     case "lang":S.lang=el.dataset.l;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
     case "filter":S.filter=el.dataset.f;render();break;
@@ -1358,10 +1378,11 @@ document.addEventListener("click",e=>{
     case "home":go("buero");break;
     case "pick-project":D.pid=id;closeAll();S.kid=null;render();toast(P().name);break;
     case "ask":S.confirm=el.dataset.c;if(/^ddel:/.test(S.confirm))render();else renderOverlay();break;
+    case "notice-ok":D.noticeOk=1;render();break;
     case "doc-open":openDoc(el.dataset.id);break;
     case "doc-del":{const id=el.dataset.id;D.docs=DOCS().filter(d=>d.id!==id);S.confirm=null;FDB.del(id);render();toast(L("Dokument gelöscht","Document deleted"));break;}
-    case "reset-ex":D=seedExample();runMigrations();closeAll();S.view="uebersicht";S.kid=null;S.tid=null;render();toast(L("Beispieldaten geladen","Example data loaded"));break;
-    case "reset-all":try{localStorage.removeItem(KEY);}catch(err){}D=null;closeAll();render();break;
+    case "reset-ex":clearFiles();D=seedExample();runMigrations();closeAll();S.view="uebersicht";S.kid=null;S.tid=null;render();toast(L("Beispieldaten geladen","Example data loaded"));break;
+    case "reset-all":clearFiles();try{localStorage.removeItem(KEY);}catch(err){}D=null;closeAll();render();break;
     case "close":{const back=S.form&&S.form.back;closeAll();if(back&&INV(back))S.drawer=back;render();break;}
     case "approve":{const i=INV(id);i.status="frei";logInv(i,L("Freigegeben","Approved"));S.done=null;S.queryOpen=false;render();toast(L("Freigegeben · ","Approved · ")+chf(payout(i)));break;}
     case "unapprove":{const i=INV(id);i.status="pruefen";logInv(i,L("Freigabe zurückgenommen","Approval undone"));render();break;}
@@ -1397,7 +1418,7 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden)stopCam();}
 window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(D&&v!==S.view&&VIEWS.includes(v))go(v);});
 
 try{const l=localStorage.getItem("arkitecton:lang");if(l==="de"||l==="en")S.lang=l;}catch(e){}
-D=loadData();
+D=loadData();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
 runMigrations();
 const h0=location.hash.slice(1);if(VIEWS.includes(h0))S.view=h0;
 render();

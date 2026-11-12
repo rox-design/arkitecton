@@ -589,19 +589,26 @@ function resolveCapture(d){
   return {k,dup,w:k?CW(k.id):null};
 }
 const bkpOptions=sel=>{const p=P();const own=p?p.budget.map(b=>[b.bkp,tx(b)]):[];const rest=STD_BKP.filter(s=>!own.some(o=>o[0]===s[0])).map(s=>[s[0],S.lang==="de"?s[1]:s[2]]);return own.concat(rest).map(([c,n])=>`<option value="${c}"${c===sel?" selected":""}>${c} ${esc(n)}</option>`).join("");};
+function wrapCapture(title,body,foot){
+  return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mT">
+    <div class="ohead"><h2 id="mT" style="font-size:1.25rem;font-weight:500">${title}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
+    <div class="obody">${body}</div>${foot?`<div class="ofoot">${foot}</div>`:""}</div>`;
+}
 function captureHTML(){
   const M=S.modal,d=M.data;let body="",foot="",title=L("Rechnung scannen","Scan invoice");
+  const RO=M.rep&&INV(M.rep),RK=RO&&K(W(RO.w).k);
+  const repNote=RO?`<div class="notice"><span class="ic info" aria-hidden="true">i</span><span>${L("Ersetzt ","Replaces ")}${esc(RO.no)} · ${esc(RK.name)} · ${typeLabel(RO)}</span></div>`:"";
   if(!P()){
     body=`<div class="empty">${L("Bitte zuerst ein Projekt anlegen.","Please create a project first.")}<button type="button" class="btn primary" data-act="form" data-f="project">${L("Projekt anlegen","Create project")}</button></div>`;
   } else if(M.step===1){
-    body=(M.rep&&INV(M.rep)?`<div class="notice"><span class="ic info" aria-hidden="true">i</span><span>${L("Neue Rechnung scannen. Sie ersetzt ","Scan the new invoice. It replaces ")}${esc(INV(M.rep).no)}.</span></div>`:"")+`<div class="scanbox">
+    body=repNote+`<div class="scanbox">
       ${M.camErr?`<span class="err">${esc(M.camErr)}</span>`:`<div class="cam"><video id="camv" playsinline muted autoplay></video><div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div></div><span class="camhint" id="camhint">${M.busy?L("Foto wird gelesen …","Reading photo …"):L("QR-Code des Zahlteils in den Rahmen halten","Hold the payment part's QR code in the frame")}</span>`}
       ${M.err?`<span class="err">${esc(M.err)}</span>`:""}
       <label class="btn${M.camErr?" primary":""} block">${L("Foto aufnehmen oder wählen","Take or choose a photo")}<input type="file" id="scanIn" accept="image/*" aria-label="${L("Foto der QR-Rechnung","Photo of the QR-bill")}"></label>
-      <div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center"><button type="button" class="ghost" data-act="manual">${L("Ohne QR erfassen","Add without QR")}</button>${D.example?`<button type="button" class="ghost" data-act="use-sample">${L("Beispielrechnung","Example invoice")}</button>`:""}</div></div>`;
+      <div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center"><button type="button" class="ghost" data-act="manual">${L("Ohne QR erfassen","Add without QR")}</button>${D.example&&!M.rep?`<button type="button" class="ghost" data-act="use-sample">${L("Beispielrechnung","Example invoice")}</button>`:""}</div></div>`;
   } else if(M.step===2){
     title=L("Gelesen","Read");
-    body=`<div class="fields">
+    body=repNote+`<div class="fields">
       <div class="f wide"><span class="l">${L("Empfänger","Payee")}</span><span class="v">${esc(d.name)}${d.city?", "+esc(d.zip)+" "+esc(d.city):""}</span></div>
       <div class="f wide"><span class="l">IBAN</span><span class="v">${esc(d.iban)}</span></div>
       <div class="f"><label for="capAmt">${L("Betrag CHF","Amount CHF")}</label><input id="capAmt" inputmode="decimal" value="${d.amount?d.amount.toFixed(2):""}"></div>
@@ -618,8 +625,13 @@ function captureHTML(){
       foot=`<button type="button" class="btn" data-act="open-inv" data-id="${R.dup.id}">${L("Öffnen","Open")}</button><button type="button" class="btn primary" data-act="close">OK</button>`;
     } else {
       title=esc(R.k?R.k.name:d.name);
-      const G=guessKind(d),nAk=G.n||(R.w?D.invoices.filter(x=>x.w===R.w.id&&x.type==="akonto").length+1:1);d.akN=nAk;const so=v=>G.type===v?" selected":"";
-      body=`<div class="fields">
+      if(RO&&(!R.k||R.k.id!==RK.id)){
+        body=repNote+`<div class="notice"><span class="ic crit" aria-hidden="true">✕</span><span>${L("Diese Rechnung ist von ","This invoice is from ")}${esc(d.name)}. ${L("Ersetzen geht nur mit einer Rechnung von ","Replacing only works with an invoice from ")}${esc(RK.name)}.</span></div>`;
+        foot=`<button type="button" class="btn" data-act="replace" data-id="${RO.id}">${L("Andere Rechnung scannen","Scan another invoice")}</button><button type="button" class="btn primary" data-act="close">OK</button>`;
+        return wrapCapture(title,body,foot);
+      }
+      const G=RO&&R.w&&R.w.id===RO.w?{type:RO.type,n:RO.n}:guessKind(d),nAk=G.n||(R.w?D.invoices.filter(x=>x.w===R.w.id&&x.type==="akonto").length+1:1);d.akN=nAk;const so=v=>G.type===v?" selected":"";
+      body=repNote+`<div class="fields">
         ${(()=>{const src=R.k||d,adr=[src.street,[src.zip,src.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");return `<div class="f wide"><span class="l">${L("Adresse","Address")}</span><span class="v">${adr?esc(adr):"–"}</span>${R.k?"":`<span class="hint">${L("Wird neu angelegt","Will be added as new contractor")}</span>`}</div>`;})()}
         ${R.w?`<div class="f wide"><span class="l">${L("Werkvertrag","Contract")}</span><span class="v">BKP ${R.w.bkp} ${esc(bName(R.w.bkp))}${R.w.sum?" · "+chf(R.w.sum,false):""}</span></div>`
           :`<div class="f wide"><label for="capBkp">BKP</label><select id="capBkp">${bkpOptions(guessBkp(d))}</select><span class="hint">${L("Werkvertragssumme können Sie später ergänzen.","You can add the contract sum later.")}</span></div>`}
@@ -628,9 +640,7 @@ function captureHTML(){
       foot=`<button type="button" class="btn primary" data-act="confirm-capture">${L("Übernehmen","Add invoice")}</button>`;
     }
   }
-  return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mT">
-    <div class="ohead"><h2 id="mT" style="font-size:1.25rem;font-weight:500">${title}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
-    <div class="obody">${body}</div>${foot?`<div class="ofoot">${foot}</div>`:""}</div>`;
+  return wrapCapture(title,body,foot);
 }
 function ensureBkp(bkp){const p=P();if(!p.budget.some(b=>b.bkp===bkp)){const s=STD_BKP.find(x=>x[0]===bkp);p.budget.push({bkp,de:s?s[1]:bkp,en:s?s[2]:bkp,kv:0});p.budget.sort((a,b)=>a.bkp.localeCompare(b.bkp));}}
 function confirmCapture(){
@@ -709,6 +719,7 @@ function submitForm(){
   if(F.f==="invoice"){
     const kid=val("fK"),amt=num(val("fAmt"));const w=CW(kid);
     if(!w) return fail(L("Handwerker wählen.","Choose a contractor."));
+    if(F.rep&&INV(F.rep)&&W(INV(F.rep).w).k!==kid) return fail(L("Ersetzen geht nur mit einer Rechnung vom selben Handwerker: ","Replacing only works with an invoice from the same contractor: ")+K(W(INV(F.rep).w).k).name);
     if(!amt||amt<=0) return fail(L("Betrag eingeben.","Enter the amount."));
     const type=val("fType"),ref=val("fRef");
     if(ref&&D.invoices.some(x=>x.ref&&live(x)&&x.id!==F.rep&&norm(x.ref)===norm(ref))) return fail(L("Diese Referenz ist bereits erfasst (Doppelrechnung).","This reference is already recorded (duplicate)."));
@@ -954,7 +965,7 @@ document.addEventListener("click",e=>{
     case "capture":closeAll();S.modal={step:1,data:null,err:"",busy:false};renderOverlay();break;
     case "manual":{const rep=S.modal&&S.modal.rep,ro=rep&&INV(rep);closeAll();openForm("invoice",ro?W(ro.w).k:null);S.form.rep=rep||null;break;}
     case "replace":{closeAll();S.modal={step:1,data:null,err:"",busy:false,rep:id};renderOverlay();break;}
-    case "use-sample":stopCam();S.modal.data=Object.assign({},SAMPLE);S.modal.err="";S.modal.step=2;renderOverlay();break;
+    case "use-sample":stopCam();S.modal.data=Object.assign({},SAMPLE);setDates(S.modal.data);S.modal.err="";S.modal.step=2;renderOverlay();break;
     case "to-step3":{const amt=num(document.getElementById("capAmt").value);if(!amt||amt<=0){S.modal.err=L("Betrag eingeben","Enter the amount");return renderOverlay();}
       S.modal.data.amount=r2(amt);S.modal.data.no=document.getElementById("capNo").value.trim();S.modal.err="";S.modal.step=3;if(resolveCapture(S.modal.data).dup)logDup();renderOverlay();break;}
     case "confirm-capture":confirmCapture();break;

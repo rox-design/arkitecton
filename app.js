@@ -472,9 +472,10 @@ function parseSPC(txt){
   let street,zip,city;
   if(l[4]==="K"){const m=(l[7]||"").match(/^(\d{4,6})\s+(.*)$/);street=l[6]||"";zip=m?m[1]:"";city=m?m[2]:(l[7]||"");}
   else{street=[l[6],l[7]].filter(Boolean).join(" ");zip=l[8]||"";city=l[9]||"";}
-  return {name:(l[5]||"").trim(),street:street.trim(),zip:zip.trim(),city:city.trim(),iban:fmtIban(l[3]||""),amount:parseFloat(l[18])||0,ref:fmtRef(l[28]||""),msg:(l[29]||"").trim(),no:""};
+  return {name:(l[5]||"").trim(),street:street.trim(),zip:zip.trim(),city:city.trim(),iban:fmtIban(l[3]||""),amount:parseFloat(l[18])||0,ref:fmtRef(l[28]||""),msg:(l[29]||"").trim(),bill:(l.slice(30).find(x=>/^\/\/S1\//.test(x||""))||"").trim(),no:""};
 }
-function guessNo(d){const m=(d.msg||"").match(/(?:rechnung|rg\.?|re\.?|invoice|nr\.?)\s*[:#]?\s*([A-Za-z0-9\-\/\.]{3,})/i);return m?m[1]:"";}
+function swicoNo(b){if(!b)return "";const parts=b.slice(4).split(/(?<!\\)\//);for(let i=0;i<parts.length-1;i++)if(parts[i]==="10")return parts[i+1].replace(/\\\//g,"/").trim();return "";}
+function guessNo(d){const sw=swicoNo(d.bill);if(sw)return sw;const m=(d.msg||"").match(/(?:rechnungs?(?:nummer|nr\.?)?|rg\.?|re\.?|invoice(?:\s*no\.?)?|nr\.?)\s*(?:nr\.?|no\.?)?\s*[:#]?\s*(\d[A-Za-z0-9\-\/\.]{2,}|[A-Za-z]{1,4}[\-\.]?\d[A-Za-z0-9\-\/\.]*)/i);return m?m[1]:"";}
 let cam=null;
 async function startCam(){
   const M=S.modal; if(!M||M.step!==1||cam) return;
@@ -556,7 +557,7 @@ function captureHTML(){
       <div class="f wide"><span class="l">${L("Empfänger","Payee")}</span><span class="v">${esc(d.name)}${d.city?", "+esc(d.zip)+" "+esc(d.city):""}</span></div>
       <div class="f wide"><span class="l">IBAN</span><span class="v">${esc(d.iban)}</span></div>
       <div class="f"><label for="capAmt">${L("Betrag CHF","Amount CHF")}</label><input id="capAmt" inputmode="decimal" value="${d.amount?d.amount.toFixed(2):""}"></div>
-      <div class="f"><label for="capNo">${L("Rechnungsnummer","Invoice number")}</label><input id="capNo" value="${esc(d.no||"")}"></div>
+      <div class="f"><label for="capNo">${L("Rechnungsnummer","Invoice number")}</label><input id="capNo" value="${esc(d.no||"")}" placeholder="${L("Von der Rechnung abtippen","Type from the invoice")}">${d.no?"":`<span class="hint">${L("Diese Rechnung hat keine Nummer im QR-Code.","This invoice has no number in its QR code.")}</span>`}</div>
       ${M.err?`<span class="err f wide">${esc(M.err)}</span>`:""}</div>`;
     foot=`<button type="button" class="btn primary" data-act="to-step3">${L("Weiter","Next")}</button>`;
   } else {

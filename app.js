@@ -453,7 +453,7 @@ async function feePDF(f,level){
   font(6,true);T(L("Annahmestelle","Acceptance point"),57,Y+82,{align:"right"});
   // payment part
   font(11,true);T(L("Zahlteil","Payment part"),67,Y+10);
-  const q=qrcode(0,"M");q.stringToBytes=qrcode.stringToBytesFuncs["UTF-8"];q.addData(qrPayload(f),"Byte");q.make();
+  qrcode.stringToBytes=qrcode.stringToBytesFuncs["UTF-8"];const q=qrcode(0,"M");q.addData(qrPayload(f),"Byte");q.make();
   const n=q.getModuleCount(),qs=46,m=qs/n,qx=67,qy=Y+17;doc.setFillColor(0,0,0);
   for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))doc.rect(qx+c*m,qy+r*m,m+.01,m+.01,"F");
   const cx=qx+qs/2,cy=qy+qs/2;doc.setFillColor(255,255,255);doc.rect(cx-3.5,cy-3.5,7,7,"F");doc.setFillColor(0,0,0);doc.rect(cx-3.1,cy-3.1,6.2,6.2,"F");doc.setFillColor(255,255,255);doc.rect(cx-.65,cy-2.2,1.3,4.4,"F");doc.rect(cx-2.2,cy-.65,4.4,1.3,"F");
@@ -775,13 +775,14 @@ function scanLoop(ts){
   cam.cv.width=out;cam.cv.height=out;const ctx=cam.cv.getContext("2d",{willReadFrequently:true});
   ctx.drawImage(v,sx,sy,side,side,0,0,out,out);
   const r=jsQR(ctx.getImageData(0,0,out,out).data,out,out,{inversionAttempts:"dontInvert"});
-  if(r&&r.data){
-    const d=parseSPC(r.data);
+  if(r&&qrText(r)){
+    const d=parseSPC(qrText(r));
     if(d){stopCam();try{navigator.vibrate&&navigator.vibrate(40);}catch(e){}d.no=guessNo(d);setDates(d);S.modal.data=d;S.modal.step=2;renderOverlay();}
     else{const h=document.getElementById("camhint");if(h)h.textContent=L("QR-Code erkannt, aber keine Schweizer QR-Rechnung.","QR code found, but not a Swiss QR-bill.");}
   }
 }
 function stopCam(){if(!cam)return;cancelAnimationFrame(cam.raf);cam.stream.getTracks().forEach(t=>t.stop());cam=null;}
+function qrText(r){if(r.data)return r.data;if(!r.binaryData||!r.binaryData.length)return "";const b=Uint8Array.from(r.binaryData);try{return new TextDecoder("utf-8",{fatal:true}).decode(b);}catch(e){return new TextDecoder("iso-8859-1").decode(b);}}
 async function decodeQR(file){
   if(typeof jsQR!=="function") throw new Error("lib");
   const url=URL.createObjectURL(file),img=new Image();
@@ -795,7 +796,7 @@ async function decodeQR(file){
         cv.width=Math.max(1,Math.round(sw*s));cv.height=Math.max(1,Math.round(sh*s));
         ctx.drawImage(img,W0*rx,H0*ry,sw,sh,0,0,cv.width,cv.height);
         const r=jsQR(ctx.getImageData(0,0,cv.width,cv.height).data,cv.width,cv.height);
-        if(r&&r.data) return r.data;
+        if(r&&qrText(r)) return qrText(r);
       }
     }
     return null;

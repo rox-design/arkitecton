@@ -14,7 +14,7 @@ const daysTo=s=>Math.round((toDate(s)-TODAY)/86400000);
 
 /* ---------- text and numbers ---------- */
 const S={lang:"de",view:"uebersicht",filter:"pruefen",drawer:null,queryOpen:false,modal:null,sheet:null,form:null,confirm:null,
-  kid:null,ktab:"konto",cmpAll:false,tid:null,ttab:"verfahren",allFlags:false,done:null};
+  kid:null,wid:null,kOpen:null,ktab:"konto",cmpAll:false,tid:null,ttab:"verfahren",allFlags:false,done:null};
 const L=(de,en)=>S.lang==="de"?de:en;
 const nf2=new Intl.NumberFormat("de-CH",{minimumFractionDigits:2,maximumFractionDigits:2});
 const nf0=new Intl.NumberFormat("de-CH",{maximumFractionDigits:0});
@@ -66,7 +66,9 @@ function seedExample(){
   const tt=seedTenders();
   return {v:1,seq:100,events:[],pid:"p1",firm:{name:L("Beispiel Architekten GmbH","Example Architects Ltd")},
     projects:[{id:"p1",name:"MFH Seestrasse 12",place:"Wädenswil",client:"Familie Graf",desc:L("Neubau, 8 Wohnungen","New build, 8 flats"),
-      budget:[["211",420000],["221",96000],["224",58000],["230",74000],["250",88000],["271",41000],["281",52000],["285",36000]].map(([b,kv])=>{const s=STD_BKP.find(x=>x[0]===b);return {bkp:b,de:s[1],en:s[2],kv};})}],
+      budget:[["211",420000],["221",96000],["224",58000],["230",74000],["250",88000],["271",41000],["281",52000],["285",36000]].map(([b,kv])=>{const s=STD_BKP.find(x=>x[0]===b);return {bkp:b,de:s[1],en:s[2],kv};})},
+      {id:"p2",name:"EFH Bergstrasse 4",place:"Horgen",client:"Herr und Frau Keller",desc:L("Umbau Einfamilienhaus","Single-family house conversion"),
+      budget:[["221",28000],["285",14000]].map(([b,kv])=>{const s=STD_BKP.find(x=>x[0]===b);return {bkp:b,de:s[1],en:s[2],kv};})}],
     contractors:[
       {id:"k1",name:"Keller Bau AG",street:"Zugerstrasse 41",zip:"8810",city:"Horgen",iban:"CH93 0076 2011 6238 5295 7",email:"buchhaltung@keller-bau.example",phone:"044 725 11 20"},
       {id:"k2",name:"Fenster Frei AG",street:"Industriestrasse 7",zip:"8820",city:"Wädenswil",iban:"CH56 0483 5012 3456 7800 9",email:"info@fensterfrei.example",phone:"044 780 40 40"},
@@ -82,7 +84,9 @@ function seedExample(){
       {id:"w3",pid:"p1",k:"k3",bkp:"230",sum:71200,ret:10},
       {id:"w4",pid:"p1",k:"k4",bkp:"250",sum:86400,ret:10},
       {id:"w5",pid:"p1",k:"k5",bkp:"271",sum:39800,ret:10},
-      {id:"w6",pid:"p1",k:"k6",bkp:"285",sum:34600,ret:10}],
+      {id:"w6",pid:"p1",k:"k6",bkp:"285",sum:34600,ret:10},
+      {id:"w7",pid:"p2",k:"k6",bkp:"285",sum:12300,ret:10},
+      {id:"w8",pid:"p2",k:"k2",bkp:"221",sum:26400,ret:10}],
     invoices:[
       {id:"i1",no:"AK-031",w:"w1",type:"akonto",n:1,date:d(-134),due:d(-104),gross:120000,status:"bezahlt",ref:"21 00000 00001 10233 41100 00012"},
       {id:"i2",no:"AK-058",w:"w1",type:"akonto",n:2,date:d(-72),due:d(-42),gross:135000,status:"bezahlt",ref:"21 00000 00001 10233 41100 00027"},
@@ -92,6 +96,8 @@ function seedExample(){
       {id:"i5",no:"EB-1180",w:"w3",type:"akonto",n:1,date:d(-14),due:d(7),gross:28000,status:"pruefen",ref:"21 00000 00007 77812 00450 11802"},
       {id:"i6",no:"2026/0912",w:"w4",type:"akonto",n:1,date:d(-9),due:d(21),gross:30000,status:"pruefen",ref:"21 00000 00009 31200 20260 09125"},
       {id:"i7",no:"EB-1194",w:"w3",type:"regie",n:0,date:d(-7),due:d(14),gross:3840,status:"pruefen",ref:"21 00000 00007 77812 00450 11949"},
+      {id:"i11",no:"MM-2026-088",w:"w7",type:"akonto",n:1,date:d(-18),due:d(12),gross:6000,status:"frei",ref:"21 00000 00004 40021 88000 00881"},
+      {id:"i12",no:"R-4590",w:"w8",type:"akonto",n:1,date:d(-30),due:d(0),gross:13200,status:"bezahlt",ref:"RF71 5390 0754 7088"},
       {id:"i8",no:"GR-0233",w:"w5",type:"akonto",n:1,date:d(-22),due:d(9),gross:15000,status:"rueckfrage",ref:""}],
     office:tt.office,tenders:tt.tenders,example:true};
 }
@@ -118,7 +124,9 @@ const PI=()=>{const ids=PC().map(w=>w.id);return D.invoices.filter(i=>ids.includ
 const CW=kid=>PC().find(w=>w.k===kid)||null;
 const B=bkp=>{const p=P();return p?p.budget.find(b=>b.bkp===bkp):null;};
 const bName=bkp=>{const b=B(bkp);if(b)return tx(b);const s=STD_BKP.find(x=>x[0]===bkp);return s?(S.lang==="de"?s[1]:s[2]):"";};
-const projTitle=()=>{const p=P();return p?p.name+(p.place?", "+p.place:""):"";};
+const projTitle=pp=>{const p=pp||P();return p?p.name+(p.place?", "+p.place:""):"";};
+const PJ=id=>D.projects.find(p=>p.id===id)||null;
+const KC=kid=>D.contracts.filter(w=>w.k===kid);
 const counted=i=>i.status==="frei"||i.status==="bezahlt";
 const sumLines=ls=>r2((ls||[]).reduce((a,l)=>a+l.qty*l.price,0));
 const retPct=w=>w&&typeof w.ret==="number"?w.ret:10;
@@ -168,7 +176,7 @@ function flags(){
     if(w.sum>0){const over=r2(billedOn(w.id,i.id)+i.gross-w.sum);if(over>0)out.push({c:"warn",t:k.name,m:L("über Werkvertrag","above contract"),chf:over,act:"open-inv",id:i.id});}
     if(i.type==="regie") out.push({c:"warn",t:k.name,m:L("Regie ausserhalb Werkvertrag","time & materials outside contract"),chf:i.gross,act:"open-inv",id:i.id});
   });
-  PC().forEach(w=>{const c=compare(w);if(c&&c.hasFinal&&c.newSum>0)out.push({c:"warn",t:K(w.k).name,m:L("nicht offerierte Positionen","items not in the offer"),chf:c.newSum,act:"open-cmp",id:w.k});});
+  PC().forEach(w=>{const c=compare(w);if(c&&c.hasFinal&&c.newSum>0)out.push({c:"warn",t:K(w.k).name,m:L("nicht offerierte Positionen","items not in the offer"),chf:c.newSum,act:"open-cmp",id:w.id});});
   budgetRows().filter(r=>r.over).forEach(r=>out.push({c:"warn",t:"BKP "+r.b.bkp+" "+tx(r.b),m:L("über Kostenvoranschlag","over cost estimate"),chf:-r.rest,act:"nav",v:"budget"}));
   const ks=[...new Set(PC().map(w=>w.k))].map(K).filter(Boolean);
   ks.forEach(k=>{const m=missingOf(k);if(m.length)out.push({c:"crit",t:k.name,m:L("fehlt: ","missing: ")+m.join(", "),chf:null,act:"open-k",id:k.id});});
@@ -284,57 +292,72 @@ function viewContractors(){
   if(S.kid&&K(S.kid)) return viewContractor(K(S.kid));
   const p=P();
   const sorted=D.contractors.slice().sort((a,b)=>(!!CW(b.id))-(!!CW(a.id))||a.name.localeCompare(b.name));
-  const rows=sorted.map(k=>{const m=missingOf(k),w=CW(k.id);
-    return row({act:"open-k",id:k.id,c:m.length?"crit":"ok",title:esc(k.name),meta:w?"BKP "+w.bkp+" "+esc(bName(w.bkp)):L("nicht in diesem Projekt","not in this project"),amt:w&&w.sum?chf(w.sum,false):"",label:m.length?L(m.length+" fehlt",m.length+" missing"):L("Vollständig","Complete")});}).join("");
+  const rows=sorted.map(k=>{const m=missingOf(k),ws=PC().filter(w=>w.k===k.id),w=ws[0],sum=ws.reduce((a,x)=>a+(x.sum||0),0);
+    return row({act:"open-k",id:k.id,c:m.length?"crit":"ok",title:esc(k.name),meta:ws.length>1?ws.map(x=>"BKP "+x.bkp).join(", "):w?"BKP "+w.bkp+" "+esc(bName(w.bkp)):L("nicht in diesem Projekt","not in this project"),amt:sum?chf(sum,false):"",label:m.length?L(m.length+" fehlt",m.length+" missing"):L("Vollständig","Complete")});}).join("");
   return `<div class="page">
     ${ph(p?esc(p.name):L("Büro","Office"),L("Handwerker","Contractors"),"",`<button type="button" class="btn" data-act="form" data-f="contractor">${L("+ Neu","+ New")}</button>`+excelBtn("handwerker"))}
     <section><div class="rows">${rows||`<div class="empty">${L("Noch keine Handwerker. Scannen Sie eine QR-Rechnung oder legen Sie einen an.","No contractors yet. Scan a QR-bill or add one.")}</div>`}</div></section>
   </div>`;
 }
 
+function cmpBody(w){
+  const c=compare(w);
+  if(!c) return `<section><div class="empty"><span>${L("Noch keine Offerte.","No offer yet.")}</span><div style="display:flex;gap:10px;flex-wrap:wrap"><label class="btn primary">${L("Offerte aus Excel","Offer from Excel")}<input type="file" accept=".xlsx,.xls,.csv" data-imp="offer" data-id="${w.id}"></label>${D.example&&w.id==="w6"?`<button type="button" class="btn" data-act="ex-offer">${L("Beispiel laden","Load example")}</button>`:""}<button type="button" class="btn" data-act="x-template">${L("Leere Vorlage","Blank template")}</button></div></div></section>`;
+  const list=c.rows.filter(r=>S.cmpAll||!c.hasFinal||r.kind!=="same");
+  const q=r=>r.kind==="new"?L("nicht offeriert","not in offer"):r.kind==="missing"?L("nicht abgerechnet","not billed"):c.hasFinal?nfq.format(r.oq)+" → "+nfq.format(r.fq)+" "+esc(r.unit||""):nfq.format(r.oq)+" "+esc(r.unit||"");
+  const rows=list.map(r=>`<div class="row static">${dot(r.kind==="new"?"crit":r.kind==="more"?"warn":r.kind==="less"?"ok":"n")}<span class="rt">${esc(r.text)}<span class="q">${q(r)}</span></span><span class="rm">Pos ${esc(r.pos)}</span><span class="ra">${c.hasFinal?`<span class="${r.diff>0?"up":r.diff<0?"down":""}">${r.diff?sgn(r.diff):"0.00"}</span>`:nf2.format(r.oa)}</span><span class="rl"></span></div>`).join("");
+  return `<div class="stats">
+      <div class="stat"><span class="sl">${L("Offerte","Offer")}</span><span class="sv">${chf(c.ot,false)}</span><span class="ss">${c.rows.filter(r=>r.kind!=="new").length} ${L("Positionen","items")}</span></div>
+      <div class="stat"><span class="sl">${L("Schlussabrechnung","Final account")}</span><span class="sv">${c.hasFinal?chf(c.ft,false):"–"}</span><span class="ss">${c.hasFinal?c.changed+" "+L("Abweichungen","differences"):L("noch nicht geladen","not loaded yet")}</span></div>
+      <div class="stat"><span class="sl">${L("Differenz","Difference")}</span><span class="sv${c.hasFinal&&c.diff>0?" warn":""}">${c.hasFinal?sgn(c.diff):"–"}</span><span class="ss">${c.hasFinal&&c.ot?(c.diff/c.ot*100>0?"+":"")+(c.diff/c.ot*100).toFixed(1)+"%":""}</span></div>
+    </div>
+    <section><div class="sh"><h2>${c.hasFinal&&!S.cmpAll?L("Abweichungen","Differences"):L("Alle Positionen","All items")}</h2><span class="cnt">${list.length}</span>${c.hasFinal?`<button type="button" class="ghost right" data-act="cmp-all">${S.cmpAll?L("Nur Abweichungen","Differences only"):L("Alle Positionen","All items")}</button>`:""}</div><div class="rows">${rows}</div>
+    ${!c.hasFinal?`<div class="empty"><div style="display:flex;gap:10px;flex-wrap:wrap"><label class="btn primary">${L("Schlussabrechnung aus Excel","Final account from Excel")}<input type="file" accept=".xlsx,.xls,.csv" data-imp="final" data-id="${w.id}"></label>${D.example&&w.id==="w6"?`<button type="button" class="btn" data-act="ex-final">${L("Beispiel laden","Load example")}</button>`:""}</div></div>`:""}</section>`;
+}
 function viewContractor(k){
-  const p=P(), w=CW(k.id);
-  const inv=w?D.invoices.filter(i=>i.w===w.id).sort((a,c)=>toDate(a.date)-toDate(c.date)):[];
+  const all=KC(k.id), cur=D.pid;
+  const pids=[...new Set(all.map(w=>w.pid))].filter(PJ).sort((a,b)=>(b===cur)-(a===cur)||PJ(a).name.localeCompare(PJ(b).name));
+  if(S.kOpen==null||S.kOpen.k!==k.id)S.kOpen={k:k.id,ids:{}};
+  const isOpen=pid=>pid in S.kOpen.ids?S.kOpen.ids[pid]:pid===cur;
+  const invOf=ws=>D.invoices.filter(i=>ws.some(w=>w.id===i.w)).sort((a,c)=>toDate(a.date)-toDate(c.date));
   const lead=(k.city?esc(k.street)+", "+esc(k.zip)+" "+esc(k.city):`<span class="neg">${L("Adresse fehlt","Address missing")}</span>`)+" · "+(k.iban?esc(k.iban):`<span class="neg">${L("IBAN fehlt","IBAN missing")}</span>`);
-  const tools=`<button type="button" class="btn" data-act="form" data-f="contractor" data-id="${k.id}">${L("Bearbeiten","Edit")}</button>`+(w?excelBtn("k:"+k.id):"");
+  const tools=`<button type="button" class="btn" data-act="form" data-f="contractor" data-id="${k.id}">${L("Bearbeiten","Edit")}</button>`+(CW(k.id)?excelBtn("k:"+k.id):"");
+  const addHere=P()&&!pids.includes(cur)?`<div class="empty"><span>${L("Kein Werkvertrag in ","No contract in ")}${esc(P().name)}.</span><button type="button" class="btn primary" data-act="form" data-f="contract" data-id="${k.id}">${L("Werkvertrag erfassen","Add contract")}</button></div>`:"";
+  const group=(pid,inner,count)=>{const p=PJ(pid);return `<details class="site" data-pid="${pid}"${isOpen(pid)?" open":""}><summary><span class="sn">${esc(p.name)}${p.place?`<span class="sp"> · ${esc(p.place)}</span>`:""}</span><span class="sc">${count}</span></summary><div class="in">${inner}</div></details>`;};
   let body="";
-  if(!p){ body=`<div class="empty">${L("Kein Projekt gewählt.","No project selected.")}</div>`; }
-  else if(!w){
-    body=`<section><div class="empty"><span>${L("Kein Werkvertrag in ","No contract in ")}${esc(p.name)}.</span><button type="button" class="btn primary" data-act="form" data-f="contract" data-id="${k.id}">${L("Werkvertrag erfassen","Add contract")}</button></div></section>`;
+  if(S.wid&&W(S.wid)&&W(S.wid).k===k.id){
+    const w=W(S.wid);
+    body=`<button type="button" class="back" data-act="back-w">← ${L("Alle Verträge","All contracts")}</button>
+      <div class="ctx">${esc(PJ(w.pid).name)} · BKP ${w.bkp} ${esc(bName(w.bkp))}</div>${cmpBody(w)}`;
   } else if(S.ktab==="konto"){
-    const billed=inv.filter(counted).reduce((a,i)=>a+i.gross,0), paid=inv.filter(i=>i.status==="bezahlt").reduce((a,i)=>a+payout(i),0), ret=inv.filter(counted).reduce((a,i)=>a+retention(i),0);
-    body=`<div class="stats">
-        <button type="button" class="stat" data-act="form" data-f="contract" data-id="${k.id}"><span class="sl">${L("Werkvertrag","Contract")} · ${retPct(w)}% ${L("Rückbehalt","retention")}</span><span class="sv">${w.sum?chf(w.sum,false):"–"}</span><span class="ss">${L("abgerechnet","billed")} ${chf(billed,false)}</span></button>
-        <div class="stat"><span class="sl">${L("Ausbezahlt","Paid out")}</span><span class="sv">${chf(paid,false)}</span><span class="ss">${inv.filter(i=>i.status==="bezahlt").length} ${L("Zahlungen","payments")}</span></div>
-        <div class="stat"><span class="sl">${L("Rückbehalt","Retention")}</span><span class="sv">${chf(ret,false)}</span><span class="ss">${L("bis Schlusszahlung","until final payment")}</span></div>
-      </div>
-      ${(()=>{const c=compare(w);return `<section><div class="sh"><h2>${L("Offerte und Abrechnung","Offer and final account")}</h2></div><div class="rows">${row({act:"to-cmp",lc:"n",c:c?(c.hasFinal?(c.diff>0?"warn":"ok"):"n"):"warn",title:c?L("Offerte","Offer")+" "+chf(c.ot,false):L("Noch keine Offerte","No offer yet"),meta:c?(c.hasFinal?L("Schlussabrechnung ","Final account ")+chf(c.ft,false):L("Schlussabrechnung fehlt","Final account missing")):L("Hochladen und vergleichen","Upload and compare"),amt:c&&c.hasFinal?sgn(c.diff):"",label:L("Öffnen →","Open →")})}</div></section>`;})()}
-      <section><div class="sh"><h2>${L("Rechnungen","Invoices")}</h2><span class="cnt">${inv.length}</span><button type="button" class="add" data-act="form" data-f="invoice" data-id="${k.id}">${L("+ Erfassen","+ Add")}</button></div><div class="rows">${inv.map(i=>row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:typeLabel(i),meta:esc(i.no)+" · "+fdate(i.date),amt:chf(i.gross,false),label:stLabel(i.status)})).join("")||`<div class="empty">${L("Noch keine Rechnungen.","No invoices yet.")}</div>`}</div></section>`;
+    const open=invOf(all).filter(i=>i.status!=="bezahlt").reduce((a,i)=>a+payout(i),0);
+    const top=all.length?`<div class="total"><span>${L("Offen total","Open in total")}</span><span class="tv">${chf(open,false)}</span><span class="ts">${pids.length} ${pids.length===1?L("Baustelle","site"):L("Baustellen","sites")}</span></div>`:"";
+    body=top+addHere+pids.map(pid=>{
+      const ws=all.filter(w=>w.pid===pid),inv=invOf(ws),multi=ws.length>1;
+      const stats=ws.map(w=>{const iv=inv.filter(i=>i.w===w.id),billed=iv.filter(counted).reduce((a,i)=>a+i.gross,0),paid=iv.filter(i=>i.status==="bezahlt").reduce((a,i)=>a+payout(i),0),ret=iv.filter(counted).reduce((a,i)=>a+retention(i),0);
+        return `${multi?`<div class="ctx">BKP ${w.bkp} ${esc(bName(w.bkp))}</div>`:""}<div class="stats">
+        <button type="button" class="stat" data-act="form" data-f="contract" data-id="${k.id}" data-w="${w.id}"><span class="sl">${multi?"":"BKP "+w.bkp+" · "}${L("Werkvertrag","Contract")} · ${retPct(w)}% ${L("Rückbehalt","retention")}</span><span class="sv">${w.sum?chf(w.sum,false):"–"}</span><span class="ss">${L("abgerechnet","billed")} ${chf(billed,false)}</span></button>
+        <div class="stat"><span class="sl">${L("Ausbezahlt","Paid out")}</span><span class="sv">${chf(paid,false)}</span><span class="ss">${iv.filter(i=>i.status==="bezahlt").length} ${L("Zahlungen","payments")}</span></div>
+        <div class="stat"><span class="sl">${L("Rückbehalt","Retention")}</span><span class="sv">${chf(ret,false)}</span><span class="ss">${L("bis Schlusszahlung","until final payment")}</span></div></div>`;}).join("");
+      const rows=inv.map(i=>{const w=W(i.w);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:typeLabel(i)+(multi?` <span class="sp">· BKP ${w.bkp}</span>`:""),meta:esc(i.no)+" · "+fdate(i.date),amt:chf(i.gross,false),label:stLabel(i.status)});}).join("");
+      const addInv=pid===cur?`<button type="button" class="add" data-act="form" data-f="invoice" data-id="${k.id}">${L("+ Erfassen","+ Add")}</button>`:"";
+      const addW=pid===cur?`<button type="button" class="ghost" data-act="form" data-f="contract" data-id="${k.id}">${L("+ Weiterer Werkvertrag","+ Another contract")}</button>`:"";
+      return group(pid,`${stats}<section><div class="sh"><h2>${L("Rechnungen","Invoices")}</h2><span class="cnt">${inv.length}</span>${addInv}</div><div class="rows">${rows||`<div class="empty">${L("Noch keine Rechnungen.","No invoices yet.")}</div>`}</div></section>${addW}`,inv.length+" "+(inv.length===1?L("Rechnung","invoice"):L("Rechnungen","invoices")));
+    }).join("");
   } else {
-    const c=compare(w);
-    if(!c){
-      body=`<section><div class="empty"><span>${L("Noch keine Offerte.","No offer yet.")}</span><div style="display:flex;gap:10px;flex-wrap:wrap"><label class="btn primary">${L("Offerte aus Excel","Offer from Excel")}<input type="file" accept=".xlsx,.xls,.csv" data-imp="offer" data-id="${w.id}"></label>${D.example&&w.id==="w6"?`<button type="button" class="btn" data-act="ex-offer">${L("Beispiel laden","Load example")}</button>`:""}<button type="button" class="btn" data-act="x-template">${L("Leere Vorlage","Blank template")}</button></div></div></section>`;
-    } else {
-      const list=c.rows.filter(r=>S.cmpAll||!c.hasFinal||r.kind!=="same");
-      const q=r=>r.kind==="new"?L("nicht offeriert","not in offer"):r.kind==="missing"?L("nicht abgerechnet","not billed"):c.hasFinal?nfq.format(r.oq)+" → "+nfq.format(r.fq)+" "+esc(r.unit||""):nfq.format(r.oq)+" "+esc(r.unit||"");
-      const rows=list.map(r=>`<div class="row static">${dot(r.kind==="new"?"crit":r.kind==="more"?"warn":r.kind==="less"?"ok":"n")}<span class="rt">${esc(r.text)}<span class="q">${q(r)}</span></span><span class="rm">Pos ${esc(r.pos)}</span><span class="ra">${c.hasFinal?`<span class="${r.diff>0?"up":r.diff<0?"down":""}">${r.diff?sgn(r.diff):"0.00"}</span>`:nf2.format(r.oa)}</span><span class="rl"></span></div>`).join("");
-      body=`<div class="stats">
-          <div class="stat"><span class="sl">${L("Offerte","Offer")}</span><span class="sv">${chf(c.ot,false)}</span><span class="ss">${c.rows.filter(r=>r.kind!=="new").length} ${L("Positionen","items")}</span></div>
-          <div class="stat"><span class="sl">${L("Schlussabrechnung","Final account")}</span><span class="sv">${c.hasFinal?chf(c.ft,false):"–"}</span><span class="ss">${c.hasFinal?c.changed+" "+L("Abweichungen","differences"):L("noch nicht geladen","not loaded yet")}</span></div>
-          <div class="stat"><span class="sl">${L("Differenz","Difference")}</span><span class="sv${c.hasFinal&&c.diff>0?" warn":""}">${c.hasFinal?sgn(c.diff):"–"}</span><span class="ss">${c.hasFinal&&c.ot?(c.diff/c.ot*100>0?"+":"")+(c.diff/c.ot*100).toFixed(1)+"%":""}</span></div>
-        </div>
-        <section><div class="sh"><h2>${c.hasFinal&&!S.cmpAll?L("Abweichungen","Differences"):L("Alle Positionen","All items")}</h2><span class="cnt">${list.length}</span>${c.hasFinal?`<button type="button" class="ghost right" data-act="cmp-all">${S.cmpAll?L("Nur Abweichungen","Differences only"):L("Alle Positionen","All items")}</button>`:""}</div><div class="rows">${rows}</div>
-        ${!c.hasFinal?`<div class="empty"><div style="display:flex;gap:10px;flex-wrap:wrap"><label class="btn primary">${L("Schlussabrechnung aus Excel","Final account from Excel")}<input type="file" accept=".xlsx,.xls,.csv" data-imp="final" data-id="${w.id}"></label>${D.example&&w.id==="w6"?`<button type="button" class="btn" data-act="ex-final">${L("Beispiel laden","Load example")}</button>`:""}</div></div>`:""}</section>`;
-    }
+    body=addHere+pids.map(pid=>{
+      const ws=all.filter(w=>w.pid===pid);
+      const rows=ws.map(w=>{const c=compare(w);return row({act:"open-w",id:w.id,c:!c?"warn":c.hasFinal?(c.diff>0?"warn":"ok"):"n",title:"BKP "+w.bkp+" "+esc(bName(w.bkp)),meta:!c?L("Offerte fehlt","No offer yet"):L("Offerte ","Offer ")+chf(c.ot,false)+" · "+(c.hasFinal?L("Schluss ","Final ")+chf(c.ft,false):L("Schluss fehlt","Final missing")),amt:c&&c.hasFinal?sgn(c.diff):"",lc:"n",label:L("Öffnen →","Open →")});}).join("");
+      return group(pid,`<div class="rows">${rows}</div>`,ws.length+" "+(ws.length===1?L("Vertrag","contract"):L("Verträge","contracts")));
+    }).join("");
   }
   return `<div class="page">
     <button type="button" class="back" data-act="back-k">← ${L("Handwerker","Contractors")}</button>
-    ${ph(w?"BKP "+w.bkp+" "+esc(bName(w.bkp)):"",esc(k.name),lead,tools)}
-    ${w?`<div class="tabs" role="tablist"><button type="button" role="tab" data-act="ktab" data-t="konto" aria-selected="${S.ktab==="konto"}">${L("Konto","Account")}</button><button type="button" role="tab" data-act="ktab" data-t="vergleich" aria-selected="${S.ktab==="vergleich"}">${L("Offerte und Abrechnung","Offer and final account")}</button></div>`:""}
-    ${body}
+    ${ph("",esc(k.name),lead,tools)}
+    ${all.length?`<div class="tabs" role="tablist"><button type="button" role="tab" data-act="ktab" data-t="konto" aria-selected="${S.ktab==="konto"}">${L("Konto","Account")}</button><button type="button" role="tab" data-act="ktab" data-t="vergleich" aria-selected="${S.ktab==="vergleich"}">${L("Offerte und Abrechnung","Offer and final account")}</button></div>`:""}
+    ${body||addHere}
   </div>`;
 }
-
 function viewBudget(){
   const p=P(); if(!p) return noProject();
   const rows=budgetRows(), t=totals(rows);
@@ -423,7 +446,7 @@ function checksFor(i){
   if(w.sum>0){const after=billedOn(w.id,i.id)+i.gross;out.push({s:"ok",t:"BKP "+w.bkp+" "+bName(w.bkp)});out.push(after<=w.sum?{s:"ok",t:L("Im Werkvertrag: ","Within contract: ")+chf(after,false)+" / "+chf(w.sum,false)}:{s:"warn",t:L("Über Werkvertrag: +","Above contract: +")+chf(after-w.sum)});}
   else out.push({s:"warn",t:"BKP "+w.bkp+L(": keine Werkvertragssumme",": no contract sum")});
   if(i.type==="regie") out.push({s:"warn",t:L("Regie: Rapporte prüfen","Time & materials: check time sheets")});
-  if(i.type==="schluss"){const c=compare(w);out.push(c&&c.hasFinal?{s:c.diff>0?"warn":"ok",t:L("Gegenüber Offerte: ","Against offer: ")+sgn(c.diff),link:k.id}:{s:"info",t:L("Offertvergleich: Schlussabrechnung laden","Offer comparison: load final account"),link:k.id});}
+  if(i.type==="schluss"){const c=compare(w);out.push(c&&c.hasFinal?{s:c.diff>0?"warn":"ok",t:L("Gegenüber Offerte: ","Against offer: ")+sgn(c.diff),link:w.id}:{s:"info",t:L("Offertvergleich: Schlussabrechnung laden","Offer comparison: load final account"),link:w.id});}
   if(i.type==="akonto"&&i.n>1){const have=new Set(D.invoices.filter(x=>x.w===w.id&&x.type==="akonto"&&x.id!==i.id).map(x=>x.n));const miss=[];for(let n=1;n<i.n;n++)if(!have.has(n))miss.push(n);if(miss.length)out.push({s:"warn",t:L("Akonto ","Progress payment ")+miss.join(", ")+L(" nicht erfasst"," not recorded")});}
   const dup=i.ref&&D.invoices.some(x=>x.id!==i.id&&norm(x.ref)===norm(i.ref));
   out.push(dup?{s:"crit",t:L("Mögliche Doppelrechnung","Possible duplicate")}:i.ref?{s:"ok",t:L("Keine Doppelrechnung","No duplicate")}:{s:"warn",t:L("Ohne QR-Referenz","No QR reference")});
@@ -432,8 +455,8 @@ function checksFor(i){
 }
 function queryText(i){
   const k=K(W(i.w).k),m=missingOf(k).filter(x=>x!==L("E-Mail","Email")),noIban=!k.iban;
-  if(S.lang==="de") return `Guten Tag\n\nBetreffend Ihre Rechnung ${i.no} vom ${fdate(i.date)}, Projekt ${projTitle()}:\n\n`+(m.length?`Uns fehlen folgende Angaben: ${m.join(", ")}. `+(noIban?`Bitte senden Sie uns die Rechnung als QR-Rechnung.`:`Bitte ergänzen Sie diese.`)+`\n\n`:`Bitte senden Sie uns die Unterlagen (Ausmass oder Regierapporte) zur Prüfung.\n\n`)+`Freundliche Grüsse\n${D.firm.name||"Bauleitung"}`;
-  return `Hello\n\nRegarding your invoice ${i.no} dated ${fdate(i.date)}, project ${projTitle()}:\n\n`+(m.length?`We are missing: ${m.join(", ")}. `+(noIban?`Please send it as a QR-bill.`:`Please provide these details.`)+`\n\n`:`Please send the supporting documents (measurements or time sheets).\n\n`)+`Kind regards\n${D.firm.name||"Site management"}`;
+  if(S.lang==="de") return `Guten Tag\n\nBetreffend Ihre Rechnung ${i.no} vom ${fdate(i.date)}, Projekt ${projTitle(PJ(W(i.w).pid))}:\n\n`+(m.length?`Uns fehlen folgende Angaben: ${m.join(", ")}. `+(noIban?`Bitte senden Sie uns die Rechnung als QR-Rechnung.`:`Bitte ergänzen Sie diese.`)+`\n\n`:`Bitte senden Sie uns die Unterlagen (Ausmass oder Regierapporte) zur Prüfung.\n\n`)+`Freundliche Grüsse\n${D.firm.name||"Bauleitung"}`;
+  return `Hello\n\nRegarding your invoice ${i.no} dated ${fdate(i.date)}, project ${projTitle(PJ(W(i.w).pid))}:\n\n`+(m.length?`We are missing: ${m.join(", ")}. `+(noIban?`Please send it as a QR-bill.`:`Please provide these details.`)+`\n\n`:`Please send the supporting documents (measurements or time sheets).\n\n`)+`Kind regards\n${D.firm.name||"Site management"}`;
 }
 function drawerHTML(i){
   const w=W(i.w),k=K(w.k),cs=checksFor(i),crit=cs.some(c=>c.s==="crit");
@@ -618,7 +641,7 @@ function formDef(){
   const F=S.form, p=P();
   if(F.f==="project"){const x=F.id?D.projects.find(q=>q.id===F.id):{};return {title:F.id?L("Projekt bearbeiten","Edit project"):L("Neues Projekt","New project"),body:fld("fName",L("Projektname","Project name"),x.name,{wide:true,req:true,ph:"MFH Seestrasse 12"})+fld("fPlace",L("Ort","Place"),x.place)+fld("fClient",L("Bauherrschaft","Client"),x.client)+fld("fDesc",L("Beschreibung","Description"),x.desc,{wide:true,ph:L("Neubau, 8 Wohnungen","New build, 8 flats")})};}
   if(F.f==="contractor"){const x=F.id?K(F.id):{};return {title:F.id?L("Handwerker bearbeiten","Edit contractor"):L("Neuer Handwerker","New contractor"),body:fld("fName",L("Firma","Company"),x.name,{wide:true,req:true})+fld("fStreet",L("Strasse","Street"),x.street,{wide:true})+fld("fZip",L("PLZ","ZIP"),x.zip,{mode:"numeric"})+fld("fCity",L("Ort","City"),x.city)+fld("fIban","IBAN",x.iban,{wide:true})+fld("fEmail",L("E-Mail","Email"),x.email,{type:"email"})+fld("fPhone",L("Telefon","Phone"),x.phone,{type:"tel"}),del:F.id&&!D.contracts.some(w=>w.k===F.id)};}
-  if(F.f==="contract"){const k=K(F.id),w=CW(F.id)||{};return {title:L("Werkvertrag · ","Contract · ")+k.name,body:`<div class="f wide"><label for="fBkp">BKP</label><select id="fBkp">${bkpOptions(w.bkp)}</select></div>`+fld("fSum",L("Werkvertragssumme CHF","Contract sum CHF"),w.sum||"",{mode:"decimal",req:true})+fld("fRet",L("Rückbehalt %","Retention %"),w.ret!=null?w.ret:10,{mode:"decimal"}),del:w.id&&!D.invoices.some(i=>i.w===w.id)};}
+  if(F.f==="contract"){const k=K(F.id),w=(F.w&&W(F.w))||{};return {title:L("Werkvertrag · ","Contract · ")+k.name,body:`<div class="f wide"><label for="fBkp">BKP</label><select id="fBkp">${bkpOptions(w.bkp)}</select></div>`+fld("fSum",L("Werkvertragssumme CHF","Contract sum CHF"),w.sum||"",{mode:"decimal",req:true})+fld("fRet",L("Rückbehalt %","Retention %"),w.ret!=null?w.ret:10,{mode:"decimal"}),del:w.id&&!D.invoices.some(i=>i.w===w.id)};}
   if(F.f==="invoice"){
     const ks=PC().map(w=>K(w.k)).filter(Boolean);
     const sel=F.id||"";
@@ -662,7 +685,7 @@ function submitForm(){
     if(sum===null||sum<0) return fail(L("Werkvertragssumme eingeben.","Enter the contract sum."));
     if(ret===null||ret<0||ret>30) return fail(L("Rückbehalt zwischen 0 und 30 %.","Retention between 0 and 30 %."));
     const bkp=document.getElementById("fBkp").value;ensureBkp(bkp);
-    let w=CW(F.id); if(w) Object.assign(w,{bkp,sum:r2(sum),ret}); else{w={id:newId("w"),pid:D.pid,k:F.id,bkp,sum:r2(sum),ret};D.contracts.push(w);}
+    let w=F.w&&W(F.w); if(w) Object.assign(w,{bkp,sum:r2(sum),ret}); else{w={id:newId("w"),pid:D.pid,k:F.id,bkp,sum:r2(sum),ret};D.contracts.push(w);}
     closeAll();render();return toast(L("Werkvertrag gespeichert","Contract saved"));
   }
   if(F.f==="invoice"){
@@ -694,7 +717,7 @@ function submitForm(){
 function formDelete(){
   const F=S.form;
   if(F.f==="contractor"){D.contractors=D.contractors.filter(k=>k.id!==F.id);S.kid=null;}
-  if(F.f==="contract"){const w=CW(F.id);D.contracts=D.contracts.filter(x=>x!==w);}
+  if(F.f==="contract"){const w=W(F.w);D.contracts=D.contracts.filter(x=>x!==w);S.wid=null;}
   if(F.f==="kv"){const p=P();p.budget=p.budget.filter(b=>b.bkp!==F.id);}
   closeAll();render();toast(L("Gelöscht","Deleted"));
 }
@@ -852,8 +875,9 @@ function toast(msg,ms){const t=document.getElementById("toast");t.textContent=ms
 async function copy(text,ok){try{await navigator.clipboard.writeText(text);toast(ok);}catch(e){toast(L("Kopieren nicht möglich","Copy failed"));}}
 function closeAll(){stopCam();S.drawer=null;S.modal=null;S.sheet=null;S.form=null;S.formErr="";S.confirm=null;S.queryOpen=false;S.done=null;}
 function go(v){if(!VIEWS.includes(v))v="uebersicht";closeAll();S.view=v;if(v!=="handwerker")S.kid=null;if(v!=="ausschreibungen")S.tid=null;try{history.replaceState(null,"","#"+v);}catch(e){}render();document.getElementById("main").scrollTop=0;}
-const openForm=(f,id)=>{const keepDrawer=S.drawer;closeAll();S.form={f,id:id||null,back:keepDrawer};renderOverlay();};
+const openForm=(f,id,w)=>{const keepDrawer=S.drawer;closeAll();S.form={f,id:id||null,w:w||null,back:keepDrawer};renderOverlay();};
 
+document.addEventListener("toggle",e=>{const d=e.target;if(d&&d.classList&&d.classList.contains("site")&&S.kOpen)S.kOpen.ids[d.dataset.pid]=d.open;},true);
 document.addEventListener("click",e=>{
   const el=e.target.closest("[data-act]");if(!el)return;
   const a=el.dataset.act,id=el.dataset.id;
@@ -867,10 +891,12 @@ document.addEventListener("click",e=>{
     case "jump-flags":{const f=document.getElementById("flags");if(f)f.scrollIntoView({behavior:"smooth",block:"start"});break;}
     case "all-flags":S.allFlags=!S.allFlags;render();break;
     case "open-inv":closeAll();S.drawer=id;renderOverlay();break;
-    case "open-k":S.kid=id;S.ktab="konto";go("handwerker");S.kid=id;render();break;
-    case "open-cmp":S.kid=id;S.ktab="vergleich";go("handwerker");S.kid=id;render();break;
-    case "back-k":S.kid=null;render();break;
-    case "ktab":S.ktab=el.dataset.t;render();break;
+    case "open-k":S.wid=null;S.kid=id;S.ktab="konto";go("handwerker");S.kid=id;render();break;
+    case "open-cmp":{const w=W(id);if(!w)break;S.kid=w.k;S.ktab="vergleich";S.wid=w.id;go("handwerker");S.kid=w.k;S.wid=w.id;render();break;}
+    case "open-w":S.wid=id;render();break;
+    case "back-w":S.wid=null;render();break;
+    case "back-k":S.kid=null;S.wid=null;render();break;
+    case "ktab":S.ktab=el.dataset.t;S.wid=null;render();break;
     case "to-cmp":S.ktab="vergleich";render();break;
     case "cmp-all":S.cmpAll=!S.cmpAll;render();break;
     case "open-t":go("ausschreibungen");S.tid=id;render();break;
@@ -879,7 +905,7 @@ document.addEventListener("click",e=>{
     case "t-status":{const t=T(id);t.status=el.dataset.s;render();toast(tx(TST[t.status]));break;}
     case "t-doc":{const t=T(el.dataset.t);t.done[el.dataset.d]=!t.done[el.dataset.d];render();break;}
     case "sheet":closeAll();S.sheet=el.dataset.k;renderOverlay();break;
-    case "form":openForm(el.dataset.f,id);break;
+    case "form":openForm(el.dataset.f,id,el.dataset.w);break;
     case "form-project":openForm("project");break;
     case "form-project-edit":openForm("project",id);break;
     case "form-firm":openForm("firm");break;

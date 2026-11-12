@@ -380,7 +380,7 @@ function saveFee(F,fail){
 function feeDrawerHTML(f){
   const st=feeState(f),p=PJ(f.pid)||{},r=remDue(f);
   const lines=f.lines.map(l=>`<span>${esc(l.t)}${+l.q!==1?`<span class="sp"> · ${nfq.format(l.q)} ${esc(l.u||"")} × ${nf2.format(l.p)}</span>`:""}</span><span class="r">${nf2.format(r2(l.q*l.p))}</span>`).join("");
-  const log=(f.log||[]).slice().reverse().map(x=>`<li><span class="d">${fdate(x.d)}</span><span>${esc(x.t)}</span></li>`).join("");
+  const log=(f.log||[]).map(x=>`<dt>${fdate(x.d)}</dt><dd>${esc(x.t)}</dd>`).join("");
   let actions;
   if(f.paid) actions=`<button type="button" class="btn" data-act="fee-unpaid" data-id="${f.id}">${L("Zahlung zurücknehmen","Undo payment")}</button>`;
   else actions=`${r?`<button type="button" class="btn" data-act="fee-remind" data-id="${f.id}">${remName(r)}</button>`:""}<button type="button" class="btn primary" data-act="fee-paid" data-id="${f.id}">${L("Bezahlt","Paid")}</button>`;
@@ -391,8 +391,8 @@ function feeDrawerHTML(f){
       <div class="payline"><span class="l-${st.c}">${st.t}</span><span>${f.paid?L("am ","on ")+fdate(f.paid):L("fällig ","due ")+fdate(feeDue(f))}</span></div>
       ${r?`<div class="notice"><span class="ic crit" aria-hidden="true">!</span><span>${L("Seit ","Open for ")}${feeAge(f)}${L(" Tagen offen. "," days. ")}${remName(r)}${L(" ist fällig."," is due.")}</span></div>`:""}
       <div class="calc">${lines}<span>${L("Zwischentotal","Subtotal")}</span><span class="r">${nf2.format(feeSub(f))}</span>${f.vat?`<span>${L("MWST ","VAT ")+VAT_RATE} %</span><span class="r">${nf2.format(feeVat(f))}</span>`:""}<span class="sum">${L("Total","Total")}</span><span class="r sum">CHF ${nf2.format(feeTotal(f))}</span></div>
-      <details class="sec"><summary>${L("Zahlungsdaten","Payment details")}</summary><div class="in"><dl class="kv"><dt>IBAN</dt><dd>${esc(fmtIban(D.firm.iban||""))}</dd><dt>${L("Referenz","Reference")}</dt><dd>${esc(fmtRefOut(f.refType,f.ref))}</dd></dl></div></details>
-      <details class="sec"><summary>${L("Verlauf","History")}</summary><div class="in"><ul class="log">${log}</ul></div></details>
+      <details><summary>${L("Zahlungsdaten","Payment details")}</summary><div class="in"><dl class="kv"><dt>IBAN</dt><dd>${esc(fmtIban(D.firm.iban||""))}</dd><dt>${L("Referenz","Reference")}</dt><dd>${esc(fmtRefOut(f.refType,f.ref))}</dd></dl></div></details>
+      <details><summary>${L("Verlauf","History")}</summary><div class="in"><dl class="kv">${log}</dl></div></details>
       <div class="dtools">${ib("download",L("PDF herunterladen","Download PDF"),`data-act="fee-pdf" data-id="${f.id}"`)}${f.paid?"":ib("edit",L("Bearbeiten","Edit"),`data-act="form" data-f="fee" data-id="${f.id}"`)}<span class="qsep"></span>${S.confirm==="fdel:"+f.id?`<button type="button" class="ghost danger" data-act="fee-del" data-id="${f.id}">${L("Wirklich löschen?","Really delete?")}</button>`:ib("trash",L("Rechnung löschen","Delete invoice"),`data-act="ask" data-c="fdel:${f.id}"`)}</div>
     </div>
     <div class="ofoot">${actions}</div></aside>`;

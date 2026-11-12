@@ -244,7 +244,8 @@ function renderChrome(){
   document.getElementById("railData").textContent=L("Daten und Sicherung","Data and backup");
   document.querySelectorAll(".lang button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.l===S.lang)));
   const nb=v=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span></button>`;
-  document.getElementById("nav").innerHTML=["uebersicht","rechnungen","handwerker","budget"].map(nb).join("")+'<div class="sep"></div>'+nb("ausschreibungen");
+  document.getElementById("nav").innerHTML=["uebersicht","rechnungen","handwerker","budget"].map(nb).join("");
+  const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=nb("ausschreibungen");
   const tb=(v,l)=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${l}</span></button>`;
   document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Übersicht","Overview"))+tb("rechnungen",L("Rechnungen","Invoices"))+`<button type="button" class="fab" data-act="capture" aria-label="${L("Rechnung scannen","Scan invoice")}">${SCAN_ICON}</button>`+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget");
 }
@@ -328,8 +329,61 @@ function addIncomeHistory(){
     const f={id:newId("h"),pid:p.id,no,date:ad(d),title:k%3===2?L("Honorar Bauleitung","Site supervision"):L("Honorar Akonto","Fee progress payment"),lines:[{t:k%3===2?L("Bauleitung","Site supervision"):L("Akonto, Teilleistung","Progress payment"),q:1,u:L("pauschal","lump sum"),p:amt}],vat:!!D.firm.vat,refType:r.type,ref:r.ref,rem:[],paid:pay?ad(d+pay):null,log:[{d:ad(d),t:L("Erstellt","Created")}]};
     if(pay)f.log.push({d:ad(d+pay),t:L("Zahlung eingegangen","Payment received")});FEES().push(f);});
 }
+/* ---------- document storage (IndexedDB, this device) ---------- */
+const FDB={db:null,open(){return this.db?Promise.resolve(this.db):new Promise((ok,no)=>{const r=indexedDB.open("arkitecton-files",1);r.onupgradeneeded=()=>r.result.createObjectStore("files");r.onsuccess=()=>{this.db=r.result;ok(r.result);};r.onerror=()=>no(r.error);});},
+  async put(id,blob){const db=await this.open();return new Promise((ok,no)=>{const t=db.transaction("files","readwrite");t.objectStore("files").put(blob,id);t.oncomplete=ok;t.onerror=()=>no(t.error);});},
+  async get(id){const db=await this.open();return new Promise((ok,no)=>{const r=db.transaction("files").objectStore("files").get(id);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});},
+  async del(id){const db=await this.open();return new Promise(ok=>{const t=db.transaction("files","readwrite");t.objectStore("files").delete(id);t.oncomplete=ok;t.onerror=ok;});}};
+const DOCS=()=>D.docs||(D.docs=[]);
+const docsFor=(scope,ref)=>DOCS().filter(d=>d.scope===scope&&d.ref===ref).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+const kindOf=n=>{const e=(String(n).split(".").pop()||"").toLowerCase();return e==="pdf"?"PDF":["doc","docx"].includes(e)?"Word":["xls","xlsx","csv"].includes(e)?"Excel":["jpg","jpeg","png","heic"].includes(e)?L("Bild","Image"):e.toUpperCase();};
+const fsize=b=>b>=1048576?(b/1048576).toFixed(1).replace(".0","")+" MB":Math.max(1,Math.round(b/1024))+" KB";
+function docValid(d){if(!d.until)return null;const n=daysTo(d.until);return n<0?{c:"crit",t:L("abgelaufen","expired")}:n<=30?{c:"warn",t:L("läuft ab in "+n+" T.","expires in "+n+" d")}:{c:"ok",t:L("gültig bis ","valid until ")+fdate(d.until)};}
+function docsBlock(scope,ref,title,hint){
+  const rk=d=>{const v=docValid(d);return v?{crit:0,warn:1,ok:2}[v.c]:3;};
+  const list=docsFor(scope,ref).sort((a,b)=>scope==="firm"?rk(a)-rk(b):0);
+  const rows=list.map(d=>{const v=docValid(d);return `<div class="drow"><button type="button" class="dopen" data-act="doc-open" data-id="${d.id}"><span class="dk">${esc(kindOf(d.name))}</span><span class="dn">${esc(d.name)}</span><span class="dm">${fsize(d.size||0)} · ${fdate(d.date)}${v?` · <span class="l-${v.c}">${v.t}</span>`:""}</span></button>${scope==="firm"?ib("edit",L("Gültigkeit","Validity"),`data-act="form" data-f="docvalid" data-id="${d.id}"`):""}${S.confirm==="ddel:"+d.id?`<button type="button" class="ghost danger" data-act="doc-del" data-id="${d.id}">${L("Löschen?","Delete?")}</button>`:ib("trash",L("Dokument löschen","Delete document"),`data-act="ask" data-c="ddel:${d.id}"`)}</div>`;}).join("");
+  return `<section class="docs"><div class="sh"><h2>${title}</h2><span class="cnt">${list.length}</span><span class="right"><label class="ib" title="${L("Dokument hinzufügen","Add document")}" aria-label="${L("Dokument hinzufügen","Add document")}">${ico("plus")}<input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png" data-imp="doc" data-id="${scope}|${ref}"></label></span></div>
+    ${rows?`<div class="dlist">${rows}</div>`:`<div class="empty">${hint||L("Noch keine Dokumente. PDF, Word, Excel oder Bilder mit ＋ hinzufügen.","No documents yet. Add PDF, Word, Excel or images with ＋.")}</div>`}</section>`;
+}
+async function addDocs(files,key){
+  const [scope,ref]=key.split("|");let n=0;
+  for(const f of files){const id=newId("f");await FDB.put(id,f);DOCS().push({id,scope,ref,name:f.name,type:f.type,size:f.size,date:iso(TODAY)});n++;}
+  render();toast(n===1?L("Dokument gespeichert","Document saved"):n+L(" Dokumente gespeichert"," documents saved"));
+}
+async function openDoc(id){
+  const d=DOCS().find(x=>x.id===id),b=d&&await FDB.get(id);
+  if(!b)return toast(L("Datei ist auf diesem Gerät nicht vorhanden.","File is not on this device."));
+  const url=URL.createObjectURL(b.type?b:new Blob([b],{type:d.type||"application/octet-stream"}));
+  if(/pdf|image/.test(d.type||"")){const w=window.open(url,"_blank");if(!w)saveBlob(d.name,b);}else saveBlob(d.name,b);
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+const firmDocAlerts=()=>docsFor("firm","firm").map(d=>({d,v:docValid(d)})).filter(x=>x.v&&x.v.c!=="ok");
+/* tiny one-page PDF for example documents */
+function samplePdf(lines){
+  const esc_=s=>String(s).replace(/[\\()]/g,m=>"\\"+m).replace(/[^\x20-\x7e]/g,c=>({"ä":"a","ö":"o","ü":"u","Ä":"A","Ö":"O","Ü":"U","é":"e","è":"e","à":"a","·":"-","’":"'"}[c]||"?"));
+  const txt="BT /F1 18 Tf 60 760 Td ("+esc_(lines[0])+") Tj /F1 11 Tf "+lines.slice(1).map(l=>"0 -22 Td ("+esc_(l)+") Tj").join(" ")+" ET";
+  const objs=["<< /Type /Catalog /Pages 2 0 R >>","<< /Type /Pages /Kids [3 0 R] /Count 1 >>","<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>","<< /Length "+txt.length+" >>\nstream\n"+txt+"\nendstream","<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"];
+  let out="%PDF-1.4\n";const off=[];objs.forEach((o,i)=>{off.push(out.length);out+=(i+1)+" 0 obj\n"+o+"\nendobj\n";});
+  const x=out.length;out+="xref\n0 "+(objs.length+1)+"\n0000000000 65535 f \n"+off.map(o=>String(o).padStart(10,"0")+" 00000 n \n").join("")+"trailer\n<< /Size "+(objs.length+1)+" /Root 1 0 R >>\nstartxref\n"+x+"\n%%EOF";
+  return new Blob([out],{type:"application/pdf"});
+}
+async function addDemoDocs(){
+  const ad=n=>iso(new Date(TODAY.getTime()+n*864e5)),F=D.firm.name||"Beispiel Architekten GmbH";
+  const mk=async(scope,ref,name,lines,date,until)=>{const b=samplePdf(lines.concat(["","Beispieldokument, fiktive Daten."]));const id=newId("f");await FDB.put(id,b);DOCS().push({id,scope,ref,name,type:"application/pdf",size:b.size,date:ad(date),until:until===undefined?null:ad(until)});};
+  await mk("firm","firm","Handelsregisterauszug.pdf",["Handelsregisterauszug",F],-95,-5);
+  await mk("firm","firm","Versicherungsnachweis Berufshaftpflicht.pdf",["Versicherungsnachweis",F],-160,205);
+  await mk("firm","firm","Bestätigung AHV-Beiträge.pdf",["Bestaetigung AHV-Beitraege",F],-340,20);
+  await mk("firm","firm","Referenzliste 2026.pdf",["Referenzliste 2026",F],-40);
+  await mk("firm","firm","Firmenporträt.pdf",["Firmenportraet",F],-200);
+  const p1=D.projects[0];if(p1){await mk("project",p1.id,"Baubewilligung.pdf",["Baubewilligung",p1.name],-230);await mk("project",p1.id,"Kostenvoranschlag.pdf",["Kostenvoranschlag",p1.name],-260);}
+  const kon=(nm,files)=>{const k=D.contractors.find(c=>c.name.startsWith(nm));return k?files.map(f=>mk("contractor",k.id,f[0],[f[1],k.name],f[2])):[];};
+  for(const p of [...kon("Meier",[["Offerte Malerarbeiten.pdf","Offerte Malerarbeiten",-150]]),...kon("Fenster",[["Offerte Fenster.pdf","Offerte Fenster und Aussentueren",-210],["Werkvertrag BKP 221.pdf","Werkvertrag BKP 221",-190]])]) await p;
+  const t=D.tenders[0];if(t){await mk("tender",t.id,"Ausschreibungsunterlagen.pdf",["Ausschreibungsunterlagen",tx(t.title)],-10);await mk("tender",t.id,"Fragen und Antworten.pdf",["Fragen und Antworten",tx(t.title)],-3);}
+}
 function runMigrations(){
   if(!D||!D.example)return;D.mig=D.mig||{};
+  if(!D.mig.docs){D.mig.docs=1;if(!DOCS().length&&window.indexedDB)addDemoDocs().then(render).catch(()=>{});}
   if(!D.mig.fees){if(!(D.fees||[]).length)addDemoFees();D.mig.fees=1;}
   if(!D.mig.income){addIncomeHistory();D.mig.income=1;}
 }
@@ -535,6 +589,9 @@ function viewFirm(){
   const parts=x=>[x.n?x.n+" "+L("zu prüfen","to check"):"",x.fl?x.fl+" "+L("gefunden","found"):"",x.rem?x.rem+" "+(x.rem===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):""].filter(Boolean).join(" · ")||L("nichts offen","nothing open");
   const rows=ps.map(x=>row({act:"open-project",id:x.p.id,c:x.rem?"crit":x.fl?"warn":x.n?"n":"ok",title:esc(x.p.name),meta:(x.p.place?esc(x.p.place)+" · ":"")+parts(x),amt:x.sum?chf(x.sum,false):"",label:""})).join("");
   const name=(D.firm&&D.firm.name)||L("Ihr Büro","Your firm");
+  const tl=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0).sort((a,b)=>toDate(a.due)-toDate(b.due));
+  const tRows=tl.slice(0,4).map(t=>{const f=fitOf(t).fit,dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:FIT[f].c,title:esc(tx(t.title)),meta:esc(t.client)+" · "+tx(FIT[f]),amt:"",label:L("Eingabe in "+dd+" T.","due in "+dd+" d"),lc:dd<=14?"warn":"n"});}).join("");
+  const tSec=`<section><div class="sh"><h2>${L("Ausschreibungen","Tenders")}</h2><span class="cnt">${tl.length}</span><span class="right">${tl.length>4?`<button type="button" class="ghost" data-act="nav" data-v="ausschreibungen">${L("Alle anzeigen","Show all")}</button>`:""}</span></div><div class="rows">${tRows||`<div class="empty">${L("Keine offenen Ausschreibungen.","No open tenders.")}</div>`}</div></section>`;
   return `<div class="page">
     ${ph(esc(today),esc(name),"",ib("edit",L("Büro bearbeiten","Edit firm"),'data-act="form" data-f="firm"'))}
     <div class="stats">
@@ -545,6 +602,8 @@ function viewFirm(){
     </div>
     ${FEES().length?incomeSection():""}
     <section><div class="sh"><h2>${L("Projekte","Projects")}</h2><span class="cnt">${ps.length}</span><span class="right">${ib("plus",L("Neues Projekt","New project"),'data-act="form-project"')}</span></div><div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div></section>
+    ${tSec}
+    ${docsBlock("firm","firm",L("Unterlagen des Büros","Firm documents"),L("Handelsregister, Versicherung, AHV, Referenzen: einmal ablegen, für jede Bewerbung bereit. Mit Gültigkeit warnt arkitecton vor Ablauf.","Register extract, insurance, references: store once, ready for every bid."))}
   </div>`;
 }
 function viewOverview(){
@@ -572,6 +631,7 @@ function viewOverview(){
     <section><div class="sh"><h2>${L("Zu erledigen","To do")}</h2><span class="cnt">${toCheck.length+tTodo.length+PF().filter(f=>remDue(f)).length}</span></div><div class="rows">${todo||`<div class="empty">${L("Alles erledigt.","All done.")}</div>`}</div></section>
     <section id="flags"><div class="sh"><h2>${L("Gefunden","Found")}</h2><span class="cnt">${fl.length}</span></div><div class="rows">${flagRows||`<div class="empty">${L("Nichts Auffälliges.","Nothing unusual.")}</div>`}</div>
       ${fl.length>3?`<button type="button" class="more" data-act="all-flags">${S.allFlags?L("Weniger anzeigen","Show less"):L("Alle anzeigen","Show all")}</button>`:""}</section>
+    ${docsBlock("project",p.id,L("Projektdokumente","Project documents"),L("Pläne, Bewilligungen, Kostenvoranschlag mit ＋ ablegen.","Store plans, permits and estimates with ＋."))}
   </div>`;
 }
 
@@ -658,6 +718,7 @@ function viewContractor(k){
     ${ph("",esc(k.name),lead,tools)}
     ${all.length?`<div class="tabs" role="tablist"><button type="button" role="tab" data-act="ktab" data-t="konto" aria-selected="${S.ktab==="konto"}">${L("Konto","Account")}</button><button type="button" role="tab" data-act="ktab" data-t="vergleich" aria-selected="${S.ktab==="vergleich"}">${L("Offerte und Abrechnung","Offer and final account")}</button></div>`:""}
     ${body||addHere}
+    ${S.wid&&W(S.wid)&&W(S.wid).k===k.id?"":docsBlock("contractor",k.id,L("Dokumente","Documents"),L("Offerten, Werkverträge, Versicherungsnachweise mit ＋ ablegen.","Store offers, contracts and certificates with ＋."))}
   </div>`;
 }
 function viewBudget(){
@@ -721,6 +782,7 @@ function viewTender(t){
       <section><div class="sh"><h2>${L("Eignung","Eligibility")}</h2></div><ul class="checks">${ev.map(e=>`<li><span class="ic ${e.s}" aria-hidden="true">${ICON[e.s]}</span><span>${esc(e.t)}<span class="res">${esc(e.res)}</span></span></li>`).join("")}</ul></section>
       <section><div class="sh"><h2>${L("Unterlagen","Documents")}</h2><span class="cnt">${docs.length-open.length}/${docs.length}</span></div><ul class="checks">${docs.map(d=>`<li>${d.auto?`<span class="ic ${d.done?"ok":"crit"}" aria-hidden="true">${d.done?"✓":"✕"}</span>`:`<input type="checkbox" id="doc-${d.id}" data-act="t-doc" data-t="${t.id}" data-d="${d.id}"${d.done?" checked":""}${c?" disabled":""}>`}<label${d.auto?"":` for="doc-${d.id}"`}>${esc(d.t)}${d.sub?`<span class="res">${d.auto&&d.done?L("Automatisch: ","Automatic: "):""}${esc(d.sub)}</span>`:""}</label></li>`).join("")}</ul></section>
     </div>
+    ${docsBlock("tender",t.id,L("Dateien","Files"),L("Ausschreibungsunterlagen, Fragen und Antworten, eigene Entwürfe mit ＋ ablegen.","Store tender documents and drafts with ＋."))}
     <div class="bar-actions">${actions}</div>
   </div>`;
 }
@@ -957,6 +1019,7 @@ const fld=(id,label,val,o={})=>`<div class="f${o.wide?" wide":""}"><label for="$
 function formDef(){
   if(S.form&&S.form.f==="fee") return feeFormDef(S.form);
   const F=S.form, p=P();
+  if(F.f==="docvalid"){const d=DOCS().find(x=>x.id===F.id)||{};return {title:esc(d.name||""),body:fld("fUntil",L("Gültig bis","Valid until"),d.until||"",{type:"date",wide:true,hint:L("Leer lassen, wenn das Dokument nicht abläuft. 30 Tage vor Ablauf erscheint eine Warnung.","Leave empty if it does not expire. A warning appears 30 days before.")})};}
   if(F.f==="project"){const x=F.id?D.projects.find(q=>q.id===F.id):{};return {title:F.id?L("Projekt bearbeiten","Edit project"):L("Neues Projekt","New project"),body:fld("fName",L("Projektname","Project name"),x.name,{wide:true,req:true,ph:L("z. B. EFH Bergstrasse 4","e.g. Bergstrasse 4 house")})+fld("fPlace",L("Ort","Place"),x.place,{ph:L("z. B. Horgen","e.g. Horgen")})+fld("fClient",L("Bauherrschaft","Client"),x.client)+fld("fCStreet",L("Adresse Bauherrschaft","Client address"),x.cstreet,{wide:true,ph:L("Strasse und Nr.","Street and no.")})+fld("fCZip",L("PLZ","Postcode"),x.czip,{mode:"numeric"})+fld("fCCity",L("Ort","Town"),x.ccity)+fld("fDesc",L("Beschreibung","Description"),x.desc,{wide:true,ph:L("z. B. Umbau Einfamilienhaus","e.g. house conversion")})};}
   if(F.f==="contractor"){const x=F.id?K(F.id):{};return {title:F.id?L("Handwerker bearbeiten","Edit contractor"):L("Neuer Handwerker","New contractor"),body:fld("fName",L("Firma","Company"),x.name,{wide:true,req:true})+fld("fStreet",L("Strasse","Street"),x.street,{wide:true})+fld("fZip",L("PLZ","ZIP"),x.zip,{mode:"numeric"})+fld("fCity",L("Ort","City"),x.city)+fld("fIban","IBAN",x.iban,{wide:true})+fld("fEmail",L("E-Mail","Email"),x.email,{type:"email"})+fld("fPhone",L("Telefon","Phone"),x.phone,{type:"tel"}),del:F.id&&!D.contracts.some(w=>w.k===F.id)};}
   if(F.f==="contract"){const k=K(F.id),w=(F.w&&W(F.w))||{};return {title:L("Werkvertrag · ","Contract · ")+k.name,body:`<div class="f wide"><label for="fBkp">BKP</label><select id="fBkp">${bkpOptions(w.bkp)}</select></div>`+fld("fSum",L("Werkvertragssumme CHF","Contract sum CHF"),w.sum||"",{mode:"decimal",req:true})+fld("fRet",L("Rückbehalt %","Retention %"),w.ret!=null?w.ret:10,{mode:"decimal"}),del:w.id&&!D.invoices.some(i=>i.w===w.id)};}
@@ -1040,6 +1103,7 @@ function submitForm(){
     closeAll();render();return toast(L("Gespeichert","Saved"));
   }
   if(F.f==="fee") return saveFee(F,fail);
+  if(F.f==="docvalid"){const d=DOCS().find(x=>x.id===F.id);if(d)d.until=val("fUntil")||null;closeAll();render();return toast(L("Gespeichert","Saved"));}
   if(F.f==="answer"){const i=INV(F.id),note=(document.getElementById("fNote").value||"").trim();i.status="pruefen";logInv(i,L("Antwort erhalten","Reply received")+(note?": "+note:""));const id=i.id;closeAll();S.drawer=id;render();return toast(L("Wieder zu prüfen","Back to review"));}
   if(F.f==="ded"){const i=INV(F.id),amt=num(val("fDedAmt")),why=(document.getElementById("fDedWhy").value||"").trim();
     if(amt===null||amt<0) return fail(L("Betrag eingeben.","Enter an amount."));
@@ -1293,7 +1357,9 @@ document.addEventListener("click",e=>{
     case "open-project":D.pid=id;S.kid=null;go("uebersicht");break;
     case "home":go("buero");break;
     case "pick-project":D.pid=id;closeAll();S.kid=null;render();toast(P().name);break;
-    case "ask":S.confirm=el.dataset.c;renderOverlay();break;
+    case "ask":S.confirm=el.dataset.c;if(/^ddel:/.test(S.confirm))render();else renderOverlay();break;
+    case "doc-open":openDoc(el.dataset.id);break;
+    case "doc-del":{const id=el.dataset.id;D.docs=DOCS().filter(d=>d.id!==id);S.confirm=null;FDB.del(id);render();toast(L("Dokument gelöscht","Document deleted"));break;}
     case "reset-ex":D=seedExample();runMigrations();closeAll();S.view="uebersicht";S.kid=null;S.tid=null;render();toast(L("Beispieldaten geladen","Example data loaded"));break;
     case "reset-all":try{localStorage.removeItem(KEY);}catch(err){}D=null;closeAll();render();break;
     case "close":{const back=S.form&&S.form.back;closeAll();if(back&&INV(back))S.drawer=back;render();break;}
@@ -1321,6 +1387,7 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("change",e=>{
   const t=e.target;if(t.id==="fVatOn"){feeCalcUpdate();return;}if(!t.matches||!t.matches("input[type=file]"))return;
+  if(t.dataset.imp==="doc"){const fs=[...(t.files||[])];t.value="";if(fs.length)addDocs(fs,t.dataset.id).catch(()=>toast(L("Speichern nicht möglich.","Could not save.")));return;}
   const f=t.files&&t.files[0];if(!f)return;
   if(t.id==="scanIn")onScanFile(f);else if(t.dataset.imp){handleImport(t.dataset.imp,f,t.dataset.id);t.value="";}
 });

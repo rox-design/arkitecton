@@ -420,3 +420,16 @@ details.site>summary .sc{white-space:nowrap;margin-left:0}
 .feesum .sl{color:var(--ink);font-weight:500;margin-right:4px}
 .feesum .go{margin-left:auto}
 .feesum:hover{background:var(--hover)}
+/* documents */
+.firmnav{margin:4px 0 14px}
+.docs .sh .right .ib{position:relative;overflow:hidden;cursor:pointer}
+.docs .sh .right .ib input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.dlist{border-top:1px solid var(--line)}
+.drow{display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line)}
+.dopen{all:unset;cursor:pointer;flex:1;min-width:0;display:grid;grid-template-columns:52px minmax(0,1fr);column-gap:12px;padding:11px 0;align-items:baseline}
+.dopen:hover .dn{text-decoration:underline}
+.dopen:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.dk{grid-row:span 2;font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);padding:2px 0;text-align:center;align-self:center}
+.dn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dm{grid-column:2;font-size:.85rem;color:var(--muted)}
+.drow .ghost.danger{white-space:nowrap}

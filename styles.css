@@ -301,3 +301,16 @@ details.site>summary{gap:12px}
 details.site>summary .sn{flex:1;min-width:0}
 details.site>summary .sc{white-space:nowrap;margin-left:0}
 @media (max-width:820px){details.site>summary .sc{font-size:.82rem}details.site>summary{font-size:1.05rem}}
+
+/* icon buttons */
+.ib{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:999px;color:var(--muted);border:1px solid var(--line);background:transparent}
+.ib:hover{color:var(--ink);border-color:var(--ink)}
+.ib:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+@media (hover:none){.ib:hover{color:var(--muted);border-color:var(--line)}}
+.ph .ib{width:44px;height:44px}
+.qtools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.qsep{flex:1}
+/* fixed amount column so rows line up */
+.row:not(.brow){grid-template-columns:8px minmax(0,1fr) auto 132px 112px}
+.row .ra{text-align:right}
+@media (max-width:820px){.row:not(.brow){grid-template-columns:8px minmax(0,1fr) auto}}

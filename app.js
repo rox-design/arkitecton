@@ -233,6 +233,15 @@ function renderChrome(){
   document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Heute","Today"))+tb("rechnungen",L("Rechnungen","Invoices"))+`<button type="button" class="fab" data-act="capture" aria-label="${L("Rechnung scannen","Scan invoice")}">${SCAN_ICON}</button>`+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget");
 }
 const ph=(eyebrow,title,lead,tools)=>`<header class="ph"><span class="eyebrow">${eyebrow}</span><h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;
+const ICO={
+copy:'<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/>',
+share:'<path d="M12 3v12"/><path d="m7.5 7.5 4.5-4.5 4.5 4.5"/><path d="M5 12v6.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V12"/>',
+mail:'<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/>',
+edit:'<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="m14 7 3 3"/>',
+trash:'<path d="M4 7h16"/><path d="M9 7V4.5h6V7"/><path d="M6.5 7l1 13h9l1-13"/>',
+flag:'<path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/>'};
+const ico=n=>`<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[n]}</svg>`;
+const ib=(n,label,attrs)=>`<button type="button" class="ib" title="${label}" aria-label="${label}" ${attrs||""}>${ico(n)}</button>`;
 const excelBtn=key=>`<button type="button" class="btn" data-act="sheet" data-k="${key}">Excel</button>`;
 const noProject=()=>`<div class="page">${ph("",L("Noch kein Projekt","No project yet"),"")}<div class="empty"><span>${L("Legen Sie Ihr erstes Projekt an.","Create your first project.")}</span><button type="button" class="btn primary" data-act="form" data-f="project">${L("Projekt anlegen","Create project")}</button></div></div>`;
 
@@ -321,7 +330,7 @@ function viewContractor(k){
   const isOpen=pid=>pid in S.kOpen.ids?S.kOpen.ids[pid]:pid===cur;
   const invOf=ws=>D.invoices.filter(i=>ws.some(w=>w.id===i.w)).sort((a,c)=>toDate(a.date)-toDate(c.date));
   const lead=(k.city?esc(k.street)+", "+esc(k.zip)+" "+esc(k.city):`<span class="neg">${L("Adresse fehlt","Address missing")}</span>`)+" · "+(k.iban?esc(k.iban):`<span class="neg">${L("IBAN fehlt","IBAN missing")}</span>`);
-  const tools=`<button type="button" class="btn" data-act="form" data-f="contractor" data-id="${k.id}">${L("Bearbeiten","Edit")}</button>`+(CW(k.id)?excelBtn("k:"+k.id):"");
+  const tools=ib("edit",L("Bearbeiten","Edit"),`data-act="form" data-f="contractor" data-id="${k.id}"`)+(CW(k.id)?excelBtn("k:"+k.id):"");
   const addHere=P()&&!pids.includes(cur)?`<div class="empty"><span>${L("Kein Werkvertrag in ","No contract in ")}${esc(P().name)}.</span><button type="button" class="btn primary" data-act="form" data-f="contract" data-id="${k.id}">${L("Werkvertrag erfassen","Add contract")}</button></div>`:"";
   const group=(pid,inner,count)=>{const p=PJ(pid);return `<details class="site" data-pid="${pid}"${isOpen(pid)?" open":""}><summary><span class="sn">${esc(p.name)}${p.place?`<span class="sp"> · ${esc(p.place)}</span>`:""}</span><span class="sc">${count}</span></summary><div class="in">${inner}</div></details>`;};
   let body="";
@@ -469,7 +478,7 @@ function drawerHTML(i){
   else if(i.status==="frei") actions=`<button type="button" class="btn" data-act="unapprove" data-id="${i.id}">${L("Freigabe zurücknehmen","Undo approval")}</button><button type="button" class="btn primary" data-act="paid" data-id="${i.id}">${L("Als bezahlt markieren","Mark as paid")}</button>`;
   const done=S.done&&S.done.id===i.id?`<div class="done"><span class="h">${L("Für Sie erledigt","Done for you")}</span><div class="chips">${S.done.items.map(x=>`<span class="chip ok">${esc(x)}</span>`).join("")}</div></div>`:"";
   const log=i.log&&i.log.length?`<details><summary>${L("Verlauf","History")}</summary><div class="in"><dl class="kv">${i.log.map(e=>`<dt>${fdate(e.d)}</dt><dd>${esc(e.t)}</dd>`).join("")}</dl></div></details>`:"";
-  const delBtn=S.confirm==="del:"+i.id?`<button type="button" class="ghost danger" data-act="del-inv" data-id="${i.id}">${L("Wirklich löschen?","Really delete?")}</button>`:`<button type="button" class="ghost" data-act="ask" data-c="del:${i.id}">${L("Rechnung löschen","Delete invoice")}</button>`;
+  const delBtn=S.confirm==="del:"+i.id?`<button type="button" class="ghost danger" data-act="del-inv" data-id="${i.id}">${L("Wirklich löschen?","Really delete?")}</button>`:ib("trash",L("Rechnung löschen","Delete invoice"),`data-act="ask" data-c="del:${i.id}"`);
   return `<div class="scrim" data-act="close"></div>
   <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="dT">
     <div class="ohead"><div><h2 id="dT" style="font-size:1.25rem;font-weight:500">${esc(k.name)}</h2><div class="sub">${typeLabel(i)} · ${esc(i.no)} · ${fdate(i.date)}</div></div><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
@@ -483,7 +492,7 @@ function drawerHTML(i){
         ${oks.length&&issues.length?`<details><summary>${oks.length} ${oks.length===1?L("Prüfung in Ordnung","check passed"):L("Prüfungen in Ordnung","checks passed")}</summary><div class="in"><ul class="checks">${oks.map(li).join("")}</ul></div></details>`:""}
         <details><summary>${L("Zahlungsdaten","Payment details")}</summary><div class="in"><dl class="kv"><dt>IBAN</dt><dd>${k.iban?esc(k.iban):`<span class="neg">${L("fehlt","missing")}</span>`}</dd><dt>${L("Referenz","Reference")}</dt><dd>${i.ref?esc(i.ref):"–"}</dd><dt>${L("Fällig","Due")}</dt><dd>${fdate(i.due)}</dd></dl></div></details>
         ${log}
-        ${S.queryOpen?`<details open><summary>${L("Rückfrage an ","Query to ")+esc(k.name)}</summary><div class="in" style="display:flex;flex-direction:column;gap:10px"><textarea id="qtext" aria-label="${L("Nachricht","Message")}">${esc(queryText(i))}</textarea><div style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" class="btn" data-act="copy-query">${L("Kopieren","Copy")}</button>${k.email?"":`<span class="hint" style="flex-basis:100%">${L("Keine E-Mail-Adresse hinterlegt. Text kopieren und per Telefon oder WhatsApp senden, oder die E-Mail ergänzen.","No email on file. Copy the text and send it another way, or add the email.")}</span>`}${k.email?`<a class="btn" href="mailto:${esc(k.email)}?subject=${encodeURIComponent(L("Rechnung ","Invoice ")+i.no)}" data-act="mail-query">${L("Als E-Mail öffnen","Open as email")}</a>`:""}<button type="button" class="btn" data-act="mark-query" data-id="${i.id}">${L("Als Rückfrage markieren","Mark as query")}</button></div></div></details>`:""}
+        ${S.queryOpen?`<details open><summary>${L("Rückfrage an ","Query to ")+esc(k.name)}</summary><div class="in" style="display:flex;flex-direction:column;gap:10px"><textarea id="qtext" aria-label="${L("Nachricht","Message")}">${esc(queryText(i))}</textarea><div class="qtools">${ib("copy",L("Kopieren","Copy"),'data-act="copy-query"')}${navigator.share?ib("share",L("Teilen (Mail, WhatsApp …)","Share (Mail, WhatsApp …)"),`data-act="share-query" data-id="${i.id}"`):""}${k.email?ib("mail",L("In Gmail öffnen","Open in Gmail"),`data-act="gmail-query" data-id="${i.id}"`):""}${k.email&&!navigator.share?`<a class="ib" title="${L("Im Mailprogramm öffnen","Open in mail app")}" aria-label="${L("Im Mailprogramm öffnen","Open in mail app")}" href="mailto:${esc(k.email)}?subject=${encodeURIComponent(L("Rechnung ","Invoice ")+i.no)}" data-act="mail-query">${ico("share")}</a>`:""}<span class="qsep"></span><button type="button" class="btn" data-act="mark-query" data-id="${i.id}">${L("Als Rückfrage markieren","Mark as query")}</button></div>${k.email?"":`<span class="hint">${L("Keine E-Mail-Adresse hinterlegt. Text kopieren und per Telefon oder WhatsApp senden, oder die E-Mail ergänzen.","No email on file. Copy the text and send it another way, or add the email.")}</span>`}</div></details>`:""}
       </div>
       <div>${delBtn}</div>
     </div>
@@ -755,7 +764,7 @@ function sheetHTML(){
     <div class="obody"><div class="menu">${items}</div>${d.note?`<span class="fine" style="color:var(--faint);font-size:.82rem">${esc(d.note)}</span>`:""}</div></div>`;
 }
 
-function renderOverlay(){queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
+function renderOverlay(){queueMicrotask(()=>{const q=document.getElementById("qtext");if(q&&!q.dataset.top){q.scrollTop=0;q.dataset.top="1";}});queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
   const o=document.getElementById("overlay");let h="";
   if(S.form) h=formHTML(); else if(S.modal) h=captureHTML(); else if(S.sheet) h=sheetHTML(); else if(S.drawer&&INV(S.drawer)) h=drawerHTML(INV(S.drawer));
   o.innerHTML=h;o.classList.toggle("on",!!h);
@@ -921,6 +930,8 @@ document.addEventListener("click",e=>{
     case "del-inv":D.invoices=D.invoices.filter(x=>x.id!==id);closeAll();render();toast(L("Rechnung gelöscht","Invoice deleted"));break;
     case "query":S.queryOpen=true;renderOverlay();{const q=document.getElementById("qtext");if(q)q.scrollIntoView({block:"nearest"});}break;
     case "copy-query":{const q=document.getElementById("qtext");copy(q?q.value:"",L("Kopiert","Copied"));break;}
+    case "share-query":{const q=document.getElementById("qtext"),inv=D.invoices.find(x=>x.id===id);navigator.share({title:L("Rechnung ","Invoice ")+(inv?inv.no:""),text:q?q.value:""}).catch(()=>{});break;}
+    case "gmail-query":{const q=document.getElementById("qtext"),inv=D.invoices.find(x=>x.id===id),k=inv&&K(W(inv.w).k);if(!k)break;window.open("https://mail.google.com/mail/?view=cm&fs=1&to="+encodeURIComponent(k.email)+"&su="+encodeURIComponent(L("Rechnung ","Invoice ")+inv.no)+"&body="+encodeURIComponent(q?q.value:""),"_blank","noopener");break;}
     case "mail-query":{const q=document.getElementById("qtext");if(q)el.href=el.href.split("&body=")[0]+"&body="+encodeURIComponent(q.value);break;}
     case "mark-query":{const i=INV(id);i.status="rueckfrage";logInv(i,L("Rückfrage gestellt","Query sent"));S.queryOpen=false;render();toast(L("Rückfrage vermerkt","Query recorded"));break;}
     case "capture":closeAll();S.modal={step:1,data:null,err:"",busy:false};renderOverlay();break;

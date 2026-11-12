@@ -180,7 +180,7 @@ function flags(){
     if(i.type==="regie") out.push({c:"warn",t:k.name,m:L("Regie ausserhalb Werkvertrag","time & materials outside contract"),chf:i.gross,act:"open-inv",id:i.id});
   });
   PC().forEach(w=>{const c=compare(w);if(c&&c.hasFinal&&c.newSum>0)out.push({c:"warn",t:K(w.k).name,m:L("nicht offerierte Positionen","items not in the offer"),chf:c.newSum,act:"open-cmp",id:w.id});});
-  budgetRows().filter(r=>r.over).forEach(r=>out.push({c:"warn",t:"BKP "+r.b.bkp+" "+tx(r.b),m:L("über Kostenvoranschlag","over cost estimate"),chf:-r.rest,act:"nav",v:"budget"}));
+  budgetRows().filter(r=>r.over).forEach(r=>out.push({c:"warn",t:"BKP "+r.b.bkp+" "+tx(r.b),m:L("über Kostenvoranschlag","over cost estimate"),chf:-r.rest,act:"kv-explain",id:r.b.bkp}));
   const ks=[...new Set(PC().map(w=>w.k))].map(K).filter(Boolean);
   ks.forEach(k=>{const m=missingOf(k);if(m.length)out.push({c:"crit",t:k.name,m:L("fehlt: ","missing: ")+m.join(", "),chf:null,act:"open-k",id:k.id});});
   return out;
@@ -374,7 +374,7 @@ function viewBudget(){
   const p=P(); if(!p) return noProject();
   const rows=budgetRows(), t=totals(rows);
   const br=rows.map(r=>{const base=Math.max(r.b.kv,r.awarded,r.billed,1),pc=x=>Math.max(0,x)/base*100;
-    return `<button type="button" class="brow row" data-act="form" data-f="kv" data-id="${r.b.bkp}"><span class="code">${r.b.bkp}</span><div><span>${esc(tx(r.b))}</span><div class="bar"><i class="c-paid" style="width:${pc(r.paid)}%"></i><i class="c-appr" style="width:${pc(r.approved)}%"></i><i class="c-open" style="width:${pc(r.open)}%"></i>${r.b.kv?`<span class="kv" style="left:${r.b.kv/base*100}%"></span>`:""}</div></div><span class="nums">${r.awarded?chf(r.awarded,false):L("nicht vergeben","not awarded")}</span><span class="rest ${r.rest<0?"up":""}">${r.b.kv?chf(r.rest,false):"–"}</span></button>`;}).join("");
+    return `<button type="button" class="brow row${S.hl===r.b.bkp?" hl":""}" data-act="form" data-f="kv" data-id="${r.b.bkp}"><span class="code">${r.b.bkp}</span><div><span>${esc(tx(r.b))}</span><div class="bar"><i class="c-paid" style="width:${pc(r.paid)}%"></i><i class="c-appr" style="width:${pc(r.approved)}%"></i><i class="c-open" style="width:${pc(r.open)}%"></i>${r.b.kv?`<span class="kv" style="left:${r.b.kv/base*100}%"></span>`:""}</div></div><span class="nums">${r.awarded?chf(r.awarded,false):L("nicht vergeben","not awarded")}</span><span class="rest ${r.rest<0?"up":""}">${r.b.kv?chf(r.rest,false):"–"}</span></button>`;}).join("");
   return `<div class="page">
     ${ph(esc(p.name),"Budget","",excelBtn("budget"))}
     <div class="stats">
@@ -780,6 +780,21 @@ function sheetDef(key){
     return {title:"Excel",groups:[[L("Hochladen","Upload"),w?[im(L("Offerte","Offer"),"offer",w.id),im(L("Schlussabrechnung","Final account"),"final",w.id)]:[]],[L("Herunterladen","Download"),[ex(L("Dossier für Sie","File for you"),"x-dossier",id),ex(L("Kontoauszug für den Handwerker","Statement for the contractor"),"x-statement",id),ex(L("Leere Offertvorlage","Blank offer template"),"x-template")]]]};}
   return null;
 }
+function kvHTML(){
+  const r=budgetRows().find(x=>x.b.bkp===S.kvx);if(!r)return "";
+  const ws=PC().filter(w=>w.bkp===r.b.bkp),kv=r.b.kv,sg=v=>v>0?"+"+nf2.format(v).replace(/\.00$/,""):v<0?"−"+nf2.format(-v).replace(/\.00$/,""):"0";
+  const line=(a,b,c,cls)=>`<span${cls?` class="${cls}"`:""}>${a}</span><span class="r${cls?" "+cls:""}">${b}</span><span class="r d${cls?" "+cls:""}">${c||""}</span>`;
+  let rows=line(L("Kostenvoranschlag","Cost estimate"),nfq.format(kv),"");
+  if(ws.length===1){const w=ws[0];rows+=line(L("Werkvertrag ","Contract ")+esc(K(w.k).name),nfq.format(w.sum),"("+sg(w.sum-kv)+")");}
+  else{ws.forEach(w=>{rows+=line(L("Werkvertrag ","Contract ")+esc(K(w.k).name),nfq.format(w.sum),"");});rows+=line(L("Vergeben total","Awarded total"),nfq.format(r.awarded),"("+sg(r.awarded-kv)+")");}
+  if(r.billed>r.awarded) rows+=line(L("Abgerechnet (freigegeben)","Billed (approved)"),nfq.format(r.billed),"("+sg(r.billed-r.awarded)+")");
+  rows+=line(L("Über Kostenvoranschlag","Over cost estimate"),nfq.format(-r.rest),"","sum");
+  const cmpBtns=ws.filter(w=>compare(w)).map(w=>`<button type="button" class="btn primary" data-act="open-cmp" data-id="${w.id}">${L("Abweichungen ansehen","View differences")}${ws.length>1?" · "+esc(K(w.k).name):""}</button>`).join("");
+  return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="kT">
+    <div class="ohead"><div><h2 id="kT" style="font-size:1.25rem;font-weight:500">BKP ${esc(r.b.bkp)} ${esc(tx(r.b))}</h2><div class="sub">CHF ${nfq.format(-r.rest)} ${L("über Kostenvoranschlag","over cost estimate")}</div></div><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
+    <div class="obody"><div class="calc kvx">${rows}</div></div>
+    <div class="ofoot"><button type="button" class="btn" data-act="kv-budget" data-id="${esc(r.b.bkp)}">${L("Budget öffnen","Open budget")}</button>${cmpBtns}</div></div>`;
+}
 function sheetHTML(){
   const d=sheetDef(S.sheet);if(!d)return "";
   const items=d.groups.filter(g=>g[1].length).map(([g,list])=>(g?`<div class="grp">${g}</div>`:"")+list.map(x=>x.imp
@@ -793,7 +808,7 @@ function sheetHTML(){
 
 function renderOverlay(){queueMicrotask(()=>{const q=document.getElementById("qtext");if(q&&!q.dataset.top){q.scrollTop=0;q.dataset.top="1";}});queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
   const o=document.getElementById("overlay");let h="";
-  if(S.form) h=formHTML(); else if(S.modal) h=captureHTML(); else if(S.sheet) h=sheetHTML(); else if(S.drawer&&INV(S.drawer)) h=drawerHTML(INV(S.drawer));
+  if(S.form) h=formHTML(); else if(S.modal) h=captureHTML(); else if(S.sheet) h=sheetHTML(); else if(S.kvx) h=kvHTML(); else if(S.drawer&&INV(S.drawer)) h=drawerHTML(INV(S.drawer));
   o.innerHTML=h;o.classList.toggle("on",!!h);
   if(S.modal&&S.modal.step===1&&P()&&!S.modal.camErr){if(cam)attachCam();else startCam();}
   const f=document.getElementById("frm");if(f)f.addEventListener("submit",e=>{e.preventDefault();submitForm();});
@@ -909,7 +924,7 @@ const EXPORT={
 let toastT;
 function toast(msg,ms){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),ms||3000);}
 async function copy(text,ok){try{await navigator.clipboard.writeText(text);toast(ok);}catch(e){toast(L("Kopieren nicht möglich","Copy failed"));}}
-function closeAll(){stopCam();S.drawer=null;S.modal=null;S.sheet=null;S.form=null;S.formErr="";S.confirm=null;S.queryOpen=false;S.done=null;}
+function closeAll(){stopCam();S.kvx=null;S.drawer=null;S.modal=null;S.sheet=null;S.form=null;S.formErr="";S.confirm=null;S.queryOpen=false;S.done=null;}
 function go(v){if(!VIEWS.includes(v))v="uebersicht";closeAll();S.view=v;if(v!=="handwerker")S.kid=null;if(v!=="ausschreibungen")S.tid=null;try{history.replaceState(null,"","#"+v);}catch(e){}render();document.getElementById("main").scrollTop=0;}
 const openForm=(f,id,w)=>{const keepDrawer=S.drawer;closeAll();S.form={f,id:id||null,w:w||null,back:keepDrawer};renderOverlay();};
 
@@ -929,6 +944,8 @@ document.addEventListener("click",e=>{
     case "open-inv":closeAll();S.drawer=id;renderOverlay();break;
     case "open-k":S.wid=null;S.kid=id;S.ktab="konto";go("handwerker");S.kid=id;render();break;
     case "open-cmp":{const w=W(id);if(!w)break;S.kid=w.k;S.ktab="vergleich";S.wid=w.id;go("handwerker");S.kid=w.k;S.wid=w.id;render();break;}
+    case "kv-explain":closeAll();S.kvx=id;renderOverlay();break;
+    case "kv-budget":closeAll();S.hl=id;go("budget");render();setTimeout(()=>{const e=document.querySelector('.brow[data-id="'+id+'"]');if(e)e.scrollIntoView({behavior:"smooth",block:"center"});},60);setTimeout(()=>{S.hl=null;},3000);break;
     case "open-w":S.wid=id;render();break;
     case "back-w":S.wid=null;render();break;
     case "back-k":S.kid=null;S.wid=null;render();break;

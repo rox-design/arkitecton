@@ -319,3 +319,9 @@ details.site>summary .sc{white-space:nowrap;margin-left:0}
 .ghost.link{padding:0;text-decoration:underline;color:inherit}
 .calc .sp{color:var(--muted)}
 .ic.n{background:var(--faint)}
+
+.calc.kvx{grid-template-columns:1fr auto 70px}
+.calc.kvx .d{color:var(--muted)}
+.calc.kvx .sum{border-top:1px solid var(--ink);padding-top:10px;font-weight:500}
+.brow.hl{animation:hl 2.6s ease-out}
+@keyframes hl{0%,40%{background:var(--hover)}100%{background:transparent}}

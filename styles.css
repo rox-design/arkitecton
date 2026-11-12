@@ -388,3 +388,35 @@ details.site>summary .sc{white-space:nowrap;margin-left:0}
   .row:not(.brow) .rl:empty{display:none}
   .fline{grid-template-columns:minmax(0,.7fr) minmax(0,1fr) minmax(0,1fr) 32px}
 }
+
+/* income chart */
+.income{--s1:#2a78d6;--s2:#eb6834}
+:root[data-theme="dark"] .income{--s1:#3987e5;--s2:#d95926}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .income{--s1:#3987e5;--s2:#d95926}}
+.income .legend,.income .olegend{display:flex;flex-wrap:wrap;gap:8px 22px;color:var(--muted);font-size:.88rem}
+.income .legend b,.income .olegend b{color:var(--ink);font-weight:500}
+.income .k{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.income .k.s1,.income svg .s1{background:var(--s1);fill:var(--s1)}
+.income .k.s2,.income svg .s2{background:var(--s2);fill:var(--s2)}
+.income .chart{margin:10px 0 6px}
+.income svg{width:100%;height:auto;display:block;overflow:visible}
+.income .gl{stroke:var(--line);stroke-width:1}
+.income .ax{fill:var(--faint);font-size:10px}
+.income .hit{fill:transparent}
+.income .col:hover .hit{fill:var(--hover)}
+.income .two{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:22px}
+.income .sl{color:var(--muted);font-size:.88rem;margin-bottom:10px}
+.income .obar{display:flex;gap:2px;height:14px;border-radius:4px;overflow:hidden;background:var(--line);margin-bottom:10px}
+.income .obar span{display:block}
+.income .b1{background:var(--faint)}.income .b2{background:var(--warn)}.income .b3{background:var(--crit)}
+.income .k.b1{background:var(--faint)}.income .k.b2{background:var(--warn)}.income .k.b3{background:var(--crit)}
+.income .exp{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:8px}
+.income .exp>div{display:flex;flex-direction:column;gap:2px}
+.income .ev{font-size:1.15rem}
+@media (max-width:820px){.income .two{grid-template-columns:1fr}}
+
+.feesum{all:unset;cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 22px;padding:16px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);color:var(--muted);font-size:.92rem}
+.feesum b{color:var(--ink);font-weight:500}
+.feesum .sl{color:var(--ink);font-weight:500;margin-right:4px}
+.feesum .go{margin-left:auto}
+.feesum:hover{background:var(--hover)}

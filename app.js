@@ -319,6 +319,55 @@ function addDemoFees(){const pidKeep=D.pid;if(!D.projects.some(p=>p.id===D.pid)&
       mk("2026-014",-66,L("Honorar Akonto 2, Bauprojekt","Fee progress payment 2"),[{t:L("Akonto 2, Phase Bauprojekt","Progress payment 2"),q:1,u:L("pauschal","lump sum"),p:31000}],0);
       mk("2026-017",-12,L("Honorar Bauleitung Oktober","Site supervision October"),[{t:L("Bauleitung","Site supervision"),q:38,u:"h",p:145},{t:L("Nebenkosten, Fahrten","Expenses, travel"),q:1,u:L("pauschal","lump sum"),p:240}],0);
       D.pid=pidKeep;}
+/* ---------- income picture ---------- */
+function addIncomeHistory(){
+  const ps=D.projects.slice(0,2);if(!ps.length)return;
+  const ad=n=>iso(new Date(TODAY.getTime()+n*864e5));
+  const plan=[[-340,14500,28],[-312,9800,35],[-280,21000,24],[-255,6400,41],[-226,18200,30],[-198,12600,27],[-170,24500,33],[-140,8900,45],[-110,16700,29],[-84,11200,38],[-48,19400,26],[-36,7300,0]];
+  plan.forEach(([d,amt,pay],k)=>{const p=ps[k%ps.length],no="2026-H"+String(k+1).padStart(2,"0");if(FEES().some(f=>f.no===no))return;const r=makeRef(no);
+    const f={id:newId("h"),pid:p.id,no,date:ad(d),title:k%3===2?L("Honorar Bauleitung","Site supervision"):L("Honorar Akonto","Fee progress payment"),lines:[{t:k%3===2?L("Bauleitung","Site supervision"):L("Akonto, Teilleistung","Progress payment"),q:1,u:L("pauschal","lump sum"),p:amt}],vat:!!D.firm.vat,refType:r.type,ref:r.ref,rem:[],paid:pay?ad(d+pay):null,log:[{d:ad(d),t:L("Erstellt","Created")}]};
+    if(pay)f.log.push({d:ad(d+pay),t:L("Zahlung eingegangen","Payment received")});FEES().push(f);});
+}
+function runMigrations(){
+  if(!D||!D.example)return;D.mig=D.mig||{};
+  if(!D.mig.fees){if(!(D.fees||[]).length)addDemoFees();D.mig.fees=1;}
+  if(!D.mig.income){addIncomeHistory();D.mig.income=1;}
+}
+function incomeData(){
+  const months=[];const t=new Date(TODAY.getFullYear(),TODAY.getMonth(),1);
+  for(let i=11;i>=0;i--){const d=new Date(t.getFullYear(),t.getMonth()-i,1);months.push({y:d.getFullYear(),m:d.getMonth(),billed:0,paid:0});}
+  const key=s=>{const d=toDate(s);return d.getFullYear()*12+d.getMonth();};
+  const idx=k=>months.findIndex(x=>x.y*12+x.m===k);
+  FEES().forEach(f=>{const tot=feeTotal(f);const a=idx(key(f.date));if(a>=0)months[a].billed+=tot;if(f.paid){const b=idx(key(f.paid));if(b>=0)months[b].paid+=tot;}});
+  const open=FEES().filter(f=>!f.paid);
+  const bucket={notdue:0,overdue:0,dunning:0};
+  open.forEach(f=>{const v=feeTotal(f);if((f.rem||[]).length||remDue(f))bucket.dunning+=v;else if(daysTo(feeDue(f))<0)bucket.overdue+=v;else bucket.notdue+=v;});
+  const paidL=FEES().filter(f=>f.paid&&-daysTo(f.paid)<=365),avg=paidL.length?Math.round(paidL.reduce((a,f)=>a+(toDate(f.paid)-toDate(f.date))/864e5,0)/paidL.length):0;
+  const late=paidL.filter(f=>(toDate(f.paid)-toDate(f.date))/864e5>30).length;
+  return {months,bucket,avg,nPaid:paidL.length,late,openSum:open.reduce((a,f)=>a+feeTotal(f),0)};
+}
+function incomeSection(){
+  const D2=incomeData(),M=D2.months,max=Math.max(1,...M.map(x=>Math.max(x.billed,x.paid)));
+  const mn=m=>new Date(2026,m,1).toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{month:"short"}).replace(".","");
+  const mob=window.innerWidth<821,W=mob?360:720,H=mob?190:200,pad=mob?32:28,base=H-22,cw=(W-pad)/12,bw=Math.min(16,cw*(mob?.36:.3));
+  const nice=v=>{const p=Math.pow(10,Math.floor(Math.log10(v))),n=v/p;return ([1,1.5,2,2.5,3,4,5,6,8,10].find(x=>x>=n))*p;};const top=nice(max);
+  const y=v=>base-(v/top)*(base-14);
+  const grid=[0,.5,1].map(f=>`<line x1="${pad}" x2="${W}" y1="${y(top*f)}" y2="${y(top*f)}" class="gl"/><text x="${pad-6}" y="${y(top*f)+3}" class="ax" text-anchor="end">${f?nfq.format(top*f/1000)+"k":"0"}</text>`).join("");
+  const bar=(x,v,cls)=>{if(!v)return "";const yy=y(v),h=base-yy,r=Math.min(3,h);return `<path class="${cls}" d="M${x},${base} V${yy+r} Q${x},${yy} ${x+r},${yy} H${x+bw-r} Q${x+bw},${yy} ${x+bw},${yy+r} V${base} Z"/>`;};
+  const cols=M.map((m,i)=>{const x0=pad+i*cw+cw/2-bw-1;const tip=`${mn(m.m)} ${m.y}: ${L("gestellt","billed")} CHF ${nfq.format(Math.round(m.billed))}, ${L("eingegangen","received")} CHF ${nfq.format(Math.round(m.paid))}`;
+    return `<g class="col"><title>${tip}</title><rect x="${pad+i*cw}" y="0" width="${cw}" height="${base}" class="hit"/>${bar(x0,m.billed,"s1")}${bar(x0+bw+2,m.paid,"s2")}${!mob||i%2===1?`<text x="${pad+i*cw+cw/2}" y="${H-6}" class="ax" text-anchor="middle">${mn(m.m)}</text>`:""}</g>`;}).join("");
+  const sumB=M.reduce((a,m)=>a+m.billed,0),sumP=M.reduce((a,m)=>a+m.paid,0);
+  const B=D2.bucket,tot=Math.max(1,B.notdue+B.overdue+B.dunning),seg=(v,cls)=>v?`<span class="${cls}" style="flex:${v/tot}"></span>`:"";
+  return `<section class="income"><div class="sh"><h2>${L("Einnahmen","Income")}</h2><span class="cnt">${L("letzte 12 Monate","last 12 months")}</span></div>
+    <div class="legend"><span><i class="k s1"></i>${L("Gestellt","Billed")} <b>CHF ${nfq.format(Math.round(sumB))}</b></span><span><i class="k s2"></i>${L("Eingegangen","Received")} <b>CHF ${nfq.format(Math.round(sumP))}</b></span></div>
+    <div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${L("Gestellt und eingegangen pro Monat","Billed and received per month")}">${grid}${cols}</svg></div>
+    <div class="two">
+      <div><div class="sl">${L("Offen","Open")} · CHF ${nfq.format(Math.round(D2.openSum))}</div>
+        <div class="obar">${seg(B.notdue,"b1")}${seg(B.overdue,"b2")}${seg(B.dunning,"b3")}</div>
+        <div class="olegend"><span><i class="k b1"></i>${L("noch nicht fällig","not yet due")} <b>${nfq.format(Math.round(B.notdue))}</b></span><span><i class="k b2"></i>${L("überfällig","overdue")} <b>${nfq.format(Math.round(B.overdue))}</b></span><span><i class="k b3"></i>${L("in Mahnung","in reminder")} <b>${nfq.format(Math.round(B.dunning))}</b></span></div></div>
+      <div><div class="sl">${L("Zahlungsdauer","Time to payment")}</div><div class="exp"><div><span class="ev">Ø ${D2.avg} ${L("Tage","days")}</span><span class="ss">${L("von der Rechnung bis zur Zahlung","from invoice to payment")}</span></div><div><span class="ev">${D2.late} ${L("von","of")} ${D2.nPaid}</span><span class="ss">${L("nach mehr als 30 Tagen bezahlt","paid after more than 30 days")}</span></div></div></div>
+    </div></section>`;
+}
 function viewFees(){
   const list=PF().slice().sort((a,b)=>toDate(b.date)-toDate(a.date));
   const open=list.filter(f=>!f.paid),sum=open.reduce((a,f)=>a+feeTotal(f),0),due=list.filter(f=>remDue(f)).length;
@@ -494,6 +543,7 @@ function viewFirm(){
       <div class="stat"><span class="sl">${L("Honorar offen","Fees open")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung fällig","no reminder due")}</span></div>
       <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tOpen}</span><span class="ss">${L("offen","open")}</span></button>
     </div>
+    ${FEES().length?incomeSection():""}
     <section><div class="sh"><h2>${L("Projekte","Projects")}</h2><span class="cnt">${ps.length}</span><span class="right">${ib("plus",L("Neues Projekt","New project"),'data-act="form-project"')}</span></div><div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div></section>
   </div>`;
 }
@@ -518,6 +568,7 @@ function viewOverview(){
       <button type="button" class="stat" data-act="jump-flags"><span class="sl">${L("Von arkitecton gefunden","Found by arkitecton")}</span><span class="sv${fl.length?" warn":""}">${fl.length}</span><span class="ss">${L("Auffälligkeiten","issues")} · ${chf(flSum,false)}</span></button>
       <button type="button" class="stat" data-act="nav" data-v="budget"><span class="sl">${L("Kostenstand","Cost status")}</span><span class="sv">${t.kv?pct+"%":"–"}</span><span class="ss"><span class="mini"><i style="width:${Math.min(100,pct)}%"></i></span>${t.kv?L("von","of")+" "+chf(t.kv,false):L("kein Budget","no budget")}</span></button>
     </div>
+    ${PF().length?(()=>{const fs=PF(),b=fs.reduce((a,f)=>a+feeTotal(f),0),pd=fs.filter(f=>f.paid).reduce((a,f)=>a+feeTotal(f),0);return `<button type="button" class="feesum" data-act="to-fees"><span class="sl">${L("Honorar","Fees")}</span><span>${L("gestellt","billed")} <b>CHF ${nfq.format(Math.round(b))}</b></span><span>${L("eingegangen","received")} <b>CHF ${nfq.format(Math.round(pd))}</b></span><span>${L("offen","open")} <b>CHF ${nfq.format(Math.round(b-pd))}</b></span><span class="go">→</span></button>`;})():""}
     <section><div class="sh"><h2>${L("Zu erledigen","To do")}</h2><span class="cnt">${toCheck.length+tTodo.length+PF().filter(f=>remDue(f)).length}</span></div><div class="rows">${todo||`<div class="empty">${L("Alles erledigt.","All done.")}</div>`}</div></section>
     <section id="flags"><div class="sh"><h2>${L("Gefunden","Found")}</h2><span class="cnt">${fl.length}</span></div><div class="rows">${flagRows||`<div class="empty">${L("Nichts Auffälliges.","Nothing unusual.")}</div>`}</div>
       ${fl.length>3?`<button type="button" class="more" data-act="all-flags">${S.allFlags?L("Weniger anzeigen","Show less"):L("Alle anzeigen","Show all")}</button>`:""}</section>
@@ -1198,11 +1249,12 @@ document.addEventListener("click",e=>{
   const a=el.dataset.act,id=el.dataset.id;
   if(EXPORT[a])return void EXPORT[a](id);
   switch(a){
-    case "start-example":D=seedExample();S.view="uebersicht";render();break;
+    case "start-example":D=seedExample();runMigrations();S.view="uebersicht";render();break;
     case "start-empty":D=seedEmpty();render();openForm("project");break;
     case "nav":S.kid=null;S.tid=null;go(el.dataset.v);break;
     case "lang":S.lang=el.dataset.l;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
     case "filter":S.filter=el.dataset.f;render();break;
+    case "to-fees":S.rtab="deb";go("rechnungen");break;
     case "rtab":S.rtab=el.dataset.t;render();break;
     case "open-fee":closeAll();S.fdrawer=id;renderOverlay();break;
     case "fee-addline":readFeeLines();S.form.lines.push({t:"",q:1,u:L("pauschal","lump sum"),p:""});keepFeeFields(()=>renderOverlay());break;
@@ -1242,7 +1294,7 @@ document.addEventListener("click",e=>{
     case "home":go("buero");break;
     case "pick-project":D.pid=id;closeAll();S.kid=null;render();toast(P().name);break;
     case "ask":S.confirm=el.dataset.c;renderOverlay();break;
-    case "reset-ex":D=seedExample();closeAll();S.view="uebersicht";S.kid=null;S.tid=null;render();toast(L("Beispieldaten geladen","Example data loaded"));break;
+    case "reset-ex":D=seedExample();runMigrations();closeAll();S.view="uebersicht";S.kid=null;S.tid=null;render();toast(L("Beispieldaten geladen","Example data loaded"));break;
     case "reset-all":try{localStorage.removeItem(KEY);}catch(err){}D=null;closeAll();render();break;
     case "close":{const back=S.form&&S.form.back;closeAll();if(back&&INV(back))S.drawer=back;render();break;}
     case "approve":{const i=INV(id);i.status="frei";logInv(i,L("Freigegeben","Approved"));S.done=null;S.queryOpen=false;render();toast(L("Freigegeben · ","Approved · ")+chf(payout(i)));break;}
@@ -1279,7 +1331,7 @@ window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(D&&v
 
 try{const l=localStorage.getItem("arkitecton:lang");if(l==="de"||l==="en")S.lang=l;}catch(e){}
 D=loadData();
-if(D&&D.example){D.mig=D.mig||{};if(!D.mig.fees){if(!(D.fees||[]).length)addDemoFees();D.mig.fees=1;}}
+runMigrations();
 const h0=location.hash.slice(1);if(VIEWS.includes(h0))S.view=h0;
 render();
 window.__ark={get D(){return D;},S,compare,budgetRows,totals,retention,payout,parseSPC,parseLines,flags};

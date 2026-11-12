@@ -320,7 +320,7 @@ function viewFees(){
       <div class="stat"><span class="sl">${L("Mahnungen fällig","Reminders due")}</span><span class="sv${due?" warn":""}">${due}</span><span class="ss">${L("nach 60, 90, 120 Tagen","after 60, 90, 120 days")}</span></div>
       <div class="stat"><span class="sl">${L("Bezahlt","Paid")}</span><span class="sv">${chf(list.filter(f=>f.paid).reduce((a,f)=>a+feeTotal(f),0),false)}</span><span class="ss">${list.filter(f=>f.paid).length} ${L("Rechnungen","invoices")}</span></div>
     </div>
-    <section><div class="rows">${rows||`<div class="empty">${L("Noch keine Honorarrechnungen.","No fee invoices yet.")}</div>`}</div></section>`;
+    <section><div class="rows">${rows||`<div class="empty"><span>${L("Noch keine Honorarrechnungen.","No fee invoices yet.")}</span>${D.example?`<button type="button" class="btn" data-act="fee-demo">${L("Beispielrechnungen anzeigen","Show example invoices")}</button>`:""}</div>`}</div></section>`;
 }
 
 function feeFormDef(F){
@@ -1201,6 +1201,15 @@ document.addEventListener("click",e=>{
     case "fee-unpaid":{const f=FE(id);f.paid=null;logInv(f,L("Zahlung zurückgenommen","Payment undone"));render();break;}
     case "fee-pdf":{const f=FE(id);feePDF(f,0).then(()=>{if(!(f.log||[]).some(x=>x.t===L("PDF erstellt","PDF created"))){logInv(f,L("PDF erstellt","PDF created"));render();}}).catch(()=>toast(L("PDF konnte nicht erstellt werden","Could not create PDF")));break;}
     case "fee-remind":{const f=FE(id),n=remDue(f);if(!n)break;feePDF(f,n).then(()=>{(f.rem=f.rem||[]).push({n,d:iso(TODAY)});logInv(f,remName(n)+L(" erstellt"," created"));render();toast(remName(n)+L(" erstellt"," created"));}).catch(()=>toast(L("PDF konnte nicht erstellt werden","Could not create PDF")));break;}
+    case "fee-demo":{
+      const F=D.firm;if(!F.street){Object.assign(F,{street:"Zugerstrasse 18",zip:"8820",city:"Wädenswil"});}if(!ibanValid(F.iban||"")){F.iban="CH6700700110004357712";}if(!F.email)F.email="info@beispiel-architekten.example";if(!F.phone)F.phone="044 780 12 34";if(F.vat===undefined){F.vat=true;F.vatNo="CHE-123.456.788 MWST";}
+      const p=P();if(p&&!p.ccity){Object.assign(p,{cstreet:p.cstreet||"Rebhalde 5",czip:"8820",ccity:p.place||"Wädenswil",client:p.client||"Familie Graf"});}
+      const ad=n=>iso(new Date(TODAY.getTime()+n*864e5));
+      const mk=(no,days,title,lines,paid)=>{const r=makeRef(no),f={id:newId("h"),pid:D.pid,no,date:ad(days),title,lines,vat:!!F.vat,refType:r.type,ref:r.ref,rem:[],paid:paid?ad(paid):null,log:[{d:ad(days),t:L("Erstellt","Created")}]};if(paid)f.log.push({d:ad(paid),t:L("Zahlung eingegangen","Payment received")});FEES().push(f);};
+      mk("2026-011",-150,L("Honorar Akonto 1, Vorprojekt","Fee progress payment 1"),[{t:L("Akonto 1, Phase Vorprojekt","Progress payment 1"),q:1,u:L("pauschal","lump sum"),p:24000}],-122);
+      mk("2026-014",-66,L("Honorar Akonto 2, Bauprojekt","Fee progress payment 2"),[{t:L("Akonto 2, Phase Bauprojekt","Progress payment 2"),q:1,u:L("pauschal","lump sum"),p:31000}],0);
+      mk("2026-017",-12,L("Honorar Bauleitung Oktober","Site supervision October"),[{t:L("Bauleitung","Site supervision"),q:38,u:"h",p:145},{t:L("Nebenkosten, Fahrten","Expenses, travel"),q:1,u:L("pauschal","lump sum"),p:240}],0);
+      render();toast(L("3 Beispielrechnungen angelegt","3 example invoices added"));break;}
     case "fee-del":{D.fees=FEES().filter(x=>x.id!==id);closeAll();render();toast(L("Rechnung gelöscht","Invoice deleted"));break;}
     case "logo-del":readFirmForm();delete D.firm.logo;renderOverlay();break;
     case "jump-flags":{const f=document.getElementById("flags");if(f)f.scrollIntoView({behavior:"smooth",block:"start"});break;}

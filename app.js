@@ -658,13 +658,13 @@ function viewOverview(){
 function viewInvoices(){
   const p=P(); if(!p) return noProject();
   const sw=`<div class="seg" role="tablist"><button type="button" role="tab" data-act="rtab" data-t="kred" aria-selected="${S.rtab!=="deb"}">${L("Handwerker","Contractors")}</button><button type="button" role="tab" data-act="rtab" data-t="deb" aria-selected="${S.rtab==="deb"}">${L("Honorar","Fees")}</button></div>`;
-  if(S.rtab==="deb") return `<div class="page">${ph(esc(p.name),L("Rechnungen","Invoices"),"",`<button type="button" class="btn" data-act="form" data-f="fee">${L("+ Rechnung","+ Invoice")}</button>`)}${sw}${viewFees()}</div>`;
+  if(S.rtab==="deb") return `<div class="page">${ph(esc(p.name),L("Rechnungen","Invoices"),"",ib("plus",L("Honorarrechnung erstellen","New fee invoice"),'data-act="form" data-f="fee"'))}${sw}${viewFees()}</div>`;
   const F=["pruefen","rueckfrage","frei","bezahlt","all"], all=PIx();
   const cnt=f=>f==="all"?all.length:all.filter(i=>i.status===f).length;
   const list=all.filter(i=>S.filter==="all"||i.status===S.filter).slice().sort((a,b)=>toDate(b.date)-toDate(a.date));
   const rows=list.map(i=>{const w=W(i.w),k=K(w.k);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:esc(k.name),meta:typeLabel(i)+" · "+esc(i.no),amt:chf(i.gross,false),label:stLabel(i.status)});}).join("");
   return `<div class="page">
-    ${ph(esc(p.name),L("Rechnungen","Invoices"),"",`<button type="button" class="btn" data-act="form" data-f="invoice">${L("+ Erfassen","+ Add")}</button>`+excelBtn("rechnungen"))}
+    ${ph(esc(p.name),L("Rechnungen","Invoices"),"",ib("plus",L("Rechnung erfassen","Add invoice"),'data-act="form" data-f="invoice"')+excelBtn("rechnungen"))}
     ${sw}<div class="tabs" role="tablist">${F.map(f=>`<button type="button" role="tab" data-act="filter" data-f="${f}" aria-selected="${S.filter===f}">${f==="all"?L("Alle","All"):stLabel(f)}<span class="c">${cnt(f)}</span></button>`).join("")}</div>
     <section><div class="rows">${rows||`<div class="empty">${L("Keine Rechnungen.","No invoices.")}</div>`}</div></section>
   </div>`;

@@ -60,7 +60,8 @@ h2{font-size:1rem;font-weight:500;letter-spacing:-.005em}
 .lang button[aria-pressed="true"]{color:var(--ink)}
 
 /* page */
-main{overflow:auto;height:100%}
+main{overflow:auto;overflow-x:hidden;height:100%}
+.ph>*{min-width:0}
 .page{max-width:1000px;margin:0 auto;padding:56px 64px 96px;display:flex;flex-direction:column;gap:56px}
 .ph{display:grid;grid-template-columns:1fr auto;align-items:end;gap:20px}
 .ph .eyebrow{grid-column:1/-1;font-size:.8rem;color:var(--muted);letter-spacing:.01em}

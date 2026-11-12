@@ -783,7 +783,8 @@ async function handleImport(kind,file,id){
       if(k){let ch=false;Object.keys(rec).forEach(f=>{if(!k[f]&&rec[f]){k[f]=rec[f];ch=true;}});if(ch)filled++;}
       else{D.contractors.push(Object.assign({id:newId("k"),name},rec));added++;}
     }
-    render();return toast(L(`${added} neu · ${filled} ergänzt`,`${added} new · ${filled} completed`));
+    render();if(!added&&!filled)return toast(L("Keine neuen Angaben in der Datei. Mit Numbers bearbeitet? Ablage › Exportieren › Excel, dann diese Datei hochladen.","No new details in the file. Edited in Numbers? File › Export To › Excel, then upload that file."),7000);
+    return toast(L(`${added} neu · ${filled} ergänzt`,`${added} new · ${filled} completed`));
   }
   const lines=parseLines(rows),w=W(id);
   if(!lines||!w){render();return toast(L("Keine Positionen gefunden","No items found"));}

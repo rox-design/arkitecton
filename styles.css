@@ -325,3 +325,16 @@ details.site>summary .sc{white-space:nowrap;margin-left:0}
 .calc.kvx .sum{border-top:1px solid var(--ink);padding-top:10px;font-weight:500}
 .brow.hl{animation:hl 2.6s ease-out}
 @keyframes hl{0%,40%{background:var(--hover)}100%{background:transparent}}
+
+/* nav icons */
+.nav .ni{width:19px;height:19px;flex:none}
+.tabbar button .ni{width:23px;height:23px}
+.tabbar button{gap:3px}
+/* mobile rows: reason under the name */
+@media (max-width:820px){
+  .row:not(.brow){grid-template-columns:8px minmax(0,1fr) auto;row-gap:2px}
+  .row:not(.brow) .dot{grid-row:1/span 2;align-self:center}
+  .row:not(.brow) .rt{grid-column:2;grid-row:1}
+  .row:not(.brow) .rm{display:block;grid-column:2;grid-row:2;max-width:none;font-size:.82rem}
+  .row:not(.brow) .ra{grid-column:3;grid-row:1/span 2;align-self:center}
+}

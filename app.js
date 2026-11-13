@@ -178,7 +178,6 @@ function budgetRows(){
 function totals(rows){const t={kv:0,awarded:0,billed:0,paid:0,approved:0,open:0,ret:0,rest:0};rows.forEach(r=>{for(const k in t)t[k]+=k==="kv"?r.b.kv:r[k];});return t;}
 function flags(){
   const out=[], p=P(); if(!p) return out;
-  D.events.filter(e=>e.pid===p.id).forEach(e=>out.push(e));
   PI().filter(i=>!counted(i)).forEach(i=>{
     const w=W(i.w),k=K(w.k);
     if(w.sum>0){const over=r2(billedOn(w.id,i.id)+net(i)-w.sum);if(over>0)out.push({c:"warn",t:k.name,m:L("über Werkvertrag","above contract"),chf:over,act:"open-inv",id:i.id});}
@@ -186,9 +185,11 @@ function flags(){
   });
   PC().forEach(w=>{const c=compare(w);if(c&&c.hasFinal&&c.newSum>0)out.push({c:"warn",t:K(w.k).name,m:L("nicht offerierte Positionen","items not in the offer"),chf:c.newSum,act:"open-cmp",id:w.id});});
   budgetRows().filter(r=>r.over).forEach(r=>out.push({c:"warn",t:"BKP "+r.b.bkp+" "+tx(r.b),m:L("über Kostenvoranschlag","over cost estimate"),chf:-r.rest,act:"kv-explain",id:r.b.bkp}));
-  const ks=[...new Set(PC().map(w=>w.k))].map(K).filter(Boolean);
-  ks.forEach(k=>{const m=missingOf(k);if(m.length)out.push({c:"crit",t:k.name,m:L("fehlt: ","missing: ")+m.join(", "),chf:null,act:"open-k",id:k.id});});
   return out;
+}
+function missingTasks(){
+  if(!P())return [];
+  return [...new Set(PC().map(w=>w.k))].map(K).filter(Boolean).map(k=>({k,m:missingOf(k)})).filter(x=>x.m.length);
 }
 
 /* ---------- tenders ---------- */
@@ -604,10 +605,10 @@ function startSteps(){
 }
 function viewFirm(){
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
-  const ps=D.projects.map(p=>withP(p.id,()=>{const chk=PI().filter(i=>!counted(i)),fo=PF().filter(f=>!f.paid);return {p,chk,n:chk.length,sum:chk.reduce((a,i)=>a+net(i),0),fl:flags().length,fees:fo.reduce((a,f)=>a+feeTotal(f),0),rem:fo.filter(f=>remDue(f)).length};}));
-  const feeOpen=ps.reduce((a,x)=>a+x.fees,0),remN=ps.reduce((a,x)=>a+x.rem,0),tot=ps.reduce((a,x)=>a+x.sum,0),nChk=ps.reduce((a,x)=>a+x.n,0),nFl=ps.reduce((a,x)=>a+x.fl,0);
+  const ps=D.projects.map(p=>withP(p.id,()=>{const chk=PI().filter(i=>!counted(i)),fo=PF().filter(f=>!f.paid);return {p,chk,n:chk.length,sum:chk.reduce((a,i)=>a+net(i),0),fl:flags().length,flc:flags().reduce((a,f)=>a+(f.chf||0),0),fees:fo.reduce((a,f)=>a+feeTotal(f),0),rem:fo.filter(f=>remDue(f)).length};}));
+  const feeOpen=ps.reduce((a,x)=>a+x.fees,0),remN=ps.reduce((a,x)=>a+x.rem,0),tot=ps.reduce((a,x)=>a+x.sum,0),nChk=ps.reduce((a,x)=>a+x.n,0),nFl=ps.reduce((a,x)=>a+x.fl,0),flc=ps.reduce((a,x)=>a+x.flc,0);
   const tOpen=D.tenders.filter(x=>!closedT(x)&&fitOf(x).fit!=="no"&&daysTo(x.due)>=0).length;
-  const parts=x=>[x.n?x.n+" "+L("offen","open"):"",x.fl?x.fl+" "+L("auffällig","issues"):"",x.rem?x.rem+" "+(x.rem===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):""].filter(Boolean).join(" · ")||L("nichts offen","nothing open");
+  const parts=x=>[x.n?x.n+" "+L("offen","open"):"",x.fl?x.fl+" "+L("mit Mehrkosten","with extra costs"):"",x.rem?x.rem+" "+(x.rem===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):""].filter(Boolean).join(" · ")||L("nichts offen","nothing open");
   const rows=ps.map(x=>row({act:"open-project",id:x.p.id,c:x.rem?"crit":x.fl?"warn":x.n?"n":"ok",title:esc(x.p.name),meta:(x.p.place?esc(x.p.place)+" · ":"")+parts(x),amt:x.sum?chf(x.sum,false):"",label:""})).join("");
   const name=(D.firm&&D.firm.name)||L("Ihr Büro","Your firm");
   const tl=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0).sort((a,b)=>toDate(a.due)-toDate(b.due));
@@ -618,7 +619,7 @@ function viewFirm(){
     ${dataNotice()}${startSteps()}
     <div class="stats">
       <div class="stat"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${openSub(ps.flatMap(x=>x.chk))}</span></div>
-      <div class="stat"><span class="sl">${L("Auffälligkeiten","Issues")}</span><span class="sv${nFl?" warn":""}">${nFl}</span><span class="ss">${L("Mehrkosten, fehlende Angaben","extra costs, missing details")}</span></div>
+      <div class="stat"><span class="sl">${L("Mehrkosten","Extra costs")}</span><span class="sv${nFl?" warn":""}">${nFl}</span><span class="ss">${L("über Vertrag, Offerte oder Budget","above contract, offer or budget")}</span></div>
       <div class="stat"><span class="sl">${L("Honorar offen","Fees open")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung fällig","no reminder due")}</span></div>
       <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${tOpen} ${L("mit Eignung","eligible")}</span></button>
     </div>
@@ -633,11 +634,12 @@ function viewOverview(){
   const t=totals(budgetRows());
   const toCheck=PI().filter(i=>!counted(i)).sort((a,b)=>toDate(a.due)-toDate(b.due));
   const openSum=toCheck.reduce((a,i)=>a+i.gross,0);
-  const fl=flags(), flSum=fl.reduce((a,f)=>a+(f.chf||0),0);
+  const mt=missingTasks(),fl=flags(), flSum=fl.reduce((a,f)=>a+(f.chf||0),0);
   const used=t.paid+t.approved, pct=t.kv?Math.round(used/t.kv*100):0;
   const tTodo=D.tenders.filter(x=>!closedT(x)&&fitOf(x).fit!=="no"&&daysTo(x.due)>=0&&daysTo(x.due)<=28).sort((a,b)=>toDate(a.due)-toDate(b.due));
   const todo=toCheck.map(i=>{const k=K(W(i.w).k),dd=daysTo(i.due);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:esc(k.name),meta:typeLabel(i),amt:chf(i.gross,false),label:dd<0?L("überfällig","overdue"):L(dd+" Tage",dd+" days"),lc:dd<=7?"warn":"n"});}).join("")
     +PF().filter(f=>remDue(f)).map(f=>row({act:"open-fee",id:f.id,c:"crit",title:esc(L("Honorar ","Fee ")+f.no),meta:remName(remDue(f))+L(" fällig"," due"),amt:chf(feeTotal(f),false),label:feeAge(f)+L(" T. offen"," d open"),lc:"crit"})).join("")
+    +mt.map(x=>row({act:"open-k",id:x.k.id,c:"crit",title:esc(x.k.name),meta:L("Ergänzen: ","Add: ")+x.m.join(", "),amt:"",label:L("Angaben fehlen","details missing"),lc:"crit"})).join("")
     +tTodo.map(x=>row({act:"open-t",id:x.id,c:"acc",title:esc(tx(x.title)),meta:L("Ausschreibung","Tender"),amt:"",label:L("Eingabe in "+daysTo(x.due)+" T.","due in "+daysTo(x.due)+" d"),lc:"n"})).join("");
   const shown=S.allFlags?fl:fl.slice(0,3);
   const flagRows=shown.map(f=>row({act:f.act,id:f.id,v:f.v,c:f.c,title:esc(f.t),meta:esc(f.m),amt:f.chf===null?"":chf(f.chf,false),label:""})).join("");
@@ -647,12 +649,12 @@ function viewOverview(){
     ${startSteps()}
     <div class="stats">
       <button type="button" class="stat" data-act="nav" data-v="rechnungen"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${openSub(toCheck)}</span></button>
-      <button type="button" class="stat" data-act="jump-flags"><span class="sl">${L("Auffälligkeiten","Issues")}</span><span class="sv${fl.length?" warn":""}">${fl.length}</span><span class="ss">${flSum?chf(flSum,false)+" "+L("Mehrkosten","extra costs"):L("Mehrkosten, fehlende Angaben","extra costs, missing details")}</span></button>
+      <button type="button" class="stat" data-act="jump-flags"><span class="sl">${L("Mehrkosten","Extra costs")}</span><span class="sv${fl.length?" warn":""}">${fl.length}</span><span class="ss">${L("über Vertrag, Offerte oder Budget","above contract, offer or budget")}</span></button>
       <button type="button" class="stat" data-act="nav" data-v="budget"><span class="sl">${L("Kostenstand","Cost status")}</span><span class="sv">${t.kv?pct+"%":"–"}</span><span class="ss"><span class="mini"><i style="width:${Math.min(100,pct)}%"></i></span>${t.kv?L("von","of")+" "+chf(t.kv,false):L("kein Budget","no budget")}</span></button>
     </div>
     ${PF().length?(()=>{const fs=PF(),b=fs.reduce((a,f)=>a+feeTotal(f),0),pd=fs.filter(f=>f.paid).reduce((a,f)=>a+feeTotal(f),0);return `<button type="button" class="feesum" data-act="to-fees"><span class="fh"><span class="sl">${L("Honorar","Fees")}</span><span class="go">→</span></span><span class="fv"><small>${L("Gestellt","Billed")}</small><b>CHF ${nfq.format(Math.round(b))}</b></span><span class="fv"><small>${L("Eingegangen","Received")}</small><b>CHF ${nfq.format(Math.round(pd))}</b></span><span class="fv"><small>${L("Offen","Open")}</small><b>CHF ${nfq.format(Math.round(b-pd))}</b></span></button>`;})():""}
-    <section><div class="sh"><h2>${L("Zu erledigen","To do")}</h2><span class="cnt">${toCheck.length+tTodo.length+PF().filter(f=>remDue(f)).length}</span></div><div class="rows">${todo||`<div class="empty">${L("Alles erledigt.","All done.")}</div>`}</div></section>
-    <section id="flags"><div class="sh"><h2>${L("Auffälligkeiten","Issues")}</h2><span class="cnt">${fl.length}</span></div><div class="rows">${flagRows||`<div class="empty">${L("Nichts Auffälliges.","Nothing unusual.")}</div>`}</div>
+    <section><div class="sh"><h2>${L("Zu erledigen","To do")}</h2><span class="cnt">${toCheck.length+tTodo.length+mt.length+PF().filter(f=>remDue(f)).length}</span></div><div class="rows">${todo||`<div class="empty">${L("Alles erledigt.","All done.")}</div>`}</div></section>
+    <section id="flags"><div class="sh"><h2>${L("Mehrkosten","Extra costs")}</h2><span class="cnt">${fl.length}</span></div><div class="rows">${flagRows||`<div class="empty">${L("Keine Mehrkosten.","No extra costs.")}</div>`}</div>
       ${fl.length>3?`<button type="button" class="more" data-act="all-flags">${S.allFlags?L("Weniger anzeigen","Show less"):L("Alle anzeigen","Show all")}</button>`:""}</section>
     ${docsBlock("project",p.id,L("Projektdokumente","Project documents"),L("Pläne, Bewilligungen, Kostenvoranschlag mit ＋ ablegen.","Store plans, permits and estimates with ＋."))}
   </div>`;

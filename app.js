@@ -240,19 +240,14 @@ function renderChrome(){
   document.documentElement.lang=S.lang;
   const p=P();
   document.getElementById("railScan").textContent=L("Rechnung scannen","Scan invoice");
-  const firmLvl=S.view==="buero"||S.view==="ausschreibungen"||!p;
-  const fn=(D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name");
-  const rf=document.getElementById("railFirm");rf.textContent=fn;rf.title="Home";
-  const tp=document.getElementById("topTp");
-  tp.innerHTML=firmLvl?`<span class="tf">${esc(fn)}</span>`:`<button type="button" class="tback" data-act="home">‹ Home</button><span class="tn">${esc(p.name)}</span>`;
+  document.getElementById("railProj").innerHTML=`<span class="l">${L("Projekt","Project")}</span><span class="n">${p?esc(p.name):L("Kein Projekt","No project")}</span>`;
+  const firmLvl=S.view==="buero"||S.view==="ausschreibungen";document.getElementById("topProj").textContent=firmLvl?L("Alle Projekte","All projects"):(p?p.name:L("Kein Projekt","No project"));
   document.querySelector(".topbar").classList.toggle("home",firmLvl);
-  document.getElementById("tabbar").style.display=firmLvl?"none":"";
-  document.getElementById("app").classList.toggle("notabs",firmLvl);
+  const fn=(D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name");["railFirm","topFirm"].forEach(id=>{const e=document.getElementById(id);if(e){e.textContent=fn;e.title=L("Alle Projekte","All projects");e.setAttribute("aria-current",S.view==="buero"?"page":"false");}});
   document.getElementById("railData").textContent=L("Daten und Sicherung","Data and backup");
   document.querySelectorAll(".lang button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.l===S.lang)));
   const nb=v=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span></button>`;
-  const inProj=!firmLvl;
-  document.getElementById("projNav").innerHTML=`<div class="ph2"><span>${L("Projekte","Projects")}</span>${ib("plus",L("Neues Projekt","New project"),'data-act="form-project"')}</div>`+D.projects.map(x=>{const open=x.id===D.pid;return `<div class="pgrp${open?" open":""}"><button type="button" class="pname" data-act="open-project" data-id="${x.id}"${open&&inProj&&S.view==="uebersicht"?' aria-current="page"':""}><span class="chev">${open?"▾":"›"}</span><span>${esc(x.name)}</span></button>${open?`<div class="nav sub">${["uebersicht","rechnungen","handwerker","budget"].map(v=>`<button type="button" data-act="nav" data-v="${v}"${inProj&&S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span></button>`).join("")}</div>`:""}</div>`;}).join("")+(D.projects.length?"":`<p class="pempty">${L("Noch kein Projekt.","No project yet.")}</p>`);
+  document.getElementById("nav").innerHTML=["uebersicht","rechnungen","handwerker","budget"].map(nb).join("");
   const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=nb("buero")+nb("ausschreibungen");
   const tb=(v,l)=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${l}</span></button>`;
   document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Übersicht","Overview"))+tb("rechnungen",L("Rechnungen","Invoices"))+`<button type="button" class="fab" data-act="capture" aria-label="${L("Rechnung scannen","Scan invoice")}">${SCAN_ICON}</button>`+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget");
@@ -629,7 +624,7 @@ function viewFirm(){
       <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${tOpen} ${L("mit Eignung","eligible")}</span></button>
     </div>
     ${FEES().length?incomeSection():""}
-    <section><div class="sh"><h2>${L("Projekte","Projects")}</h2><span class="cnt">${ps.length}</span><span class="right mobile-only">${ib("plus",L("Neues Projekt","New project"),'data-act="form-project"')}</span></div><div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div></section>
+    <section><div class="sh"><h2>${L("Projekte","Projects")}</h2><span class="cnt">${ps.length}</span><span class="right">${ib("plus",L("Neues Projekt","New project"),'data-act="form-project"')}</span></div><div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div></section>
     ${tSec}
     ${docsBlock("firm","firm",L("Unterlagen des Büros","Firm documents"),L("Handelsregister, Versicherung, AHV, Referenzen: einmal ablegen, für jede Bewerbung bereit. Mit Gültigkeit warnt arkitecton vor Ablauf.","Register extract, insurance, references: store once, ready for every bid."))}
   </div>`;
@@ -650,7 +645,7 @@ function viewOverview(){
   const flagRows=shown.map(f=>row({act:f.act,id:f.id,v:f.v,c:f.c,title:esc(f.t),meta:esc(f.m),amt:f.chf===null?"":chf(f.chf,false),label:""})).join("");
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
   return `<div class="page">
-    ${ph(esc(today),esc(p.name),esc([p.place,p.desc].filter(Boolean).join(" · ")),ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"'))}
+    ${ph(esc(today),esc(p.name),esc([p.place,p.desc].filter(Boolean).join(" · ")))}
     ${startSteps()}
     <div class="stats">
       <button type="button" class="stat" data-act="nav" data-v="rechnungen"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${openSub(toCheck)}</span></button>

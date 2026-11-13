@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wdth,wght@0,75..100,400..700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20261115b">
+<link rel="stylesheet" href="styles.css?v=20261115c">
 </head>
 <body>
 <div class="app" id="app">
@@ -23,7 +23,6 @@
     <div class="word"><svg viewBox="0 0 30 30" aria-hidden="true"><rect class="mk-ink" x="3" y="20" width="24" height="7"/><rect class="mk-ink" x="7" y="9" width="9" height="11"/><rect class="mk-ink" x="16" y="14" width="7" height="6"/><rect class="mk-red" x="16" y="3" width="6" height="6"/></svg>arkitecton</div>
     <button type="button" class="firm" data-act="home" id="railFirm"></button>
     <nav class="nav firmnav" id="firmNav"></nav>
-    <button type="button" class="projbtn" data-act="sheet" data-k="projects" id="railProj"></button>
     <button type="button" class="btn primary scan" data-act="capture" id="railScan"></button>
     <nav class="nav" id="nav"></nav>
     <div class="foot">
@@ -33,7 +32,7 @@
   </aside>
   <header class="topbar">
     <div class="word"><svg viewBox="0 0 30 30" aria-hidden="true"><rect class="mk-ink" x="3" y="20" width="24" height="7"/><rect class="mk-ink" x="7" y="9" width="9" height="11"/><rect class="mk-ink" x="16" y="14" width="7" height="6"/><rect class="mk-red" x="16" y="3" width="6" height="6"/></svg></div>
-    <div class="tp"><button type="button" class="firm" data-act="home" id="topFirm"></button><button type="button" class="proj" data-act="sheet" data-k="projects" id="topProj"></button></div>
+    <div class="tp"><button type="button" class="firm" data-act="home" id="topFirm"></button><button type="button" class="proj" data-act="nav" data-v="uebersicht" id="topProj"></button></div>
     <div class="lang" role="group" aria-label="Sprache"><button type="button" data-act="lang" data-l="de">DE</button><button type="button" data-act="lang" data-l="en">EN</button></div>
   </header>
   <main id="main"></main>
@@ -43,6 +42,6 @@
 <div id="toast" role="status" aria-live="polite"></div>
 <script src="vendor/xlsx.full.min.js"></script>
 <script src="vendor/jsQR.js"></script>
-<script src="app.js?v=20261115b"></script>
+<script src="app.js?v=20261115c"></script>
 </body>
 </html>

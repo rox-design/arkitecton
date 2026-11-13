@@ -240,7 +240,6 @@ function renderChrome(){
   document.documentElement.lang=S.lang;
   const p=P();
   document.getElementById("railScan").textContent=L("Rechnung scannen","Scan invoice");
-  document.getElementById("railProj").innerHTML=`<span class="l">${L("Projekt","Project")}</span><span class="n">${p?esc(p.name):L("Kein Projekt","No project")}</span>`;
   const firmLvl=S.view==="buero"||S.view==="ausschreibungen";document.getElementById("topProj").textContent=firmLvl?L("Alle Projekte","All projects"):(p?p.name:L("Kein Projekt","No project"));
   document.querySelector(".topbar").classList.toggle("home",firmLvl);
   const fn=(D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name");["railFirm","topFirm"].forEach(id=>{const e=document.getElementById(id);if(e){e.textContent=fn;e.title=L("Alle Projekte","All projects");e.setAttribute("aria-current",S.view==="buero"?"page":"false");}});

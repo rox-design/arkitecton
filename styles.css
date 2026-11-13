@@ -463,3 +463,4 @@ details.site>summary .sc{white-space:nowrap;margin-left:0}
 @media (max-width:480px){.obody .big{font-size:2rem}}
 .bhead span{text-align:left}.bhead .nums,.bhead .rest{text-align:right}
 @media (hover:none){.feesum:hover{background:none}}
+.topbar .proj::after{content:none}

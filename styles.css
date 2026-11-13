@@ -462,3 +462,25 @@ details.site>summary .sc{white-space:nowrap;margin-left:0}
 .big{white-space:nowrap}
 @media (max-width:480px){.obody .big{font-size:2rem}}
 .bhead span{text-align:left}.bhead .nums,.bhead .rest{text-align:right}
+/* project navigation (sidebar) */
+.rail .scan{margin-top:-12px}
+.firmnav{margin:0}
+.pnav{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:18px}
+.pnav .ph2{display:flex;align-items:center;justify-content:space-between;font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+.pnav .ph2 .ib{width:30px;height:30px}
+.pnav .pname{all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;padding:7px 0;color:var(--muted);font-size:.97rem;line-height:1.3}
+.pnav .pname .chev{width:12px;flex:none;color:var(--faint);font-size:.8rem}
+.pnav .pname:hover{color:var(--ink)}
+.pnav .open>.pname{color:var(--ink);font-weight:500}
+.pnav .pname:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
+.pnav .nav.sub{padding:2px 0 8px 20px}
+.pnav .pempty{margin:4px 0;color:var(--faint);font-size:.9rem}
+/* mobile topbar */
+.topbar .tp{flex:1;min-width:0;display:flex;align-items:center;gap:12px}
+.topbar .tp .tf{font-weight:500;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar .tp .tback{all:unset;cursor:pointer;color:var(--muted);font-size:.9rem;white-space:nowrap;padding:6px 0}
+.topbar .tp .tn{font-weight:500;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+@media (max-width:820px){.app.notabs main{padding-bottom:24px}}
+@media (min-width:821px){.mobile-only{display:none!important}}
+.topbar .tp{flex-direction:row;justify-content:flex-start}
+@media (hover:none){.feesum:hover{background:none}}

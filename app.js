@@ -388,6 +388,7 @@ function runMigrations(){
   if(!D.mig.docs){D.mig.docs=1;if(!DOCS().length&&window.indexedDB)addDemoDocs().then(render).catch(()=>{});}
   if(!D.mig.fees){if(!(D.fees||[]).length)addDemoFees();D.mig.fees=1;}
   if(!D.mig.income){addIncomeHistory();D.mig.income=1;}
+  if(!D.mig.projs){D.mig.projs=1;[["Umbau Villa Seeblick","Küsnacht","Bauherrschaft Keller","Sanierung Gebäudehülle"],["Anbau Schulhaus Au","Wädenswil","Gemeinde Wädenswil","Erweiterung um 2 Klassenzimmer"]].forEach(([n,pl,cl,de])=>{if(!D.projects.some(p=>p.name===n))D.projects.push({id:newId("p"),name:n,place:pl,client:cl,desc:de,closed:true,budget:[]});});}
   if(!D.mig.feeno){D.mig.feeno=1;const by={};FEES().slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).forEach(f=>{const y=String(f.date).slice(0,4);by[y]=(by[y]||0)+1;f.no=y+"-"+String(by[y]).padStart(3,"0");const r=makeRef(f.no);if(f.refType===r.type)f.ref=r.ref;});}
 }
 function incomeData(){
@@ -608,7 +609,7 @@ function viewFirm(){
   const feeOpen=ps.reduce((a,x)=>a+x.fees,0),remN=ps.reduce((a,x)=>a+x.rem,0),tot=ps.reduce((a,x)=>a+x.sum,0),nChk=ps.reduce((a,x)=>a+x.n,0),nFl=ps.reduce((a,x)=>a+x.fl,0),flc=ps.reduce((a,x)=>a+x.flc,0);
   const tOpen=D.tenders.filter(x=>!closedT(x)&&fitOf(x).fit!=="no"&&daysTo(x.due)>=0).length;
   const parts=x=>[x.n?x.n+" "+L("offen","open"):"",x.fl?x.fl+" "+L("mit Mehrkosten","with extra costs"):"",x.rem?x.rem+" "+(x.rem===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):""].filter(Boolean).join(" · ")||L("nichts offen","nothing open");
-  const rows=ps.map(x=>row({act:"open-project",id:x.p.id,c:x.rem?"crit":x.fl?"warn":x.n?"n":"ok",title:esc(x.p.name),meta:(x.p.place?esc(x.p.place)+" · ":"")+parts(x),amt:x.sum?chf(x.sum,false):"",label:""})).join("");
+  const rows=ps.filter(x=>!x.p.closed).map(x=>row({act:"open-project",id:x.p.id,c:x.rem?"crit":x.fl?"warn":x.n?"n":"ok",title:esc(x.p.name),meta:(x.p.place?esc(x.p.place)+" · ":"")+parts(x),amt:x.sum?chf(x.sum,false):"",label:""})).join("");
   const name=(D.firm&&D.firm.name)||L("Ihr Büro","Your firm");
   const tl=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0).sort((a,b)=>toDate(a.due)-toDate(b.due));
   const tRows=tl.slice(0,4).map(t=>{const f=fitOf(t).fit,dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:FIT[f].c,title:esc(tx(t.title)),meta:tx(FIT[f])+" · "+esc(t.client),amt:"",label:L("Eingabe in "+dd+" T.","due in "+dd+" d"),lc:dd<=14?"warn":"n"});}).join("");
@@ -644,9 +645,7 @@ function viewOverview(){
   const flagRows=shown.map(f=>row({act:f.act,id:f.id,v:f.v,c:f.c,title:esc(f.t),meta:esc(f.m),amt:f.chf===null?"":chf(f.chf,false),label:""})).join("");
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
   return `<div class="page">
-    ${ph(esc(today),L("Projekte","Projects"),"",ib("plus",L("Neues Projekt","New project"),'data-act="form-project"'))}
-    <section><div class="rows">${D.projects.map(x=>row({act:"open-project",id:x.id,c:x.id===p.id?"acc":"n",title:esc(x.name),meta:esc([x.place,x.desc].filter(Boolean).join(" · ")),amt:"",label:x.id===p.id?L("✓ Geöffnet","✓ Open"):L("Öffnen →","Open →"),lc:x.id===p.id?"ok":"link"})).join("")}</div></section>
-    ${ph("",esc(p.name),esc([p.place,p.desc].filter(Boolean).join(" · ")),ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"'))}
+    <header class="ph"><span class="eyebrow">${esc(today)}</span><h1><button type="button" class="pswitch" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button></h1><div class="tools">${ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"')}</div>${[p.place,p.desc].filter(Boolean).length?`<p class="lead">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</p>`:""}</header>
     ${startSteps()}
     <div class="stats">
       <button type="button" class="stat" data-act="nav" data-v="rechnungen"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${openSub(toCheck)}</span></button>
@@ -1046,7 +1045,7 @@ function formDef(){
   if(S.form&&S.form.f==="fee") return feeFormDef(S.form);
   const F=S.form, p=P();
   if(F.f==="docvalid"){const d=DOCS().find(x=>x.id===F.id)||{};return {title:esc(d.name||""),body:fld("fUntil",L("Gültig bis","Valid until"),d.until||"",{type:"date",wide:true,hint:L("Leer lassen, wenn das Dokument nicht abläuft. 30 Tage vor Ablauf erscheint eine Warnung.","Leave empty if it does not expire. A warning appears 30 days before.")})};}
-  if(F.f==="project"){const x=F.id?D.projects.find(q=>q.id===F.id):{};return {title:F.id?L("Projekt bearbeiten","Edit project"):L("Neues Projekt","New project"),body:fld("fName",L("Projektname","Project name"),x.name,{wide:true,req:true,ph:L("z. B. EFH Bergstrasse 4","e.g. Bergstrasse 4 house")})+fld("fPlace",L("Ort","Place"),x.place,{ph:L("z. B. Horgen","e.g. Horgen")})+fld("fClient",L("Bauherrschaft","Client"),x.client)+fld("fCStreet",L("Adresse Bauherrschaft","Client address"),x.cstreet,{wide:true,ph:L("Strasse und Nr.","Street and no.")})+fld("fCZip",L("PLZ","Postcode"),x.czip,{mode:"numeric"})+fld("fCCity",L("Ort","Town"),x.ccity)+fld("fDesc",L("Beschreibung","Description"),x.desc,{wide:true,ph:L("z. B. Umbau Einfamilienhaus","e.g. house conversion")})};}
+  if(F.f==="project"){const x=F.id?D.projects.find(q=>q.id===F.id):{};return {title:F.id?L("Projekt bearbeiten","Edit project"):L("Neues Projekt","New project"),body:fld("fName",L("Projektname","Project name"),x.name,{wide:true,req:true,ph:L("z. B. EFH Bergstrasse 4","e.g. Bergstrasse 4 house")})+fld("fPlace",L("Ort","Place"),x.place,{ph:L("z. B. Horgen","e.g. Horgen")})+fld("fClient",L("Bauherrschaft","Client"),x.client)+fld("fCStreet",L("Adresse Bauherrschaft","Client address"),x.cstreet,{wide:true,ph:L("Strasse und Nr.","Street and no.")})+fld("fCZip",L("PLZ","Postcode"),x.czip,{mode:"numeric"})+fld("fCCity",L("Ort","Town"),x.ccity)+fld("fDesc",L("Beschreibung","Description"),x.desc,{wide:true,ph:L("z. B. Umbau Einfamilienhaus","e.g. house conversion")})+(F.id?`<div class="f wide"><label class="chk"><input type="checkbox" id="fClosed"${x.closed?" checked":""}> ${L("Projekt abgeschlossen","Project completed")}</label><span class="hint">${L("Abgeschlossene Projekte erscheinen in der Auswahl eingeklappt.","Completed projects are collapsed in the project switcher.")}</span></div>`:"")};}
   if(F.f==="contractor"){const x=F.id?K(F.id):{};return {title:F.id?L("Handwerker bearbeiten","Edit contractor"):L("Neuer Handwerker","New contractor"),body:fld("fName",L("Firma","Company"),x.name,{wide:true,req:true})+fld("fStreet",L("Strasse","Street"),x.street,{wide:true})+fld("fZip",L("PLZ","ZIP"),x.zip,{mode:"numeric"})+fld("fCity",L("Ort","City"),x.city)+fld("fIban","IBAN",x.iban,{wide:true})+fld("fEmail",L("E-Mail","Email"),x.email,{type:"email"})+fld("fPhone",L("Telefon","Phone"),x.phone,{type:"tel"}),del:F.id&&!D.contracts.some(w=>w.k===F.id)};}
   if(F.f==="contract"){const k=K(F.id),w=(F.w&&W(F.w))||{};return {title:L("Werkvertrag · ","Contract · ")+k.name,body:`<div class="f wide"><label for="fBkp">BKP</label><select id="fBkp">${bkpOptions(w.bkp)}</select></div>`+fld("fSum",L("Werkvertragssumme CHF","Contract sum CHF"),w.sum||"",{mode:"decimal",req:true})+fld("fRet",L("Rückbehalt %","Retention %"),w.ret!=null?w.ret:10,{mode:"decimal"}),del:w.id&&!D.invoices.some(i=>i.w===w.id)};}
   if(F.f==="invoice"){
@@ -1083,7 +1082,7 @@ function submitForm(){
   const fail=m=>{const e=document.getElementById("formErr");if(e)e.textContent=m;};
   if(F.f==="project"){
     if(!val("fName")) return fail(L("Projektname fehlt.","Project name missing."));
-    if(F.id){const x=D.projects.find(q=>q.id===F.id);Object.assign(x,{name:val("fName"),place:val("fPlace"),client:val("fClient"),cstreet:val("fCStreet"),czip:val("fCZip"),ccity:val("fCCity"),desc:val("fDesc")});}
+    if(F.id){const x=D.projects.find(q=>q.id===F.id);Object.assign(x,{name:val("fName"),place:val("fPlace"),client:val("fClient"),cstreet:val("fCStreet"),czip:val("fCZip"),ccity:val("fCCity"),desc:val("fDesc"),closed:!!(document.getElementById("fClosed")||{}).checked});}
     else{const x={id:newId("p"),name:val("fName"),place:val("fPlace"),client:val("fClient"),cstreet:val("fCStreet"),czip:val("fCZip"),ccity:val("fCCity"),desc:val("fDesc"),budget:[]};D.projects.push(x);D.pid=x.id;S.view="uebersicht";}
     closeAll();render();return toast(L("Projekt gespeichert","Project saved"));
   }
@@ -1191,10 +1190,17 @@ function kvHTML(){
     <div class="ofoot"><button type="button" class="btn" data-act="kv-budget" data-id="${esc(r.b.bkp)}">${L("Budget","Budget")}</button>${cmpBtns}</div></div>`;
 }
 function projectsHTML(){
-  const rows=D.projects.map(p=>{const cur=p.id===D.pid;return `<div class="prow${cur?" cur":""}"><button type="button" class="pname" data-act="pick-project" data-id="${p.id}" data-c="${p.id}">${cur?'<i class="pdot" aria-hidden="true"></i>':""}<span>${esc(p.name)}</span>${p.place?`<span class="sp">· ${esc(p.place)}</span>`:""}</button>${cur?ib("edit",L("Projekt bearbeiten","Edit project"),`data-act="form-project-edit" data-id="${p.id}" data-c="${p.id}"`):""}</div>`;}).join("");
+  const item=p=>{const cur=p.id===D.pid;return `<button type="button" class="pitem${cur?" cur":""}" data-act="pick-project" data-id="${p.id}" data-q="${esc((p.name+" "+(p.place||"")+" "+(p.client||"")).toLowerCase())}"><span class="pn">${esc(p.name)}</span><span class="pp">${esc([p.place,p.client].filter(Boolean).join(" · "))}</span><span class="pc">${cur?"✓":""}</span></button>`;};
+  const act=D.projects.filter(p=>!p.closed),done=D.projects.filter(p=>p.closed);
   return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pT">
-    <div class="ohead"><h2 id="pT" style="font-size:1.25rem;font-weight:500">${L("Projekte","Projects")}</h2><div class="hact">${ib("plus",L("Neues Projekt","New project"),'data-act="form-project"')}<button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div></div>
-    <div class="obody"><div class="plist">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div></div></div>`;
+    <div class="ohead"><h2 id="pT" style="font-size:1.25rem;font-weight:500">${L("Projekt wechseln","Switch project")}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
+    <div class="obody psw">
+      ${D.projects.length>1?`<input type="search" id="pSearch" class="psearch" placeholder="${L("Projekt suchen","Search projects")}" autocomplete="off" aria-label="${L("Projekt suchen","Search projects")}">`:""}
+      <div class="plist">${act.map(item).join("")||`<div class="empty">${L("Keine aktiven Projekte.","No active projects.")}</div>`}</div>
+      ${done.length?`<details class="pdone"><summary>${L("Abgeschlossen","Completed")} <span class="cnt">${done.length}</span></summary><div class="plist">${done.map(item).join("")}</div></details>`:""}
+      <p class="pnone" hidden>${L("Kein Projekt gefunden.","No project found.")}</p>
+      <button type="button" class="padd" data-act="form-project">${L("+ Neues Projekt","+ New project")}</button>
+    </div></div>`;
 }
 function sheetHTML(){
   if(S.sheet==="projects") return projectsHTML();
@@ -1414,11 +1420,12 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("change",e=>{
   const t=e.target;if(t.id==="fVatOn"){feeCalcUpdate();return;}if(!t.matches||!t.matches("input[type=file]"))return;
+  if(t.id==="pSearch")return;
   if(t.dataset.imp==="doc"){const fs=[...(t.files||[])];t.value="";if(fs.length)addDocs(fs,t.dataset.id).catch(()=>toast(L("Speichern nicht möglich.","Could not save.")));return;}
   const f=t.files&&t.files[0];if(!f)return;
   if(t.id==="scanIn")onScanFile(f);else if(t.dataset.imp){handleImport(t.dataset.imp,f,t.dataset.id);t.value="";}
 });
-document.addEventListener("input",e=>{if(S.form&&S.form.f==="fee"&&e.target.closest&&e.target.closest("#frm"))feeCalcUpdate();});
+document.addEventListener("input",e=>{if(e.target.id==="pSearch"){const q=e.target.value.trim().toLowerCase(),sh=document.querySelector(".psw");let n=0;sh.querySelectorAll(".pitem").forEach(b=>{const on=!q||b.dataset.q.includes(q);b.hidden=!on;if(on)n++;});sh.querySelectorAll(".plist").forEach(l=>{l.hidden=![...l.querySelectorAll(".pitem")].some(b=>!b.hidden);});const dd=sh.querySelector(".pdone");if(dd&&q)dd.open=true;sh.querySelector(".pnone").hidden=n>0;return;}if(S.form&&S.form.f==="fee"&&e.target.closest&&e.target.closest("#frm"))feeCalcUpdate();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&(S.drawer||S.fdrawer||S.modal||S.sheet||S.form||S.kvx)){closeAll();render();}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)stopCam();});
 window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(D&&v!==S.view&&VIEWS.includes(v))go(v);});

@@ -19,7 +19,7 @@ const L=(de,en)=>S.lang==="de"?de:en;
 const nf2=new Intl.NumberFormat("de-CH",{minimumFractionDigits:2,maximumFractionDigits:2});
 const nf0=new Intl.NumberFormat("de-CH",{maximumFractionDigits:0});
 const nfq=new Intl.NumberFormat("de-CH",{maximumFractionDigits:2});
-const chf=(n,dec)=>"CHF "+(dec===false?nf0:nf2).format(n);
+const chf=(n,dec)=>"CHF\u00a0"+(dec===false?nf0:nf2).format(n);
 const sgn=n=>(n>0?"+":"")+nf2.format(n);
 const r2=n=>Math.round(n*100)/100;
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -35,7 +35,7 @@ const DISC={"291":{de:"Architektur/Baumanagement",en:"Architecture/construction 
 const RTYPE={schule:{de:"Schulbauten",en:"School buildings"},instandsetzung:{de:"Instandsetzung",en:"Refurbishment"},wohnen:{de:"Wohnbauten",en:"Housing"}};
 const PROC={sel:{de:"Selektiv, Präqualifikation",en:"Selective, prequalification"},offen:{de:"Offenes Verfahren",en:"Open procedure"}};
 const TST={neu:{de:"Neu",en:"New",c:"acc"},arbeit:{de:"In Arbeit",en:"In progress",c:"warn"},eingereicht:{de:"Eingereicht",en:"Submitted",c:"ok"},verzichtet:{de:"Verzichtet",en:"Declined",c:"n"}};
-const FIT={ok:{de:"Erfüllt",en:"Eligible",c:"ok"},partner:{de:"Mit Partner",en:"With partner",c:"warn"},no:{de:"Nicht erfüllt",en:"Not eligible",c:"crit"}};
+const FIT={ok:{de:"Erfüllt",en:"Eligible",c:"ok"},partner:{de:"Nur mit Partner",en:"Only with partner",c:"warn"},no:{de:"Nicht erfüllt",en:"Not eligible",c:"crit"}};
 const STATUS={pruefen:{de:"Zu prüfen",en:"To check",c:"warn"},rueckfrage:{de:"Rückfrage",en:"Query open",c:"crit"},frei:{de:"Freigegeben",en:"Approved",c:"acc"},bezahlt:{de:"Bezahlt",en:"Paid",c:"ok"},ersetzt:{de:"Ersetzt",en:"Replaced",c:"n"}};
 
 /* ---------- example data (dates relative to today) ---------- */
@@ -150,6 +150,11 @@ const typeLabel=i=>i.type==="akonto"?L("Akonto ","Progress payment ")+i.n:i.type
 const stLabel=st=>tx(STATUS[st]);
 const billedOn=(wid,except)=>D.invoices.filter(i=>i.w===wid&&i.id!==except&&counted(i)).reduce((a,i)=>a+net(i),0);
 const dot=c=>`<i class="dot d-${c}" aria-hidden="true"></i>`;
+/* one wording for time everywhere, always written out */
+const dayWord=n=>n===1?L("Tag","day"):L("Tagen","days");
+const dueText=dd=>dd<0?L("seit "+(-dd)+" "+dayWord(-dd)+" überfällig","overdue by "+(-dd)+" "+(-dd===1?"day":"days")):dd===0?L("heute fällig","due today"):L("fällig in "+dd+" "+dayWord(dd),"due in "+dd+" "+(dd===1?"day":"days"));
+const dueTone=dd=>dd<0?"crit":dd<=7?"warn":"n";
+const subTitle=t=>`<h3 class="subh">${t}</h3>`;
 const row=o=>`<button type="button" class="row" data-act="${o.act}"${o.id?` data-id="${o.id}"`:""}${o.v?` data-v="${o.v}"`:""}>${dot(o.c)}<span class="rt">${o.title}</span><span class="rm">${o.meta||""}</span><span class="ra">${o.amt||""}</span><span class="rl l-${o.lc||o.c}">${o.label||""}</span></button>`;
 
 function compare(w){
@@ -170,9 +175,10 @@ function budgetRows(){
     const ws=PC().filter(w=>w.bkp===b.bkp), ids=ws.map(w=>w.id), inv=D.invoices.filter(i=>ids.includes(i.w));
     const awarded=ws.reduce((a,w)=>a+w.sum,0), billed=inv.filter(counted).reduce((a,i)=>a+net(i),0);
     const paid=inv.filter(i=>i.status==="bezahlt").reduce((a,i)=>a+payout(i),0), approved=inv.filter(i=>i.status==="frei").reduce((a,i)=>a+payout(i),0);
-    const open=inv.filter(i=>!counted(i)).reduce((a,i)=>a+net(i),0), ret=inv.filter(counted).reduce((a,i)=>a+retention(i),0);
-    const forecast=Math.max(awarded,billed);
-    return {b,awarded,billed,paid,approved,open,ret,rest:b.kv-forecast,over:b.kv>0&&forecast>b.kv};
+    const open=inv.filter(i=>!counted(i)&&live(i)).reduce((a,i)=>a+net(i),0), ret=inv.filter(counted).reduce((a,i)=>a+retention(i),0);
+    /* forecast: the contract, or what is billed incl. invoices still to check, whichever is higher */
+    const forecast=Math.max(awarded,billed+open);
+    return {b,awarded,billed,paid,approved,open,ret,forecast,rest:b.kv-forecast,over:b.kv>0&&forecast>b.kv};
   });
 }
 function totals(rows){const t={kv:0,awarded:0,billed:0,paid:0,approved:0,open:0,ret:0,rest:0};rows.forEach(r=>{for(const k in t)t[k]+=k==="kv"?r.b.kv:r[k];});return t;}
@@ -186,6 +192,21 @@ function flags(){
   PC().forEach(w=>{const c=compare(w);if(c&&c.hasFinal&&c.newSum>0)out.push({c:"warn",t:K(w.k).name,m:L("nicht offerierte Positionen","items not in the offer"),chf:c.newSum,act:"open-cmp",id:w.id});});
   budgetRows().filter(r=>r.over).forEach(r=>out.push({c:"warn",t:"BKP "+r.b.bkp+" "+tx(r.b),m:L("über Kostenvoranschlag","over cost estimate"),chf:-r.rest,act:"kv-explain",id:r.b.bkp}));
   return out;
+}
+/* total extra cost without counting the same money twice:
+   per contract the larger of "above contract" and "not in offer", each time & materials invoice once,
+   and a budget overrun only for the part the contracts above do not already explain */
+function flagSum(fl){
+  const g={},bud={};
+  fl.forEach(f=>{
+    if(f.act==="kv-explain"){bud[f.id]=f.chf||0;return;}
+    const i=f.act==="open-inv"?INV(f.id):null, w=f.act==="open-cmp"?f.id:(i?i.w:null);
+    const key=i&&i.type==="regie"&&/Regie|materials/.test(f.m)?"r:"+i.id:"w:"+w;
+    g[key]={v:Math.max((g[key]||{}).v||0,f.chf||0),bkp:(W(w)||{}).bkp};
+  });
+  let t=Object.values(g).reduce((a,x)=>a+x.v,0);
+  Object.keys(bud).forEach(b=>{const known=Object.values(g).filter(x=>x.bkp===b).reduce((a,x)=>a+x.v,0);t+=Math.max(0,bud[b]-known);});
+  return r2(t);
 }
 function missingTasks(){
   if(!P())return [];
@@ -240,7 +261,7 @@ function renderChrome(){
   document.documentElement.lang=S.lang;
   const p=P();
   document.getElementById("railScan").textContent=L("Rechnung scannen","Scan invoice");
-  const firmLvl=S.view==="buero"||S.view==="ausschreibungen";document.getElementById("topProj").textContent=firmLvl?((D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name")):(p?p.name:L("Kein Projekt","No project"));document.getElementById("topProj").dataset.v=firmLvl?"buero":"uebersicht";
+  const firmLvl=S.view==="buero"||S.view==="ausschreibungen",tp=document.getElementById("topProj");tp.innerHTML=esc(firmLvl?(S.view==="ausschreibungen"?L("Ausschreibungen","Tenders"):((D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name"))):(p?p.name:L("Kein Projekt","No project")))+'<span class="cv" aria-hidden="true">⌄</span>';tp.title=L("Büro und Projekte","Firm and projects");tp.setAttribute("aria-haspopup","dialog");
   document.querySelector(".topbar").classList.toggle("home",firmLvl);
   const fn=(D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name");["railFirm","topFirm"].forEach(id=>{const e=document.getElementById(id);if(e){e.textContent=fn;e.title=L("Alle Projekte","All projects");e.setAttribute("aria-current",S.view==="buero"?"page":"false");}});
   document.getElementById("railData").textContent=L("Daten und Sicherung","Data and backup");
@@ -306,7 +327,7 @@ function feeState(f){
   if(f.paid) return {c:"ok",t:L("Bezahlt","Paid")};
   const r=remDue(f); if(r) return {c:"crit",t:remName(r)+L(" fällig"," due")};
   const sent=(f.rem||[]).length; if(sent) return {c:"warn",t:remName(sent)+L(" gesendet"," sent")};
-  const d=daysTo(feeDue(f)); return d<0?{c:"warn",t:L("überfällig","overdue")}:{c:"n",t:L("fällig in "+d+" T.","due in "+d+" d")};
+  const d=daysTo(feeDue(f)); return {c:d<0?"warn":"n",t:dueText(d)};
 }
 const firmMissing=()=>{const f=D.firm||{},m=[];if(!f.name)m.push(L("Name","name"));if(!f.street||!f.zip||!f.city)m.push(L("Adresse","address"));if(!ibanValid(f.iban||""))m.push("IBAN");if(f.vat&&!f.vatNo)m.push(L("MWST-Nummer","VAT number"));return m;};
 const nextFeeNo=()=>{const y=TODAY.getFullYear(),n=FEES().filter(f=>String(f.no).startsWith(y+"-")).reduce((a,f)=>Math.max(a,parseInt(String(f.no).slice(5),10)||0),0)+1;return y+"-"+String(n).padStart(3,"0");};
@@ -340,7 +361,7 @@ const DOCS=()=>D.docs||(D.docs=[]);
 const docsFor=(scope,ref)=>DOCS().filter(d=>d.scope===scope&&d.ref===ref).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
 const kindOf=n=>{const e=(String(n).split(".").pop()||"").toLowerCase();return e==="pdf"?"PDF":["doc","docx"].includes(e)?"Word":["xls","xlsx","csv"].includes(e)?"Excel":["jpg","jpeg","png","heic"].includes(e)?L("Bild","Image"):e.toUpperCase();};
 const fsize=b=>b>=1048576?(b/1048576).toFixed(1).replace(".0","")+" MB":Math.max(1,Math.round(b/1024))+" KB";
-function docValid(d){if(!d.until)return null;const n=daysTo(d.until);return n<0?{c:"crit",t:L("abgelaufen","expired")}:n<=30?{c:"warn",t:L("läuft ab in "+n+" T.","expires in "+n+" d")}:{c:"ok",t:L("gültig bis ","valid until ")+fdate(d.until)};}
+function docValid(d){if(!d.until)return null;const n=daysTo(d.until);return n<0?{c:"crit",t:L("abgelaufen","expired")}:n<=30?{c:"warn",t:L("läuft ab in "+n+" "+dayWord(n),"expires in "+n+" "+(n===1?"day":"days"))}:{c:"ok",t:L("gültig bis ","valid until ")+fdate(d.until)};}
 function docsBlock(scope,ref,title,hint){
   const rk=d=>{const v=docValid(d);return v?{crit:0,warn:1,ok:2}[v.c]:3;};
   const list=docsFor(scope,ref).sort((a,b)=>scope==="firm"?rk(a)-rk(b):0);
@@ -433,7 +454,7 @@ function viewFees(){
   const miss=firmMissing();
   return `${miss.length?`<div class="notice"><span class="ic warn" aria-hidden="true">!</span><span>${L("Für Rechnungen mit QR-Code fehlen Büro-Angaben: ","Firm details missing for QR invoices: ")}${miss.join(", ")}. <button type="button" class="ghost link" data-act="form" data-f="firm">${L("Ergänzen","Add")}</button></span></div>`:""}
     <div class="stats">
-      <div class="stat"><span class="sl">${L("Honorar offen","Fees open")}</span><span class="sv">${chf(sum,false)}</span><span class="ss">${open.length} ${open.length===1?L("Rechnung","invoice"):L("Rechnungen","invoices")}</span></div>
+      <div class="stat"><span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(sum,false)}</span><span class="ss">${open.length} ${open.length===1?L("Rechnung","invoice"):L("Rechnungen","invoices")}</span></div>
       <div class="stat"><span class="sl">${L("Mahnungen fällig","Reminders due")}</span><span class="sv${due?" warn":""}">${due}</span><span class="ss">${L("nach 60, 90, 120 Tagen","after 60, 90, 120 days")}</span></div>
       <div class="stat"><span class="sl">${L("Bezahlt","Paid")}</span><span class="sv">${chf(list.filter(f=>f.paid).reduce((a,f)=>a+feeTotal(f),0),false)}</span><span class="ss">${list.filter(f=>f.paid).length} ${L("Rechnungen","invoices")}</span></div>
     </div>
@@ -605,22 +626,22 @@ function startSteps(){
 }
 function viewFirm(){
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
-  const ps=D.projects.map(p=>withP(p.id,()=>{const chk=PI().filter(i=>!counted(i)),fo=PF().filter(f=>!f.paid);return {p,chk,n:chk.length,sum:chk.reduce((a,i)=>a+net(i),0),fl:flags().length,flc:flags().reduce((a,f)=>a+(f.chf||0),0),fees:fo.reduce((a,f)=>a+feeTotal(f),0),rem:fo.filter(f=>remDue(f)).length};}));
+  const ps=D.projects.map(p=>withP(p.id,()=>{const chk=PI().filter(i=>!counted(i)),fo=PF().filter(f=>!f.paid);return {p,chk,n:chk.length,sum:chk.reduce((a,i)=>a+net(i),0),fl:flags().length,flc:flagSum(flags()),fees:fo.reduce((a,f)=>a+feeTotal(f),0),rem:fo.filter(f=>remDue(f)).length};}));
   const feeOpen=ps.reduce((a,x)=>a+x.fees,0),remN=ps.reduce((a,x)=>a+x.rem,0),tot=ps.reduce((a,x)=>a+x.sum,0),nChk=ps.reduce((a,x)=>a+x.n,0),nFl=ps.reduce((a,x)=>a+x.fl,0),flc=ps.reduce((a,x)=>a+x.flc,0);
   const tOpen=D.tenders.filter(x=>!closedT(x)&&fitOf(x).fit!=="no"&&daysTo(x.due)>=0).length;
   const parts=x=>[x.n?x.n+" "+L("offen","open"):"",x.fl?x.fl+" "+L("mit Mehrkosten","with extra costs"):"",x.rem?x.rem+" "+(x.rem===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):""].filter(Boolean).join(" · ")||L("nichts offen","nothing open");
   const rows=ps.filter(x=>!x.p.closed).map(x=>row({act:"open-project",id:x.p.id,c:x.rem?"crit":x.fl?"warn":x.n?"n":"ok",title:esc(x.p.name),meta:(x.p.place?esc(x.p.place)+" · ":"")+parts(x),amt:x.sum?chf(x.sum,false):"",label:""})).join("");
   const name=(D.firm&&D.firm.name)||L("Ihr Büro","Your firm");
   const tl=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0).sort((a,b)=>toDate(a.due)-toDate(b.due));
-  const tRows=tl.slice(0,4).map(t=>{const f=fitOf(t).fit,dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:FIT[f].c,title:esc(tx(t.title)),meta:tx(FIT[f])+" · "+esc(t.client),amt:"",label:L("Eingabe in "+dd+" T.","due in "+dd+" d"),lc:dd<=14?"warn":"n"});}).join("");
+  const tRows=tl.slice(0,4).map(t=>{const f=fitOf(t).fit,dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:FIT[f].c,title:esc(tx(t.title)),meta:tx(FIT[f])+" · "+esc(t.client),amt:"",label:L("Eingabe in "+dd+" "+dayWord(dd),"due in "+dd+" "+(dd===1?"day":"days")),lc:dd<=14?"warn":"n"});}).join("");
   const tSec=`<section><div class="sh"><h2>${L("Ausschreibungen","Tenders")}</h2><span class="cnt">${tl.length}${D.example?"":" · "+L("Beispiele","examples")}</span><span class="right">${tl.length>4?`<button type="button" class="ghost" data-act="nav" data-v="ausschreibungen">${L("Alle anzeigen","Show all")}</button>`:""}</span></div><div class="rows">${tRows||`<div class="empty">${L("Keine offenen Ausschreibungen.","No open tenders.")}</div>`}</div></section>`;
   return `<div class="page">
     ${ph(esc(today),esc(name),"",ib("edit",L("Büro bearbeiten","Edit firm"),'data-act="form" data-f="firm"'))}
     ${dataNotice()}${startSteps()}
     <div class="stats">
-      <div class="stat"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${openSub(ps.flatMap(x=>x.chk))}</span></div>
-      <div class="stat"><span class="sl">${L("Mehrkosten","Extra costs")}</span><span class="sv${nFl?" warn":""}">${nFl}</span><span class="ss">${L("über Vertrag, Offerte oder Budget","above contract, offer or budget")}</span></div>
-      <div class="stat"><span class="sl">${L("Honorar offen","Fees open")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung fällig","no reminder due")}</span></div>
+      <div class="stat"><span class="sl">${L("Zu zahlen","To pay")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(ps.flatMap(x=>x.chk))}</span></div>
+      <div class="stat"><span class="sl">${L("Mehrkosten","Extra costs")}</span><span class="sv${nFl?" warn":""}">${chf(flc,false)}</span><span class="ss">${nFl?nFl+" "+(nFl===1?L("Hinweis","finding"):L("Hinweise","findings")):L("keine","none")}</span></div>
+      <div class="stat"><span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung fällig","no reminder due")}</span></div>
       <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${tOpen} ${L("mit Eignung","eligible")}</span></button>
     </div>
     ${FEES().length?incomeSection():""}
@@ -634,13 +655,15 @@ function viewOverview(){
   const t=totals(budgetRows());
   const toCheck=PI().filter(i=>!counted(i)).sort((a,b)=>toDate(a.due)-toDate(b.due));
   const openSum=toCheck.reduce((a,i)=>a+i.gross,0);
-  const mt=missingTasks(),fl=flags(), flSum=fl.reduce((a,f)=>a+(f.chf||0),0);
+  const mt=missingTasks(),fl=flags(), flSum=flagSum(fl);
   const used=t.paid+t.approved, pct=t.kv?Math.round(used/t.kv*100):0;
-  const tTodo=D.tenders.filter(x=>!closedT(x)&&fitOf(x).fit!=="no"&&daysTo(x.due)>=0&&daysTo(x.due)<=28).sort((a,b)=>toDate(a.due)-toDate(b.due));
-  const todo=toCheck.map(i=>{const k=K(W(i.w).k),dd=daysTo(i.due);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:esc(k.name),meta:typeLabel(i),amt:chf(i.gross,false),label:dd<0?L("überfällig","overdue"):L(dd+" Tage",dd+" days"),lc:dd<=7?"warn":"n"});}).join("")
-    +PF().filter(f=>remDue(f)).map(f=>row({act:"open-fee",id:f.id,c:"crit",title:esc(L("Honorar ","Fee ")+f.no),meta:remName(remDue(f))+L(" fällig"," due"),amt:chf(feeTotal(f),false),label:feeAge(f)+L(" T. offen"," d open"),lc:"crit"})).join("")
-    +mt.map(x=>row({act:"open-k",id:x.k.id,c:"crit",title:esc(x.k.name),meta:L("Ergänzen: ","Add: ")+x.m.join(", "),amt:"",label:L("Angaben fehlen","details missing"),lc:"crit"})).join("")
-    +tTodo.map(x=>row({act:"open-t",id:x.id,c:"acc",title:esc(tx(x.title)),meta:L("Ausschreibung","Tender"),amt:"",label:L("Eingabe in "+daysTo(x.due)+" T.","due in "+daysTo(x.due)+" d"),lc:"n"})).join("");
+  const invRows=toCheck.map(i=>{const k=K(W(i.w).k),dd=daysTo(i.due),q=i.status==="rueckfrage",tone=q?"crit":dueTone(dd);return row({act:"open-inv",id:i.id,c:tone,title:esc(k.name),meta:typeLabel(i)+(q?" · "+L("Rückfrage offen","query open"):""),amt:chf(i.gross,false),label:dueText(dd),lc:tone});}).join("");
+  const feeRows=PF().filter(f=>remDue(f)).map(f=>row({act:"open-fee",id:f.id,c:"crit",title:esc(L("Honorar ","Fee ")+f.no),meta:remName(remDue(f))+L(" senden"," to send"),amt:chf(feeTotal(f),false),label:L("seit "+feeAge(f)+" Tagen offen","open for "+feeAge(f)+" days"),lc:"crit"})).join("");
+  const mtRows=mt.map(x=>row({act:"open-k",id:x.k.id,c:"crit",title:esc(x.k.name),meta:L("Fehlt: ","Missing: ")+x.m.join(", "),amt:"",label:L("Angaben fehlen","details missing"),lc:"crit"})).join("");
+  const nTodo=toCheck.length+mt.length+PF().filter(f=>remDue(f)).length;
+  const todo=(invRows?subTitle(L("Rechnungen prüfen","Check invoices"))+`<div class="rows">${invRows}</div>`:"")
+    +(feeRows?subTitle(L("Mahnen","Send reminders"))+`<div class="rows">${feeRows}</div>`:"")
+    +(mtRows?subTitle(L("Angaben ergänzen","Complete details"))+`<div class="rows">${mtRows}</div>`:"");
   const shown=S.allFlags?fl:fl.slice(0,3);
   const flagRows=shown.map(f=>row({act:f.act,id:f.id,v:f.v,c:f.c,title:esc(f.t),meta:esc(f.m),amt:f.chf===null?"":chf(f.chf,false),label:""})).join("");
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
@@ -648,13 +671,13 @@ function viewOverview(){
     <header class="ph"><span class="eyebrow">${esc(today)}</span><h1><button type="button" class="pswitch" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button></h1><div class="tools">${ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"')}</div>${[p.place,p.desc].filter(Boolean).length?`<p class="lead">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</p>`:""}</header>
     ${startSteps()}
     <div class="stats">
-      <button type="button" class="stat" data-act="nav" data-v="rechnungen"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${openSub(toCheck)}</span></button>
-      <button type="button" class="stat" data-act="jump-flags"><span class="sl">${L("Mehrkosten","Extra costs")}</span><span class="sv${fl.length?" warn":""}">${fl.length}</span><span class="ss">${L("über Vertrag, Offerte oder Budget","above contract, offer or budget")}</span></button>
-      <button type="button" class="stat" data-act="nav" data-v="budget"><span class="sl">${L("Kostenstand","Cost status")}</span><span class="sv">${t.kv?pct+"%":"–"}</span><span class="ss"><span class="mini"><i style="width:${Math.min(100,pct)}%"></i></span>${t.kv?L("von","of")+" "+chf(t.kv,false):L("kein Budget","no budget")}</span></button>
+      <button type="button" class="stat" data-act="nav" data-v="rechnungen"><span class="sl">${L("Zu zahlen","To pay")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(toCheck)}</span></button>
+      <button type="button" class="stat" data-act="jump-flags"><span class="sl">${L("Mehrkosten","Extra costs")}</span><span class="sv${fl.length?" warn":""}">${chf(flSum,false)}</span><span class="ss">${fl.length?fl.length+" "+(fl.length===1?L("Hinweis","finding"):L("Hinweise","findings"))+L(" · über Vertrag, Offerte oder Budget"," · above contract, offer or budget"):L("keine","none")}</span></button>
+      <button type="button" class="stat" data-act="nav" data-v="budget"><span class="sl">${L("Bezahlt und freigegeben","Paid and approved")}</span><span class="sv">${t.kv?pct+"%":"–"}</span><span class="ss"><span class="mini"><i style="width:${Math.min(100,pct)}%"></i></span>${t.kv?L("von ","of ")+chf(t.kv,false)+L(" Kostenvoranschlag"," estimate"):L("kein Budget","no budget")}</span></button>
     </div>
-    ${PF().length?(()=>{const fs=PF(),b=fs.reduce((a,f)=>a+feeTotal(f),0),pd=fs.filter(f=>f.paid).reduce((a,f)=>a+feeTotal(f),0);return `<button type="button" class="feesum" data-act="to-fees"><span class="fh"><span class="sl">${L("Honorar","Fees")}</span><span class="go">→</span></span><span class="fv"><small>${L("Gestellt","Billed")}</small><b>CHF ${nfq.format(Math.round(b))}</b></span><span class="fv"><small>${L("Eingegangen","Received")}</small><b>CHF ${nfq.format(Math.round(pd))}</b></span><span class="fv"><small>${L("Offen","Open")}</small><b>CHF ${nfq.format(Math.round(b-pd))}</b></span></button>`;})():""}
-    <section><div class="sh"><h2>${L("Zu erledigen","To do")}</h2><span class="cnt">${toCheck.length+tTodo.length+mt.length+PF().filter(f=>remDue(f)).length}</span></div><div class="rows">${todo||`<div class="empty">${L("Alles erledigt.","All done.")}</div>`}</div></section>
-    <section id="flags"><div class="sh"><h2>${L("Mehrkosten","Extra costs")}</h2><span class="cnt">${fl.length}</span></div><div class="rows">${flagRows||`<div class="empty">${L("Keine Mehrkosten.","No extra costs.")}</div>`}</div>
+    ${PF().length?(()=>{const fs=PF(),b=fs.reduce((a,f)=>a+feeTotal(f),0),pd=fs.filter(f=>f.paid).reduce((a,f)=>a+feeTotal(f),0);return `<button type="button" class="feesum" data-act="to-fees"><span class="fh"><span class="sl">${L("Honorar","Fees")}</span><span class="go">→</span></span><span class="fv"><small>${L("Gestellt","Billed")}</small><b>CHF ${nfq.format(Math.round(b))}</b></span><span class="fv"><small>${L("Eingegangen","Received")}</small><b>CHF ${nfq.format(Math.round(pd))}</b></span><span class="fv"><small>${L("Zu erhalten","To receive")}</small><b>CHF ${nfq.format(Math.round(b-pd))}</b></span></button>`;})():""}
+    <section><div class="sh"><h2>${L("Zu erledigen","To do")}</h2><span class="cnt">${nTodo}</span></div>${todo||`<div class="rows"><div class="empty">${L("Alles erledigt.","All done.")}</div></div>`}</section>
+    <section id="flags"><div class="sh"><h2>${L("Mehrkosten","Extra costs")}</h2><span class="cnt">${fl.length}</span>${fl.length>1?`<span class="legend-s">${L("Total ","Total ")+chf(flSum,false)+L(", Überschneidungen einmal gezählt",", overlaps counted once")}</span>`:""}</div><div class="rows">${flagRows||`<div class="empty">${L("Keine Mehrkosten.","No extra costs.")}</div>`}</div>
       ${fl.length>3?`<button type="button" class="more" data-act="all-flags">${S.allFlags?L("Weniger anzeigen","Show less"):L("Alle anzeigen","Show all")}</button>`:""}</section>
     ${docsBlock("project",p.id,L("Projektdokumente","Project documents"),L("Pläne, Bewilligungen, Kostenvoranschlag mit ＋ ablegen.","Store plans, permits and estimates with ＋."))}
   </div>`;
@@ -667,9 +690,10 @@ function viewInvoices(){
   const F=["pruefen","rueckfrage","frei","bezahlt","all"], all=PIx();
   const cnt=f=>f==="all"?all.length:all.filter(i=>i.status===f).length;
   const list=all.filter(i=>S.filter==="all"||i.status===S.filter).slice().sort((a,b)=>toDate(b.date)-toDate(a.date));
-  const rows=list.map(i=>{const w=W(i.w),k=K(w.k);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:esc(k.name),meta:typeLabel(i)+" · "+esc(i.no),amt:chf(i.gross,false),label:stLabel(i.status)});}).join("");
+  const byDue=S.filter!=="all"&&S.filter!=="bezahlt";
+  const rows=list.map(i=>{const w=W(i.w),k=K(w.k),dd=daysTo(i.due);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:esc(k.name),meta:typeLabel(i)+" · "+esc(i.no),amt:chf(i.gross,false),label:byDue?dueText(dd):stLabel(i.status),lc:byDue?dueTone(dd):STATUS[i.status].c});}).join("");
   return `<div class="page">
-    ${ph(esc(p.name),L("Rechnungen","Invoices"),"",ib("plus",L("Rechnung erfassen","Add invoice"),'data-act="form" data-f="invoice"')+excelBtn("rechnungen"))}
+    ${ph(esc(p.name),L("Rechnungen","Invoices"),"",ib("plus",L("Rechnung ohne QR erfassen","Add invoice without QR"),'data-act="form" data-f="invoice"')+excelBtn("rechnungen"))}
     ${sw}<div class="tabs" role="tablist">${F.map(f=>`<button type="button" role="tab" data-act="filter" data-f="${f}" aria-selected="${S.filter===f}">${f==="all"?L("Alle","All"):stLabel(f)}<span class="c">${cnt(f)}</span></button>`).join("")}</div>
     <section><div class="rows">${rows||`<div class="empty">${L("Keine Rechnungen.","No invoices.")}</div>`}</div></section>
   </div>`;
@@ -680,10 +704,10 @@ function viewContractors(){
   const p=P();
   const sorted=D.contractors.slice().sort((a,b)=>(!!CW(b.id))-(!!CW(a.id))||a.name.localeCompare(b.name));
   const rows=sorted.map(k=>{const m=missingOf(k),ws=PC().filter(w=>w.k===k.id),w=ws[0],sum=ws.reduce((a,x)=>a+(x.sum||0),0);
-    return row({act:"open-k",id:k.id,c:m.length?"crit":"ok",title:esc(k.name),meta:ws.length>1?ws.map(x=>"BKP "+x.bkp).join(", "):w?"BKP "+w.bkp+" "+esc(bName(w.bkp)):L("nicht in diesem Projekt","not in this project"),amt:sum?chf(sum,false):"",label:m.length?L(m.length===1?"1 Angabe fehlt":m.length+" Angaben fehlen",m.length+" missing"):L("Angaben vollständig","Details complete")});}).join("");
+    return row({act:"open-k",id:k.id,c:m.length?"crit":"ok",title:esc(k.name),meta:ws.length>1?ws.map(x=>"BKP "+x.bkp).join(", "):w?"BKP "+w.bkp+" "+esc(bName(w.bkp)):L("nicht in diesem Projekt","not in this project"),amt:sum?chf(sum,false):"",label:m.length===1?L(m[0]+" fehlt",m[0]+" missing"):m.length?L(m.length+" Angaben fehlen",m.length+" details missing"):"",lc:"crit"});}).join("");
   return `<div class="page">
     ${ph(p?esc(p.name):L("Büro","Office"),L("Handwerker","Contractors"),"",ib("plus",L("Handwerker erfassen","Add contractor"),'data-act="form" data-f="contractor"')+excelBtn("handwerker"))}
-    <section><div class="rows">${rows||`<div class="empty">${L("Noch keine Handwerker. Scannen Sie eine QR-Rechnung oder legen Sie einen an.","No contractors yet. Scan a QR-bill or add one.")}</div>`}</div></section>
+    <section>${rows?`<div class="rhead"><span></span><span>${L("Handwerker","Contractor")}</span><span>${L("Arbeitsgattung","Trade")}</span><span class="r">${L("Werkvertrag","Contract")}</span><span class="r">${L("Angaben","Details")}</span></div>`:""}<div class="rows">${rows||`<div class="empty">${L("Noch keine Handwerker. Scannen Sie eine QR-Rechnung oder legen Sie einen an.","No contractors yet. Scan a QR-bill or add one.")}</div>`}</div></section>
   </div>`;
 }
 
@@ -692,11 +716,11 @@ function cmpBody(w){
   if(!c) return `<section><div class="empty"><span>${L("Noch keine Offerte.","No offer yet.")}</span><div style="display:flex;gap:10px;flex-wrap:wrap"><label class="btn primary">${L("Offerte aus Excel","Offer from Excel")}<input type="file" accept=".xlsx,.xls,.csv" data-imp="offer" data-id="${w.id}"></label>${D.example&&w.id==="w6"?`<button type="button" class="btn" data-act="ex-offer">${L("Beispiel laden","Load example")}</button>`:""}<button type="button" class="btn" data-act="x-template">${L("Leere Vorlage","Blank template")}</button></div></div></section>`;
   const list=c.rows.filter(r=>S.cmpAll||!c.hasFinal||r.kind!=="same");
   const q=r=>r.kind==="new"?L("nicht offeriert","not in offer"):r.kind==="missing"?L("nicht abgerechnet","not billed"):c.hasFinal?nfq.format(r.oq)+" → "+nfq.format(r.fq)+" "+esc(r.unit||""):nfq.format(r.oq)+" "+esc(r.unit||"");
-  const rows=list.map(r=>`<div class="row static">${dot(r.kind==="new"?"crit":r.kind==="more"?"warn":r.kind==="less"?"ok":"n")}<span class="rt">${esc(r.text)}<span class="q">${q(r)}</span></span><span class="rm">Pos ${esc(r.pos)}</span><span class="ra">${c.hasFinal?`<span class="${r.diff>0?"up":r.diff<0?"down":""}">${r.diff?sgn(r.diff):"0.00"}</span>`:nf2.format(r.oa)}</span><span class="rl"></span></div>`).join("");
+  const rows=list.map(r=>`<div class="row static">${dot(r.kind==="new"?"crit":r.kind==="more"?"warn":r.kind==="less"?"ok":"n")}<span class="rt">${esc(r.text)}</span><span class="rm">Pos ${esc(r.pos)} · ${q(r)}</span><span class="ra">${c.hasFinal?`<span class="${r.diff>0?"up":r.diff<0?"down":""}">${r.diff?sgn(r.diff):"0.00"}</span>`:nf2.format(r.oa)}</span><span class="rl"></span></div>`).join("");
   return `<div class="stats">
       <div class="stat"><span class="sl">${L("Offerte","Offer")}</span><span class="sv">${chf(c.ot,false)}</span><span class="ss">${c.rows.filter(r=>r.kind!=="new").length} ${L("Positionen","items")}</span></div>
       <div class="stat"><span class="sl">${L("Schlussabrechnung","Final account")}</span><span class="sv">${c.hasFinal?chf(c.ft,false):"–"}</span><span class="ss">${c.hasFinal?c.changed+" "+L("Abweichungen","differences"):L("noch nicht geladen","not loaded yet")}</span></div>
-      <div class="stat"><span class="sl">${L("Differenz","Difference")}</span><span class="sv${c.hasFinal&&c.diff>0?" warn":""}">${c.hasFinal?sgn(c.diff):"–"}</span><span class="ss">${c.hasFinal&&c.ot?(c.diff/c.ot*100>0?"+":"")+(c.diff/c.ot*100).toFixed(1)+"%":""}</span></div>
+      <div class="stat"><span class="sl">${L("Differenz","Difference")}</span><span class="sv${c.hasFinal&&c.diff>0?" warn":""}">${c.hasFinal?(c.diff>0?"+":c.diff<0?"−":"")+chf(Math.abs(c.diff),false):"–"}</span><span class="ss">${c.hasFinal&&c.ot?(c.diff/c.ot*100>0?"+":"")+(c.diff/c.ot*100).toFixed(1)+"%":""}</span></div>
     </div>
     <section><div class="sh"><h2>${c.hasFinal&&!S.cmpAll?L("Abweichungen","Differences"):L("Alle Positionen","All items")}</h2><span class="cnt">${list.length}</span>${c.hasFinal?`<button type="button" class="ghost right" data-act="cmp-all">${S.cmpAll?L("Nur Abweichungen","Differences only"):L("Alle Positionen","All items")}</button>`:""}</div><div class="rows">${rows}</div>
     ${!c.hasFinal?`<div class="empty"><div style="display:flex;gap:10px;flex-wrap:wrap"><label class="btn primary">${L("Schlussabrechnung aus Excel","Final account from Excel")}<input type="file" accept=".xlsx,.xls,.csv" data-imp="final" data-id="${w.id}"></label>${D.example&&w.id==="w6"?`<button type="button" class="btn" data-act="ex-final">${L("Beispiel laden","Load example")}</button>`:""}</div></div>`:""}</section>`;
@@ -714,11 +738,12 @@ function viewContractor(k){
   let body="";
   if(S.wid&&W(S.wid)&&W(S.wid).k===k.id){
     const w=W(S.wid);
-    body=`<button type="button" class="back" data-act="back-w">← ${L("Alle Verträge","All contracts")}</button>
+    const bi=S.cmpBack&&INV(S.cmpBack.inv);
+    body=`${bi?`<button type="button" class="back" data-act="back-inv">← ${L("Zurück zur Rechnung ","Back to invoice ")}${esc(bi.no)}</button>`:`<button type="button" class="back" data-act="back-w">← ${L("Alle Verträge","All contracts")}</button>`}
       <div class="ctx">${esc(PJ(w.pid).name)} · BKP ${w.bkp} ${esc(bName(w.bkp))}</div>${cmpBody(w)}`;
   } else if(S.ktab==="konto"){
-    const open=invOf(all).filter(i=>i.status!=="bezahlt"&&live(i)).reduce((a,i)=>a+payout(i),0);
-    const top=all.length?`<div class="total"><span>${L("Offen total","Open in total")}</span><span class="tv">${chf(open,false)}</span><span class="ts">${pids.length} ${pids.length===1?L("Baustelle","site"):L("Baustellen","sites")}</span></div>`:"";
+    const oi=invOf(all).filter(i=>i.status!=="bezahlt"&&live(i)),open=oi.reduce((a,i)=>a+payout(i),0),gross=oi.reduce((a,i)=>a+net(i),0),oret=r2(gross-open);
+    const top=all.length?`<div class="total"><span>${L("Zu zahlen","To pay")}</span><span class="tv">${chf(open,false)}</span><span class="ts">${oi.length?L("Rechnungen ","Invoices ")+chf(gross,false)+(oret>0?L(" minus Rückbehalt "," minus retention ")+chf(oret,false):oret<0?L(" plus freigegebener Rückbehalt "," plus released retention ")+chf(-oret,false):""):L("nichts offen","nothing open")} · ${pids.length} ${pids.length===1?L("Projekt","project"):L("Projekte","projects")}</span></div>`:"";
     body=top+addHere+pids.map(pid=>{
       const ws=all.filter(w=>w.pid===pid),inv=invOf(ws),multi=ws.length>1;
       const stats=ws.map(w=>{const iv=inv.filter(i=>i.w===w.id),billed=iv.filter(counted).reduce((a,i)=>a+net(i),0),paid=iv.filter(i=>i.status==="bezahlt").reduce((a,i)=>a+payout(i),0),ret=iv.filter(counted).reduce((a,i)=>a+retention(i),0);
@@ -738,8 +763,9 @@ function viewContractor(k){
       return group(pid,`<div class="rows">${rows}</div>`,ws.length+" "+(ws.length===1?L("Vertrag","contract"):L("Verträge","contracts")));
     }).join("");
   }
+  const inW=S.wid&&W(S.wid)&&W(S.wid).k===k.id;
   return `<div class="page">
-    <button type="button" class="back" data-act="back-k">← ${L("Handwerker","Contractors")}</button>
+    ${inW?"":`<button type="button" class="back" data-act="back-k">← ${L("Handwerker","Contractors")}</button>`}
     ${ph("",esc(k.name),lead,tools)}
     ${all.length?`<div class="tabs" role="tablist"><button type="button" role="tab" data-act="ktab" data-t="konto" aria-selected="${S.ktab==="konto"}">${L("Konto","Account")}</button><button type="button" role="tab" data-act="ktab" data-t="vergleich" aria-selected="${S.ktab==="vergleich"}">${L("Offerte und Abrechnung","Offer and final account")}</button></div>`:""}
     ${body||addHere}
@@ -749,16 +775,17 @@ function viewContractor(k){
 function viewBudget(){
   const p=P(); if(!p) return noProject();
   const rows=budgetRows(), t=totals(rows);
-  const br=rows.map(r=>{const base=Math.max(r.b.kv,r.awarded,r.billed,1),pc=x=>Math.max(0,x)/base*100;
-    return `<button type="button" class="brow row${S.hl===r.b.bkp?" hl":""}" data-act="form" data-f="kv" data-id="${r.b.bkp}"><span class="code">${r.b.bkp}</span><div><span>${esc(tx(r.b))}</span><div class="bar"><i class="c-paid" style="width:${pc(r.paid)}%"></i><i class="c-appr" style="width:${pc(r.approved)}%"></i><i class="c-open" style="width:${pc(r.open)}%"></i>${r.b.kv?`<span class="kv" style="left:${r.b.kv/base*100}%"></span>`:""}</div></div><span class="nums">${r.awarded?chf(r.awarded,false):L("nicht vergeben","not awarded")}</span><span class="rest ${r.rest<0?"up":""}">${r.b.kv?chf(r.rest,false):"–"}</span></button>`;}).join("");
+  const br=rows.map(r=>{const base=Math.max(r.b.kv,r.awarded,r.billed+r.open,1),pc=x=>Math.max(0,x)/base*100,aw=r.awarded?chf(r.awarded,false):L("nicht vergeben","not awarded");
+    const act=r.over?`data-act="kv-explain" data-id="${r.b.bkp}"`:`data-act="form" data-f="kv" data-id="${r.b.bkp}"`;
+    return `<button type="button" class="brow row${S.hl===r.b.bkp?" hl":""}" ${act}><span class="code">${r.b.bkp}</span><div><span>${esc(tx(r.b))}</span><div class="bar"><i class="c-paid" style="width:${pc(r.paid)}%"></i><i class="c-appr" style="width:${pc(r.approved)}%"></i><i class="c-open" style="width:${pc(r.open)}%"></i>${r.b.kv?`<span class="kv" style="left:${r.b.kv/base*100}%"></span>`:""}</div><span class="bsub">KV ${r.b.kv?nf0.format(r.b.kv):"–"} · ${r.awarded?L("vergeben ","awarded ")+nf0.format(r.awarded):L("nicht vergeben","not awarded")}</span></div><span class="kvc">${r.b.kv?chf(r.b.kv,false):"–"}</span><span class="nums">${aw}</span><span class="rest ${r.rest<0?"up":r.awarded?"":"mute"}">${r.b.kv?chf(r.rest,false):"–"}</span></button>`;}).join("");
   return `<div class="page">
     ${ph(esc(p.name),"Budget","",ib("plus",L("BKP-Position erfassen","Add BKP item"),'data-act="form" data-f="bkp"')+excelBtn("budget"))}
     <div class="stats">
       <div class="stat"><span class="sl">${L("Kostenvoranschlag","Cost estimate")}</span><span class="sv">${chf(t.kv,false)}</span><span class="ss">${p.budget.length} ${p.budget.length===1?L("Position","item"):L("Positionen","items")}</span></div>
-      <div class="stat"><span class="sl">${L("Vergeben","Awarded")}</span><span class="sv">${chf(t.awarded,false)}</span><span class="ss">${t.kv?Math.round(t.awarded/t.kv*100)+"%":""}</span></div>
-      <div class="stat"><span class="sl">${L("Reserve","Reserve")}</span><span class="sv${t.rest<0?" warn":""}">${chf(t.rest,false)}</span><span class="ss">${L("bis Kostenvoranschlag","to estimate")}</span></div>
+      <div class="stat"><span class="sl">${L("Vergeben","Awarded")}</span><span class="sv">${chf(t.awarded,false)}</span><span class="ss">${t.kv?Math.round(t.awarded/t.kv*100)+"% "+L("des Kostenvoranschlags","of the estimate"):""}</span></div>
+      <div class="stat"><span class="sl">${L("Reserve","Reserve")}</span><span class="sv${t.rest<0?" warn":""}">${chf(t.rest,false)}</span><span class="ss">${L("nach Verträgen und offenen Rechnungen","after contracts and open invoices")}</span></div>
     </div>
-    <section>${br?`<div class="bhead"><span>BKP</span><span>${L("Arbeitsgattung","Trade")}</span><span class="nums">${L("Vergeben","Awarded")}</span><span class="rest">${L("Reserve","Reserve")}</span></div>`:""}${br||`<div class="empty">${L("Noch keine BKP-Positionen.","No BKP items yet.")}</div>`}
+    <section>${br?`<div class="bhead"><span>BKP</span><span>${L("Arbeitsgattung","Trade")}</span><span class="kvc">${L("Kostenvoranschlag","Estimate")}</span><span class="nums">${L("Vergeben","Awarded")}</span><span class="rest">${L("Reserve","Reserve")}</span></div>`:""}${br||`<div class="empty">${L("Noch keine BKP-Positionen.","No BKP items yet.")}</div>`}
       ${rows.length?`<div class="legend"><span><i class="c-paid"></i>${L("Bezahlt","Paid")}</span><span><i class="c-appr"></i>${L("Freigegeben","Approved")}</span><span><i class="c-open"></i>${L("Zu prüfen","To check")}</span><span><i style="width:1px;height:12px;background:var(--ink)"></i>${L("Kostenvoranschlag","Estimate")}</span></div>`:""}</section>
   </div>`;
 }
@@ -776,11 +803,11 @@ function viewTenders(){
   const active=D.tenders.filter(t=>!closedT(t)), fits=active.map(t=>fitOf(t).fit);
   const next=active.filter(t=>fitOf(t).fit!=="no").sort((a,b)=>toDate(a.due)-toDate(b.due))[0];
   const list=D.tenders.slice().sort((a,b)=>(closedT(a)-closedT(b))||(toDate(a.due)-toDate(b.due)));
-  const rows=list.map(t=>{const f=fitOf(t).fit,c=closedT(t),dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:c?"n":FIT[f].c,title:esc(tx(t.title)),meta:esc(t.client),amt:c?tx(TST[t.status]):L(dd+" Tage",dd+" days"),label:c?"":tx(FIT[f])});}).join("");
+  const rows=list.map(t=>{const f=fitOf(t).fit,c=closedT(t),dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:c?"n":FIT[f].c,title:esc(tx(t.title)),meta:(c?"":(dd<0?L("vorbei","closed"):L("in "+dd+" "+dayWord(dd),"in "+dd+" "+(dd===1?"day":"days")))+" · ")+esc(t.client),amt:c?tx(TST[t.status]):fdate(t.due),label:c?"":tx(FIT[f])});}).join("");
   return `<div class="page">${ph(L("Büro · Beispieldaten","Office · example data"),L("Ausschreibungen","Tenders"),"",excelBtn("tender"))}
     <div class="stats">
       <div class="stat"><span class="sl">${L("Offene Verfahren","Open procedures")}</span><span class="sv">${active.length}</span><span class="ss">${L("Architektur, Kanton Zürich","Architecture, Canton of Zurich")}</span></div>
-      <div class="stat"><span class="sl">${L("Eignung erfüllt","Eligible")}</span><span class="sv ok">${fits.filter(f=>f==="ok").length}</span><span class="ss">${fits.filter(f=>f==="partner").length} ${L("mit Partner","with partner")} · ${fits.filter(f=>f==="no").length} ${L("nicht","not")}</span></div>
+      <div class="stat"><span class="sl">${L("Eignung erfüllt","Eligible")}</span><span class="sv ok">${fits.filter(f=>f==="ok").length}</span><span class="ss">${fits.filter(f=>f==="partner").length} ${L("nur mit Partner","only with partner")} · ${fits.filter(f=>f==="no").length} ${L("nicht","not")}</span></div>
       <div class="stat"><span class="sl">${L("Nächste Eingabe","Next deadline")}</span><span class="sv">${next?fdate(next.due):"–"}</span><span class="ss">${next?esc(tx(next.title)):""}</span></div>
     </div>
     ${tabs}
@@ -799,16 +826,16 @@ function viewTender(t){
     <button type="button" class="back" data-act="back-t">← ${L("Ausschreibungen","Tenders")}</button>
     ${ph(esc(t.client)+" · "+L("Beispiel","Example"),esc(tx(t.title)),tx(PROC[t.proc])+" · SIA "+t.phases,excelBtn("t:"+t.id))}
     <div class="stats">
-      <div class="stat"><span class="sl">${L("Eingabe","Submission")}</span><span class="sv${!c&&dd<=14?" warn":""}">${c?tx(TST[t.status]):dd<0?L("vorbei","closed"):L(dd+" Tage",dd+" days")}</span><span class="ss">${fdate(t.due)} · ${L("Fragen bis","questions by")} ${fdate(t.qDue)}</span></div>
+      <div class="stat"><span class="sl">${L("Eingabe","Submission")}</span><span class="sv${!c&&dd<=14?" warn":""}">${c?tx(TST[t.status]):dd<0?L("vorbei","closed"):L("in "+dd+" "+dayWord(dd),"in "+dd+" "+(dd===1?"day":"days"))}</span><span class="ss">${fdate(t.due)} · ${daysTo(t.qDue)<0?L("Fragefrist abgelaufen","question period over"):L("Fragen bis","questions by")+" "+fdate(t.qDue)}</span></div>
       <div class="stat"><span class="sl">${L("Eignung","Eligibility")}</span><span class="sv ${FIT[fit].c}">${tx(FIT[fit])}</span><span class="ss">${ev.filter(e=>e.s==="ok").length} ${L("von","of")} ${ev.length} ${L("Kriterien","criteria")}</span></div>
       <div class="stat"><span class="sl">${L("Baukosten","Construction cost")}</span><span class="sv">${mio(t.cost)}</span><span class="ss">BKP 291</span></div>
     </div>
     <div class="cols">
       <section><div class="sh"><h2>${L("Eignung","Eligibility")}</h2></div><ul class="checks">${ev.map(e=>`<li><span class="ic ${e.s}" aria-hidden="true">${ICON[e.s]}</span><span>${esc(e.t)}<span class="res">${esc(e.res)}</span></span></li>`).join("")}</ul></section>
-      <section><div class="sh"><h2>${L("Unterlagen","Documents")}</h2><span class="cnt">${docs.length-open.length}/${docs.length}</span></div><ul class="checks">${docs.map(d=>`<li>${d.auto?`<span class="ic ${d.done?"ok":"crit"}" aria-hidden="true">${d.done?"✓":"✕"}</span>`:`<input type="checkbox" id="doc-${d.id}" data-act="t-doc" data-t="${t.id}" data-d="${d.id}"${d.done?" checked":""}${c?" disabled":""}>`}<label${d.auto?"":` for="doc-${d.id}"`}>${esc(d.t)}${d.sub?`<span class="res">${d.auto&&d.done?L("Automatisch: ","Automatic: "):""}${esc(d.sub)}</span>`:""}</label></li>`).join("")}</ul></section>
+      <section><div class="sh"><h2>${L("Unterlagen","Documents")}</h2><span class="cnt">${docs.length-open.length}/${docs.length}</span>${docs.some(d=>!d.auto)?`<span class="legend-s">${L("Kästchen selbst abhaken","Tick the boxes yourself")}</span>`:""}</div><ul class="checks">${docs.map(d=>`<li>${d.auto?`<span class="ic ${d.done?"ok":"crit"}" aria-hidden="true">${d.done?"✓":"✕"}</span>`:`<input type="checkbox" id="doc-${d.id}" data-act="t-doc" data-t="${t.id}" data-d="${d.id}"${d.done?" checked":""}${c?" disabled":""}>`}<label${d.auto?"":` for="doc-${d.id}"`}>${esc(d.t)}${d.sub?`<span class="res">${d.auto&&d.done?L("Automatisch: ","Automatic: "):""}${esc(d.sub)}</span>`:""}</label></li>`).join("")}</ul></section>
     </div>
     ${docsBlock("tender",t.id,L("Dateien","Files"),L("Ausschreibungsunterlagen, Fragen und Antworten, eigene Entwürfe mit ＋ ablegen.","Store tender documents and drafts with ＋."))}
-    <div class="bar-actions">${actions}</div>
+    <div class="bar-actions">${t.status==="arbeit"&&!c?(fit==="no"?`<span class="act-hint">${L("Eignung nicht erfüllt","Not eligible")}</span>`:open.length?`<span class="act-hint">${L("Noch ","Still ")+open.length+" "+(open.length===1?L("Unterlage offen","document open"):L("Unterlagen offen","documents open"))}</span>`:""):""}${actions}</div>
   </div>`;
 }
 
@@ -832,14 +859,14 @@ function checksFor(i){
   const w=W(i.w),k=K(w.k),out=[],m=missingOf(k);
   const blocking=m.filter(x=>x!==L("E-Mail","Email"));
   out.push(blocking.length?{s:"crit",t:L("Für die Zahlung fehlt: ","Missing for payment: ")+blocking.join(", "),fix:k.id}:m.length?{s:"warn",t:L("E-Mail für Rückfragen fehlt","Email for queries missing"),fix:k.id}:{s:"ok",t:L("Handwerkerdaten vollständig","Contractor details complete")});
-  let over=0;if(w.sum>0){const after=billedOn(w.id,i.id)+net(i);out.push({s:"ok",t:"BKP "+w.bkp+" "+bName(w.bkp)});out.push(after<=w.sum?{s:"ok",t:L("Im Werkvertrag: ","Within contract: ")+chf(after,false)+" / "+chf(w.sum,false)}:{s:"warn",over:1,t:L("Über Werkvertrag: +","Above contract: +")+chf(after-w.sum)});if(after>w.sum)over=after-w.sum;}
+  let over=0;if(w.sum>0){const after=billedOn(w.id,i.id)+net(i);out.push({s:"ok",t:"BKP "+w.bkp+" "+bName(w.bkp)});out.push(after<=w.sum?{s:"ok",t:L("Im Werkvertrag: ","Within contract: ")+chf(after,false)+" / "+chf(w.sum,false)}:{s:"warn",over:1,money:1,t:L("Über Werkvertrag: +","Above contract: +")+chf(after-w.sum)});if(after>w.sum)over=after-w.sum;}
   else out.push({s:"warn",t:"BKP "+w.bkp+L(": keine Werkvertragssumme",": no contract sum")});
-  if(i.type==="regie") out.push({s:"warn",t:L("Regie: Rapporte prüfen","Time & materials: check time sheets")});
-  if(i.type==="schluss"){const c=compare(w);if(c&&c.hasFinal&&c.diff>0&&over&&Math.abs(over-c.diff)<0.01){const k=out.findIndex(x=>x.over);out.splice(k,1);out.push({s:"warn",t:L("Über Werkvertrag und Offerte: ","Above contract and offer: ")+sgn(c.diff),link:w.id});}else out.push(c&&c.hasFinal?{s:c.diff>0?"warn":"ok",t:L("Gegenüber Offerte: ","Against offer: ")+sgn(c.diff),link:w.id}:{s:"info",t:L("Offertvergleich: Schlussabrechnung laden","Offer comparison: load final account"),link:w.id});}
+  if(i.type==="regie") out.push({s:"warn",money:1,t:L("Regie ausserhalb Werkvertrag: Rapporte prüfen","Time & materials outside contract: check time sheets")});
+  if(i.type==="schluss"){const c=compare(w);if(c&&c.hasFinal&&c.diff>0&&over&&Math.abs(over-c.diff)<0.01){const k=out.findIndex(x=>x.over);out.splice(k,1);out.push({s:"warn",money:1,t:L("Über Werkvertrag und Offerte: ","Above contract and offer: ")+sgn(c.diff),link:w.id});}else out.push(c&&c.hasFinal?{s:c.diff>0?"warn":"ok",money:c.diff>0?1:0,t:L("Gegenüber Offerte: ","Against offer: ")+sgn(c.diff),link:w.id}:{s:"info",t:L("Offertvergleich: Schlussabrechnung laden","Offer comparison: load final account"),link:w.id});}
   if(i.type==="akonto"&&i.n>1){const have=new Set(D.invoices.filter(x=>x.w===w.id&&x.type==="akonto"&&x.id!==i.id).map(x=>x.n));const miss=[];for(let n=1;n<i.n;n++)if(!have.has(n))miss.push(n);if(miss.length)out.push({s:"warn",t:L("Akonto ","Progress payment ")+miss.join(", ")+L(" nicht erfasst"," not recorded")});}
   const dup=i.ref&&live(i)&&D.invoices.some(x=>x.id!==i.id&&live(x)&&norm(x.ref)===norm(i.ref));
   out.push(dup?{s:"crit",t:L("Mögliche Doppelrechnung","Possible duplicate")}:i.ref?{s:"ok",t:L("Keine Doppelrechnung","No duplicate")}:{s:"warn",t:L("Ohne QR-Referenz","No QR reference")});
-  const dd=daysTo(i.due);if(dd<=7&&!counted(i))out.push({s:"warn",t:dd<0?L("Zahlungsfrist überschritten","Payment overdue"):L("Fällig in "+dd+" Tagen","Due in "+dd+" days")});
+  const dd=daysTo(i.due);if(dd<=7&&!counted(i))out.push({s:"warn",t:L("Zahlung ","Payment ")+dueText(dd)});
   return out;
 }
 function queryText(i){
@@ -853,9 +880,10 @@ function drawerHTML(i){
   const ICON={ok:"✓",warn:"!",crit:"✕",info:"i"}, ret=retention(i);
   const li=c=>`<li><span class="ic ${c.s}" aria-hidden="true">${ICON[c.s]}</span><span>${esc(c.t)}${c.link?` <button type="button" class="ghost" style="padding:0;margin-left:6px;text-decoration:underline" data-act="open-cmp" data-id="${c.link}">${L("Vergleich","Comparison")}</button>`:""}${c.fix?` <button type="button" class="ghost" style="padding:0;margin-left:6px;text-decoration:underline" data-act="form" data-f="contractor" data-id="${c.fix}">${L("Ergänzen","Complete")}</button>`:""}</span></li>`;
   const retLine=i.type==="akonto"?[L("Rückbehalt ","Retention ")+retPct(w)+"%","− "+nf2.format(ret)]:i.type==="schluss"?[L("Freigabe Rückbehalt","Retention released"),"+ "+nf2.format(-ret)]:[L("Rückbehalt","Retention"),"0.00"];
+  const money=cs.some(c=>c.money&&c.s==="warn"),apLbl=money?L("Trotzdem freigeben","Approve anyway"):L("Freigeben","Approve");
   let actions="";
-  if(i.status==="rueckfrage") actions=`<button type="button" class="btn" data-act="answer" data-id="${i.id}">${L("Antwort erhalten","Reply received")}</button><button type="button" class="btn primary" data-act="approve" data-id="${i.id}"${crit?" disabled":""}>${L("Freigeben","Approve")}</button>`;
-  else if(!counted(i)) actions=`<button type="button" class="btn" data-act="query">${L("Rückfrage","Query")}</button><button type="button" class="btn primary" data-act="approve" data-id="${i.id}"${crit?" disabled":""}>${L("Freigeben","Approve")}</button>`;
+  if(i.status==="rueckfrage") actions=`<button type="button" class="btn" data-act="answer" data-id="${i.id}">${L("Antwort erhalten","Reply received")}</button><button type="button" class="btn primary" data-act="approve" data-id="${i.id}"${crit?" disabled":""}>${apLbl}</button>`;
+  else if(!counted(i)) actions=`<button type="button" class="btn" data-act="query">${L("Rückfrage","Query")}</button><button type="button" class="btn primary" data-act="approve" data-id="${i.id}"${crit?" disabled":""}>${apLbl}</button>`;
   else if(i.status==="frei") actions=`<button type="button" class="btn" data-act="unapprove" data-id="${i.id}">${L("Freigabe zurücknehmen","Undo approval")}</button><button type="button" class="btn primary" data-act="paid" data-id="${i.id}">${L("Als bezahlt markieren","Mark as paid")}</button>`;
   const done=S.done&&S.done.id===i.id?`<div class="done"><span class="h">${L("Für Sie erledigt","Done for you")}</span><div class="chips">${S.done.items.map(x=>`<span class="chip ok">${esc(x)}</span>`).join("")}</div></div>`:"";
   const log=i.log&&i.log.length?`<details><summary>${L("Verlauf","History")}</summary><div class="in"><dl class="kv">${i.log.map(e=>`<dt>${fdate(e.d)}</dt><dd>${esc(e.t)}</dd>`).join("")}</dl></div></details>`:"";
@@ -864,20 +892,21 @@ function drawerHTML(i){
   <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="dT">
     <div class="ohead"><div><h2 id="dT" style="font-size:1.25rem;font-weight:500">${esc(k.name)}</h2><div class="sub">${typeLabel(i)} · ${esc(i.no)} · ${fdate(i.date)}</div></div><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <div class="obody">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px"><span class="big">${chf(i.gross)}</span><span class="l-${STATUS[i.status].c}" style="white-space:nowrap">${stLabel(i.status)}</span></div>
-      <div class="payline"><span>${L("Auszahlung","Payout")}</span><span>${chf(payout(i))}</span></div>
+      <span class="biglbl">${L("Auszahlung","Payout")}</span>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px"><span class="big">${chf(payout(i))}</span><span class="l-${STATUS[i.status].c}" style="white-space:nowrap">${stLabel(i.status)}</span></div>
+      <div class="gross"><span>${L("Rechnungsbetrag","Invoice amount")} ${chf(i.gross)}</span><span>${counted(i)?"":dueText(daysTo(i.due))}</span></div>
       ${done}
       ${i.repl&&INV(i.repl)?`<div class="notice"><span class="ic info" aria-hidden="true">i</span><span>${L("Ersetzt durch Rechnung ","Replaced by invoice ")}<button type="button" class="ghost link" data-act="open-inv" data-id="${i.repl}">${esc(INV(i.repl).no)}</button>. ${L("Zählt nicht mehr.","No longer counted.")}</span></div>`:""}
       ${i.replaces&&INV(i.replaces)?`<div class="notice"><span class="ic info" aria-hidden="true">i</span><span>${L("Ersetzt Rechnung ","Replaces invoice ")}<button type="button" class="ghost link" data-act="open-inv" data-id="${i.replaces}">${esc(INV(i.replaces).no)}</button></span></div>`:""}
       ${issues.length?`<ul class="checks" style="border-top:1px solid var(--line)">${issues.map(li).join("")}</ul>`:`<div class="notice"><span class="ic ok" aria-hidden="true">✓</span><span>${L("Alle Prüfungen in Ordnung","All checks passed")}</span></div>`}
       <div class="calc"><span>${L("Rechnung","Invoice")}</span><span class="r">${nf2.format(i.gross)}</span>${i.ded&&i.ded.amt?`<span>${L("Abzug","Deduction")} <span class="sp">· ${esc(i.ded.why)}</span></span><span class="r">− ${nf2.format(i.ded.amt)}</span>`:""}<span>${retLine[0]}</span><span class="r">${retLine[1]}</span><span class="sum">${L("Auszahlung","Payout")}</span><span class="r sum">${chf(payout(i))}</span></div>
       <div>
-        ${oks.length&&issues.length?`<details><summary>${oks.length} ${oks.length===1?L("Prüfung in Ordnung","check passed"):L("Prüfungen in Ordnung","checks passed")}</summary><div class="in"><ul class="checks">${oks.map(li).join("")}</ul></div></details>`:""}
+        ${oks.length&&issues.length?`<details><summary>${L("Weitere Prüfungen: ","Other checks: ")}${oks.length} ${L("in Ordnung","passed")}</summary><div class="in"><ul class="checks">${oks.map(li).join("")}</ul></div></details>`:""}
         <details><summary>${L("Zahlungsdaten","Payment details")}</summary><div class="in"><dl class="kv"><dt>IBAN</dt><dd>${k.iban?esc(k.iban):`<span class="neg">${L("fehlt","missing")}</span>`}</dd><dt>${L("Referenz","Reference")}</dt><dd>${i.ref?esc(i.ref):"–"}</dd><dt>${L("Fällig","Due")}</dt><dd>${fdate(i.due)}</dd></dl></div></details>
         ${log}
         ${S.queryOpen?`<details open><summary>${L("Rückfrage an ","Query to ")+esc(k.name)}</summary><div class="in" style="display:flex;flex-direction:column;gap:10px"><textarea id="qtext" aria-label="${L("Nachricht","Message")}">${esc(queryText(i))}</textarea><div class="qtools">${ib("copy",L("Kopieren","Copy"),'data-act="copy-query"')}${navigator.share?ib("share",L("Teilen (Mail, WhatsApp …)","Share (Mail, WhatsApp …)"),`data-act="share-query" data-id="${i.id}"`):""}${k.email?ib("mail",L("In Gmail öffnen","Open in Gmail"),`data-act="gmail-query" data-id="${i.id}"`):""}${k.email&&!navigator.share?`<a class="ib" title="${L("Im Mailprogramm öffnen","Open in mail app")}" aria-label="${L("Im Mailprogramm öffnen","Open in mail app")}" href="mailto:${esc(k.email)}?subject=${encodeURIComponent(L("Rechnung ","Invoice ")+i.no)}" data-act="mail-query">${ico("share")}</a>`:""}<span class="qsep"></span><button type="button" class="btn" data-act="mark-query" data-id="${i.id}">${L("Rückfrage gesendet","Query sent")}</button></div>${k.email?"":`<span class="hint">${L("Keine E-Mail-Adresse hinterlegt. Text kopieren und per Telefon oder WhatsApp senden, oder die E-Mail ergänzen.","No email on file. Copy the text and send it another way, or add the email.")}</span>`}</div></details>`:""}
       </div>
-      ${i.status==="ersetzt"?"":`<div class="dtools">${!counted(i)?`<button type="button" class="ghost" data-act="form" data-f="ded" data-id="${i.id}">${i.ded?L("Abzug ändern","Edit deduction"):L("Abzug","Deduction")}</button><button type="button" class="ghost" data-act="replace" data-id="${i.id}">${L("Durch neue Rechnung ersetzen","Replace with new invoice")}</button>`:""}<span class="qsep"></span>${delBtn}</div>`}
+      ${i.status==="ersetzt"?"":`<div class="dtools">${!counted(i)?`<button type="button" class="ghost" data-act="form" data-f="ded" data-id="${i.id}">${i.ded?L("Abzug ändern","Edit deduction"):L("Abzug erfassen","Add deduction")}</button><button type="button" class="ghost" data-act="replace" data-id="${i.id}">${L("Durch neue Rechnung ersetzen","Replace with new invoice")}</button>`:""}<span class="qsep"></span>${delBtn}</div>`}
     </div>
     ${actions?`<div class="ofoot">${actions}</div>`:""}
   </div>`;
@@ -984,45 +1013,59 @@ function captureHTML(){
       ${M.err?`<span class="err">${esc(M.err)}</span>`:""}
       <label class="btn${M.camErr?" primary":""} block">${L("Foto aufnehmen oder wählen","Take or choose a photo")}<input type="file" id="scanIn" accept="image/*" aria-label="${L("Foto der QR-Rechnung","Photo of the QR-bill")}"></label>
       <div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center"><button type="button" class="ghost" data-act="manual">${L("Ohne QR erfassen","Add without QR")}</button>${D.example&&!M.rep?`<button type="button" class="ghost" data-act="use-sample">${L("Beispielrechnung","Example invoice")}</button>`:""}</div></div>`;
-  } else if(M.step===2){
-    title=L("Gelesen","Read");
-    body=repNote+`<div class="fields">
-      <div class="f wide"><span class="l">${L("Empfänger","Payee")}</span><span class="v">${esc(d.name)}${d.city?", "+esc(d.zip)+" "+esc(d.city):""}</span></div>
-      <div class="f wide"><span class="l">IBAN</span><span class="v">${esc(d.iban)}</span></div>
-      <div class="f"><label for="capAmt">${L("Betrag CHF","Amount CHF")}</label><input id="capAmt" inputmode="decimal" value="${d.amount?d.amount.toFixed(2):""}"></div>
-      <div class="f"><label for="capNo">${L("Rechnungsnummer","Invoice number")}</label><input id="capNo" value="${esc(d.no||"")}" placeholder="${L("Von der Rechnung abtippen","Type from the invoice")}">${d.no?"":`<span class="hint">${L("Diese Rechnung hat keine Nummer im QR-Code.","This invoice has no number in its QR code.")}</span>`}</div>
-      <div class="f"><span class="l">${L("Rechnungsdatum","Invoice date")}</span><span class="v">${fdate(d.date)}</span>${d.dateSrc?"":`<span class="hint">${L("Heute, nicht im QR-Code","Today, not in QR code")}</span>`}</div>
-      <div class="f"><span class="l">${L("Zahlbar bis","Due")}</span><span class="v">${fdate(d.due)}</span>${d.dueSrc?"":`<span class="hint">${L("30 Tage angenommen","30 days assumed")}</span>`}</div>
-      ${M.err?`<span class="err f wide">${esc(M.err)}</span>`:""}</div>`;
-    foot=`<button type="button" class="btn primary" data-act="to-step3">${L("Weiter","Next")}</button>`;
   } else {
-    const R=resolveCapture(d);
-    if(R.dup){
+    if(!M.pid) M.pid=defaultPid(d);
+    const R=withP(M.pid,()=>resolveCapture(d));
+    if(M.step===3&&R.dup){
       title=L("Bereits erfasst","Already recorded");
       body=`<div class="notice"><span class="ic crit" aria-hidden="true">✕</span><span>${L("Doppelrechnung verhindert","Duplicate prevented")} · ${esc(R.dup.no)} · ${chf(R.dup.gross)}</span></div>`;
       foot=`<button type="button" class="btn" data-act="open-inv" data-id="${R.dup.id}">${L("Öffnen","Open")}</button><button type="button" class="btn primary" data-act="close">OK</button>`;
+    } else if(RO&&(!R.k||R.k.id!==RK.id)){
+      title=esc(d.name);
+      body=repNote+`<div class="notice"><span class="ic crit" aria-hidden="true">✕</span><span>${L("Diese Rechnung ist von ","This invoice is from ")}${esc(d.name)}. ${L("Ersetzen geht nur mit einer Rechnung von ","Replacing only works with an invoice from ")}${esc(RK.name)}.</span></div>`;
+      foot=`<button type="button" class="btn" data-act="replace" data-id="${RO.id}">${L("Andere Rechnung scannen","Scan another invoice")}</button><button type="button" class="btn primary" data-act="close">OK</button>`;
     } else {
-      title=esc(R.k?R.k.name:d.name);
-      if(RO&&(!R.k||R.k.id!==RK.id)){
-        body=repNote+`<div class="notice"><span class="ic crit" aria-hidden="true">✕</span><span>${L("Diese Rechnung ist von ","This invoice is from ")}${esc(d.name)}. ${L("Ersetzen geht nur mit einer Rechnung von ","Replacing only works with an invoice from ")}${esc(RK.name)}.</span></div>`;
-        foot=`<button type="button" class="btn" data-act="replace" data-id="${RO.id}">${L("Andere Rechnung scannen","Scan another invoice")}</button><button type="button" class="btn primary" data-act="close">OK</button>`;
-        return wrapCapture(title,body,foot);
-      }
-      const G=RO&&R.w&&R.w.id===RO.w?{type:RO.type,n:RO.n}:guessKind(d),nAk=G.n||(R.w?D.invoices.filter(x=>x.w===R.w.id&&x.type==="akonto").length+1:1);d.akN=nAk;const so=v=>G.type===v?" selected":"";
-      body=repNote+`<div class="fields">
-        ${(()=>{const src=R.k||d,adr=[src.street,[src.zip,src.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");return `<div class="f wide"><span class="l">${L("Adresse","Address")}</span><span class="v">${adr?esc(adr):"–"}</span>${R.k?"":`<span class="hint">${L("Wird neu angelegt","Will be added as new contractor")}</span>`}</div>`;})()}
+      title=L("Rechnung erkannt","Invoice recognised");
+      body=withP(M.pid,()=>{
+        const G=d.typeSel?{type:d.typeSel,n:d.akN}:RO&&R.w&&R.w.id===RO.w?{type:RO.type,n:RO.n}:guessKind(d);
+        const nAk=G.n||(R.w?D.invoices.filter(x=>x.w===R.w.id&&x.type==="akonto").length+1:1);d.akN=nAk;const so=v=>G.type===v?" selected":"";
+        const qAdr=[d.street,[d.zip,d.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+        const adrHint=!R.k?L("Neuer Handwerker, wird angelegt","New contractor, will be added"):(!R.k.street&&qAdr)?L("Fehlt beim Handwerker, wird übernommen","Missing for this contractor, will be added"):"";
+        const projs=D.projects.filter(p=>!p.closed||p.id===M.pid);
+        return repNote+`<div class="fields">
+        <div class="f wide"><span class="l">${L("Von","From")}</span><span class="v">${esc(R.k?R.k.name:d.name)}</span></div>
+        <div class="f wide"><span class="l">${L("Adresse","Address")}</span><span class="v">${qAdr?esc(qAdr):"–"}</span>${adrHint?`<span class="hint">${adrHint}</span>`:""}</div>
+        <div class="f wide"><span class="l">IBAN</span><span class="v">${esc(d.iban)}</span></div>
+        <div class="f wide"><label for="capProj">${L("Projekt","Project")}</label>${projs.length>1?`<select id="capProj">${projs.map(p=>`<option value="${p.id}"${p.id===M.pid?" selected":""}>${esc(p.name)}${p.place?" · "+esc(p.place):""}</option>`).join("")}</select>`:`<span class="v">${esc(P().name)}</span>`}</div>
         ${R.w?`<div class="f wide"><span class="l">${L("Werkvertrag","Contract")}</span><span class="v">BKP ${R.w.bkp} ${esc(bName(R.w.bkp))}${R.w.sum?" · "+chf(R.w.sum,false):""}</span></div>`
-          :`<div class="f wide"><label for="capBkp">BKP</label><select id="capBkp">${bkpOptions(guessBkp(d))}</select><span class="hint">${L("Werkvertragssumme können Sie später ergänzen.","You can add the contract sum later.")}</span></div>`}
+          :`<div class="f wide"><label for="capBkp">BKP</label><select id="capBkp">${bkpOptions(d.bkpSel||guessBkp(d))}</select><span class="hint">${L("Noch kein Werkvertrag in diesem Projekt. Die Summe können Sie später ergänzen.","No contract in this project yet. You can add the sum later.")}</span></div>`}
         <div class="f"><label for="capType">${L("Art","Type")}</label><select id="capType"><option value="akonto"${so("akonto")}>${L("Akonto ","Progress payment ")+nAk}</option><option value="schluss"${so("schluss")}>${L("Schlussrechnung","Final invoice")}</option><option value="regie"${so("regie")}>${L("Regie","Time & materials")}</option></select></div>
-        <div class="f"><span class="l">${L("Betrag","Amount")}</span><span class="v">${chf(d.amount)}</span></div></div>`;
+        <div class="f"><label for="capAmt">${L("Betrag CHF","Amount CHF")}</label><input id="capAmt" class="amt" inputmode="decimal" value="${d.amount?nf2.format(d.amount):""}"></div>
+        <div class="f wide"><label for="capNo">${L("Rechnungsnummer","Invoice number")}</label><input id="capNo" value="${esc(d.no||"")}" placeholder="${L("Von der Rechnung abtippen","Type from the invoice")}">${d.no?"":`<span class="hint">${L("Diese Rechnung hat keine Nummer im QR-Code.","This invoice has no number in its QR code.")}</span>`}</div>
+        <div class="f"><span class="l">${L("Rechnungsdatum","Invoice date")}</span><span class="v">${fdate(d.date)}</span>${d.dateSrc?"":`<span class="hint">${L("Heute, nicht im QR-Code","Today, not in QR code")}</span>`}</div>
+        <div class="f"><span class="l">${L("Zahlbar bis","Due")}</span><span class="v">${fdate(d.due)}</span>${d.dueSrc?"":`<span class="hint">${L("30 Tage angenommen","30 days assumed")}</span>`}</div>
+        ${M.err?`<span class="err f wide">${esc(M.err)}</span>`:""}</div>`;});
       foot=`<button type="button" class="btn primary" data-act="confirm-capture">${L("Übernehmen","Add invoice")}</button>`;
     }
   }
   return wrapCapture(title,body,foot);
 }
+function defaultPid(d){
+  const M=S.modal,RO=M&&M.rep&&INV(M.rep);if(RO)return W(RO.w).pid;
+  const k=D.contractors.find(c=>(c.iban&&norm(c.iban)===norm(d.iban))||c.name.trim().toLowerCase()===d.name.trim().toLowerCase());
+  if(k&&!D.contracts.some(w=>w.k===k.id&&w.pid===D.pid)){const ps=[...new Set(D.contracts.filter(w=>w.k===k.id).map(w=>w.pid))].filter(id=>{const p=PJ(id);return p&&!p.closed;});if(ps.length===1)return ps[0];}
+  return D.pid;
+}
+function readCapture(){const d=S.modal&&S.modal.data;if(!d)return;const g=id=>document.getElementById(id);
+  if(g("capAmt")){const v=num(g("capAmt").value);d.amount=v&&v>0?r2(v):0;}
+  if(g("capNo"))d.no=g("capNo").value.trim();if(g("capType"))d.typeSel=g("capType").value;if(g("capBkp"))d.bkpSel=g("capBkp").value;}
 function ensureBkp(bkp){const p=P();if(!p.budget.some(b=>b.bkp===bkp)){const s=STD_BKP.find(x=>x[0]===bkp);p.budget.push({bkp,de:s?s[1]:bkp,en:s?s[2]:bkp,kv:0});p.budget.sort((a,b)=>a.bkp.localeCompare(b.bkp));}}
 function confirmCapture(){
-  const d=S.modal.data,R=resolveCapture(d);if(R.dup)return;
+  readCapture();const d=S.modal.data;
+  if(!d.amount){S.modal.err=L("Betrag eingeben","Enter the amount");return renderOverlay();}
+  S.modal.err="";
+  const moved=S.modal.pid&&S.modal.pid!==D.pid;if(S.modal.pid)D.pid=S.modal.pid;
+  const R=resolveCapture(d);if(R.dup){S.modal.step=3;logDup();return renderOverlay();}
   const items=[L("QR gelesen","QR read")],type=(document.getElementById("capType")||{}).value||"akonto";
   let k=R.k,w=R.w;
   if(!k){k={id:newId("k"),name:d.name,street:d.street,zip:d.zip,city:d.city,iban:d.iban,email:"",phone:""};D.contractors.push(k);items.push(L("Handwerker angelegt","Contractor added"));}
@@ -1036,6 +1079,7 @@ function confirmCapture(){
   if(type==="akonto")items.push(L("Rückbehalt ","Retention ")+nf2.format(retention(ni)));
   if(d.ref)items.push(L("Keine Doppelrechnung","No duplicate"));
   S.done={id:ni.id,items};S.modal=null;S.drawer=ni.id;S.queryOpen=false;render();
+  if(moved)toast(L("Im Projekt ","Filed in ")+P().name);
 }
 function logDup(){const M=S.modal;if(!M||M.logged||!M.data)return;M.logged=true;D.events.unshift({pid:D.pid,c:"crit",t:M.data.name,m:L("Doppelrechnung verhindert","duplicate prevented"),chf:M.data.amount,act:"nav",v:"rechnungen"});}
 
@@ -1181,20 +1225,22 @@ function kvHTML(){
   let rows=line(L("Kostenvoranschlag","Cost estimate"),nfq.format(kv),"");
   if(ws.length===1){const w=ws[0];rows+=line(L("Werkvertrag ","Contract ")+esc(K(w.k).name),nfq.format(w.sum),"("+sg(w.sum-kv)+")");}
   else{ws.forEach(w=>{rows+=line(L("Werkvertrag ","Contract ")+esc(K(w.k).name),nfq.format(w.sum),"");});rows+=line(L("Vergeben total","Awarded total"),nfq.format(r.awarded),"("+sg(r.awarded-kv)+")");}
-  if(r.billed>r.awarded) rows+=line(L("Abgerechnet (freigegeben)","Billed (approved)"),nfq.format(r.billed),"("+sg(r.billed-r.awarded)+")");
+  if(r.billed+r.open>r.awarded) rows+=line(r.open?L("Abgerechnet inkl. offene Rechnungen","Billed incl. open invoices"):L("Abgerechnet (freigegeben)","Billed (approved)"),nfq.format(r.billed+r.open),"("+sg(r.billed+r.open-r.awarded)+")");
   rows+=line(L("Über Kostenvoranschlag","Over cost estimate"),nfq.format(-r.rest),"","sum");
   const cmpBtns=ws.filter(w=>compare(w)).map(w=>`<button type="button" class="btn primary" data-act="open-cmp" data-id="${w.id}">${L("Abweichungen","Differences")}${ws.length>1?" · "+esc(K(w.k).name):""}</button>`).join("");
   return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="kT">
     <div class="ohead"><div><h2 id="kT" style="font-size:1.25rem;font-weight:500">BKP ${esc(r.b.bkp)} ${esc(tx(r.b))}</h2><div class="sub">CHF ${nfq.format(-r.rest)} ${L("über Kostenvoranschlag","over cost estimate")}</div></div><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <div class="obody"><div class="calc kvx">${rows}</div></div>
-    <div class="ofoot"><button type="button" class="btn" data-act="kv-budget" data-id="${esc(r.b.bkp)}">${L("Budget","Budget")}</button>${cmpBtns}</div></div>`;
+    <div class="ofoot"><button type="button" class="btn" data-act="form" data-f="kv" data-id="${esc(r.b.bkp)}">${L("Kostenvoranschlag ändern","Edit estimate")}</button>${S.view==="budget"?"":`<button type="button" class="btn" data-act="kv-budget" data-id="${esc(r.b.bkp)}">${L("Budget","Budget")}</button>`}${cmpBtns}</div></div>`;
 }
 function projectsHTML(){
   const item=p=>{const cur=p.id===D.pid;return `<button type="button" class="pitem${cur?" cur":""}" data-act="pick-project" data-id="${p.id}" data-q="${esc((p.name+" "+(p.place||"")+" "+(p.client||"")).toLowerCase())}"><span class="pn">${esc(p.name)}</span><span class="pp">${esc([p.place,p.client].filter(Boolean).join(" · "))}</span><span class="pc">${cur?"✓":""}</span></button>`;};
   const act=D.projects.filter(p=>!p.closed),done=D.projects.filter(p=>p.closed);
   return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pT">
-    <div class="ohead"><h2 id="pT" style="font-size:1.25rem;font-weight:500">${L("Projekt wechseln","Switch project")}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
+    <div class="ohead"><h2 id="pT" style="font-size:1.25rem;font-weight:500">${L("Wechseln","Switch")}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <div class="obody psw">
+      <div class="pfirm"><button type="button" class="pitem${S.view==="buero"?" cur":""}" data-act="home"><span class="pn">Home</span><span class="pp">${esc((D.firm&&D.firm.name)||L("Ihr Büro","Your firm"))} · ${L("alle Projekte","all projects")}</span><span class="pc">${S.view==="buero"?"✓":""}</span></button><button type="button" class="pitem${S.view==="ausschreibungen"?" cur":""}" data-act="nav" data-v="ausschreibungen"><span class="pn">${L("Ausschreibungen","Tenders")}</span><span class="pp">${L("Öffentliche Verfahren für Ihr Büro","Public procedures for your firm")}</span><span class="pc">${S.view==="ausschreibungen"?"✓":""}</span></button></div>
+      <h3 class="subh" style="margin:6px 0 -6px;border:0;padding:0">${L("Projekte","Projects")}</h3>
       ${D.projects.length>1?`<input type="search" id="pSearch" class="psearch" placeholder="${L("Projekt suchen","Search projects")}" autocomplete="off" aria-label="${L("Projekt suchen","Search projects")}">`:""}
       <div class="plist">${act.map(item).join("")||`<div class="empty">${L("Keine aktiven Projekte.","No active projects.")}</div>`}</div>
       ${done.length?`<details class="pdone"><summary>${L("Abgeschlossen","Completed")} <span class="cnt">${done.length}</span></summary><div class="plist">${done.map(item).join("")}</div></details>`:""}
@@ -1336,7 +1382,7 @@ let toastT;
 function toast(msg,ms){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),ms||3000);}
 async function copy(text,ok){try{await navigator.clipboard.writeText(text);toast(ok);}catch(e){toast(L("Kopieren nicht möglich","Copy failed"));}}
 function closeAll(){stopCam();S.kvx=null;S.fdrawer=null;S.drawer=null;S.modal=null;S.sheet=null;S.form=null;S.formErr="";S.confirm=null;S.queryOpen=false;S.done=null;}
-function go(v){if(!VIEWS.includes(v))v="uebersicht";closeAll();S.view=v;if(v!=="handwerker")S.kid=null;if(v!=="ausschreibungen")S.tid=null;try{history.replaceState(null,"","#"+v);}catch(e){}render();document.getElementById("main").scrollTop=0;}
+function go(v){if(!VIEWS.includes(v))v="uebersicht";closeAll();if(v!=="handwerker")S.cmpBack=null;S.view=v;if(v!=="handwerker")S.kid=null;if(v!=="ausschreibungen")S.tid=null;try{history.replaceState(null,"","#"+v);}catch(e){}render();document.getElementById("main").scrollTop=0;}
 const openForm=(f,id,w)=>{const keepDrawer=S.drawer;closeAll();S.form={f,id:id||null,w:w||null,back:keepDrawer};renderOverlay();};
 
 document.addEventListener("toggle",e=>{const d=e.target;if(d&&d.classList&&d.classList.contains("site")&&S.kOpen)S.kOpen.ids[d.dataset.pid]=d.open;},true);
@@ -1366,12 +1412,13 @@ document.addEventListener("click",e=>{
     case "all-flags":S.allFlags=!S.allFlags;render();break;
     case "open-inv":closeAll();S.drawer=id;renderOverlay();break;
     case "open-k":S.wid=null;S.kid=id;S.ktab="konto";go("handwerker");S.kid=id;render();break;
-    case "open-cmp":{const w=W(id);if(!w)break;S.kid=w.k;S.ktab="vergleich";S.wid=w.id;go("handwerker");S.kid=w.k;S.wid=w.id;render();break;}
+    case "open-cmp":{const w=W(id);if(!w)break;S.cmpBack=S.drawer?{inv:S.drawer,view:S.view}:null;S.kid=w.k;S.ktab="vergleich";S.wid=w.id;go("handwerker");S.kid=w.k;S.wid=w.id;render();break;}
     case "kv-explain":closeAll();S.kvx=id;renderOverlay();break;
     case "kv-budget":closeAll();S.hl=id;go("budget");render();setTimeout(()=>{const e=document.querySelector('.brow[data-id="'+id+'"]');if(e)e.scrollIntoView({behavior:"smooth",block:"center"});},60);setTimeout(()=>{S.hl=null;},3000);break;
     case "open-w":S.wid=id;render();break;
-    case "back-w":S.wid=null;render();break;
-    case "back-k":S.kid=null;S.wid=null;render();break;
+    case "back-w":S.wid=null;S.cmpBack=null;render();break;
+    case "back-inv":{const b=S.cmpBack;S.cmpBack=null;S.wid=null;S.kid=null;go(b?b.view:"rechnungen");if(b&&INV(b.inv)){S.drawer=b.inv;renderOverlay();}break;}
+    case "back-k":S.kid=null;S.wid=null;S.cmpBack=null;render();break;
     case "ktab":S.ktab=el.dataset.t;S.wid=null;render();break;
     case "to-cmp":S.ktab="vergleich";render();break;
     case "cmp-all":S.cmpAll=!S.cmpAll;render();break;
@@ -1388,7 +1435,7 @@ document.addEventListener("click",e=>{
     case "form-del":formDelete();break;
     case "open-project":D.pid=id;S.kid=null;go("uebersicht");break;
     case "home":go("buero");break;
-    case "pick-project":D.pid=id;closeAll();S.kid=null;render();toast(P().name);break;
+    case "pick-project":D.pid=id;closeAll();S.kid=null;if(S.view==="buero"||S.view==="ausschreibungen")go("uebersicht");else render();toast(P().name);break;
     case "ask":S.confirm=el.dataset.c;if(/^ddel:/.test(S.confirm))render();else renderOverlay();break;
     case "notice-ok":D.noticeOk=1;render();break;
     case "doc-open":openDoc(el.dataset.id);break;
@@ -1419,7 +1466,7 @@ document.addEventListener("click",e=>{
   }
 });
 document.addEventListener("change",e=>{
-  const t=e.target;if(t.id==="fVatOn"){feeCalcUpdate();return;}if(!t.matches||!t.matches("input[type=file]"))return;
+  const t=e.target;if(t.id==="capProj"&&S.modal){readCapture();S.modal.pid=t.value;delete S.modal.data.bkpSel;delete S.modal.data.typeSel;renderOverlay();return;}if(t.id==="fVatOn"){feeCalcUpdate();return;}if(!t.matches||!t.matches("input[type=file]"))return;
   if(t.id==="pSearch")return;
   if(t.dataset.imp==="doc"){const fs=[...(t.files||[])];t.value="";if(fs.length)addDocs(fs,t.dataset.id).catch(()=>toast(L("Speichern nicht möglich.","Could not save.")));return;}
   const f=t.files&&t.files[0];if(!f)return;

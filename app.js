@@ -752,13 +752,13 @@ function viewBudget(){
   const br=rows.map(r=>{const base=Math.max(r.b.kv,r.awarded,r.billed,1),pc=x=>Math.max(0,x)/base*100;
     return `<button type="button" class="brow row${S.hl===r.b.bkp?" hl":""}" data-act="form" data-f="kv" data-id="${r.b.bkp}"><span class="code">${r.b.bkp}</span><div><span>${esc(tx(r.b))}</span><div class="bar"><i class="c-paid" style="width:${pc(r.paid)}%"></i><i class="c-appr" style="width:${pc(r.approved)}%"></i><i class="c-open" style="width:${pc(r.open)}%"></i>${r.b.kv?`<span class="kv" style="left:${r.b.kv/base*100}%"></span>`:""}</div></div><span class="nums">${r.awarded?chf(r.awarded,false):L("nicht vergeben","not awarded")}</span><span class="rest ${r.rest<0?"up":""}">${r.b.kv?chf(r.rest,false):"–"}</span></button>`;}).join("");
   return `<div class="page">
-    ${ph(esc(p.name),"Budget","",excelBtn("budget"))}
+    ${ph(esc(p.name),"Budget","",ib("plus",L("BKP-Position erfassen","Add BKP item"),'data-act="form" data-f="bkp"')+excelBtn("budget"))}
     <div class="stats">
       <div class="stat"><span class="sl">${L("Kostenvoranschlag","Cost estimate")}</span><span class="sv">${chf(t.kv,false)}</span><span class="ss">${p.budget.length} ${p.budget.length===1?L("Position","item"):L("Positionen","items")}</span></div>
       <div class="stat"><span class="sl">${L("Vergeben","Awarded")}</span><span class="sv">${chf(t.awarded,false)}</span><span class="ss">${t.kv?Math.round(t.awarded/t.kv*100)+"%":""}</span></div>
       <div class="stat"><span class="sl">${L("Reserve","Reserve")}</span><span class="sv${t.rest<0?" warn":""}">${chf(t.rest,false)}</span><span class="ss">${L("bis Kostenvoranschlag","to estimate")}</span></div>
     </div>
-    <section><div class="sh"><h2>BKP</h2><button type="button" class="add" data-act="form" data-f="bkp">${L("+ Position","+ Item")}</button></div>${br?`<div class="bhead"><span></span><span></span><span class="nums">${L("Vergeben","Awarded")}</span><span class="rest">${L("Reserve","Reserve")}</span></div>`:""}${br||`<div class="empty">${L("Noch keine BKP-Positionen.","No BKP items yet.")}</div>`}
+    <section>${br?`<div class="bhead"><span>BKP</span><span>${L("Arbeitsgattung","Trade")}</span><span class="nums">${L("Vergeben","Awarded")}</span><span class="rest">${L("Reserve","Reserve")}</span></div>`:""}${br||`<div class="empty">${L("Noch keine BKP-Positionen.","No BKP items yet.")}</div>`}
       ${rows.length?`<div class="legend"><span><i class="c-paid"></i>${L("Bezahlt","Paid")}</span><span><i class="c-appr"></i>${L("Freigegeben","Approved")}</span><span><i class="c-open"></i>${L("Zu prüfen","To check")}</span><span><i style="width:1px;height:12px;background:var(--ink)"></i>${L("Kostenvoranschlag","Estimate")}</span></div>`:""}</section>
   </div>`;
 }

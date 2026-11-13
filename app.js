@@ -645,7 +645,7 @@ function viewOverview(){
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
   return `<div class="page">
     ${ph(esc(today),L("Projekte","Projects"),"",ib("plus",L("Neues Projekt","New project"),'data-act="form-project"'))}
-    <section><div class="rows">${D.projects.map(x=>row({act:"open-project",id:x.id,c:x.id===p.id?"acc":"n",title:esc(x.name),meta:esc([x.place,x.desc].filter(Boolean).join(" · ")),amt:"",label:x.id===p.id?L("geöffnet","open"):"",lc:"n"})).join("")}</div></section>
+    <section><div class="rows">${D.projects.map(x=>row({act:"open-project",id:x.id,c:x.id===p.id?"acc":"n",title:esc(x.name),meta:esc([x.place,x.desc].filter(Boolean).join(" · ")),amt:"",label:x.id===p.id?L("✓ Geöffnet","✓ Open"):L("Öffnen →","Open →"),lc:x.id===p.id?"ok":"link"})).join("")}</div></section>
     ${ph("",esc(p.name),esc([p.place,p.desc].filter(Boolean).join(" · ")),ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"'))}
     ${startSteps()}
     <div class="stats">

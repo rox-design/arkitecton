@@ -464,3 +464,4 @@ details.site>summary .sc{white-space:nowrap;margin-left:0}
 .bhead span{text-align:left}.bhead .nums,.bhead .rest{text-align:right}
 @media (hover:none){.feesum:hover{background:none}}
 .topbar .proj::after{content:none}
+.l-link{color:var(--ink);text-decoration:underline;text-underline-offset:3px}

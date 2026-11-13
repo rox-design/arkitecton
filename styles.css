@@ -561,3 +561,4 @@ details.site[open]>summary::after{content:"";transform:rotate(-135deg) translate
   .ofoot{flex-wrap:wrap}
   .ofoot .act-hint{flex-basis:100%;margin:0 0 2px}
 }
+#toast{width:max-content;max-width:min(560px,calc(100vw - 32px));box-sizing:border-box}

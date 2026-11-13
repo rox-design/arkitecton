@@ -865,7 +865,7 @@ function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]
     return renderOverlay();
   }
   app.style.display="";document.querySelector(".rail").style.display="";document.querySelector(".topbar").style.display="";document.getElementById("tabbar").style.display="";
-  renderChrome();
+  renderChrome();swipeHint();
   document.getElementById("main").innerHTML=({buero:viewFirm,uebersicht:viewOverview,rechnungen:viewInvoices,handwerker:viewContractors,budget:viewBudget,ausschreibungen:viewTenders})[S.view]();
   renderOverlay();
 }
@@ -1493,6 +1493,38 @@ document.addEventListener("change",e=>{
   if(t.id==="scanIn")onScanFile(f);else if(t.dataset.imp){handleImport(t.dataset.imp,f,t.dataset.id);t.value="";}
 });
 document.addEventListener("input",e=>{if(e.target.getAttribute&&e.target.getAttribute("aria-invalid")){e.target.removeAttribute("aria-invalid");const fe=e.target.closest(".f")&&e.target.closest(".f").querySelector(".ferr");if(fe)fe.remove();}if(e.target.id==="pSearch"){const q=e.target.value.trim().toLowerCase(),sh=document.querySelector(".psw");let n=0;sh.querySelectorAll(".pitem").forEach(b=>{const on=!q||b.dataset.q.includes(q);b.hidden=!on;if(on)n++;});sh.querySelectorAll(".plist").forEach(l=>{l.hidden=![...l.querySelectorAll(".pitem")].some(b=>!b.hidden);});const dd=sh.querySelector(".pdone");if(dd&&q)dd.open=true;sh.querySelector(".pnone").hidden=n>0;return;}if(S.form&&S.form.f==="fee"&&e.target.closest&&e.target.closest("#frm"))feeCalcUpdate();});
+/* ---------- swipe between the main areas on a phone (same order as the tab bar) ---------- */
+const SWIPE=["uebersicht","rechnungen","handwerker","budget"];
+(function(){
+  const main=document.getElementById("main");let st=null;
+  const phone=()=>window.matchMedia("(max-width:820px)").matches;
+  const blocked=t=>t.closest("input,textarea,select,.tabs,.chart,.bar,[data-noswipe]")||document.querySelector("#overlay.on");
+  main.addEventListener("touchstart",e=>{
+    if(!D||!phone()||e.touches.length!==1||!SWIPE.includes(S.view)||blocked(e.target)){st=null;return;}
+    const t=e.touches[0];if(t.clientX<24||t.clientX>innerWidth-24){st=null;return;} /* leave the screen edges to the system back gesture */
+    st={x:t.clientX,y:t.clientY,t:Date.now(),dir:0};
+  },{passive:true});
+  main.addEventListener("touchmove",e=>{
+    if(!st)return;const t=e.touches[0],dx=t.clientX-st.x,dy=t.clientY-st.y;
+    if(!st.dir){if(Math.abs(dx)<10&&Math.abs(dy)<10)return;st.dir=Math.abs(dx)>Math.abs(dy)*1.4?1:-1;}
+    if(st.dir!==1)return;
+    const i=SWIPE.indexOf(S.view),end=(dx>0&&i===0)||(dx<0&&i===SWIPE.length-1);
+    main.style.transition="none";main.style.transform=`translateX(${end?dx*0.25:dx*0.6}px)`;main.style.opacity=String(1-Math.min(.35,Math.abs(dx)/900));
+  },{passive:true});
+  const reset=()=>{main.style.transition="transform .2s ease,opacity .2s ease";main.style.transform="";main.style.opacity="";};
+  main.addEventListener("touchend",e=>{
+    if(!st)return;const s0=st;st=null;if(s0.dir!==1)return reset();
+    const t=e.changedTouches[0],dx=t.clientX-s0.x,fast=Date.now()-s0.t<350,i=SWIPE.indexOf(S.view),n=i+(dx<0?1:-1);
+    if(!(Math.abs(dx)>innerWidth*0.28||(fast&&Math.abs(dx)>50))||n<0||n>=SWIPE.length)return reset();
+    const out=dx<0?-1:1;main.style.transition="transform .14s ease-in,opacity .14s ease-in";main.style.transform=`translateX(${out*innerWidth*0.5}px)`;main.style.opacity="0";
+    setTimeout(()=>{S.kid=null;S.tid=null;go(SWIPE[n]);main.style.transition="none";main.style.transform=`translateX(${-out*innerWidth*0.35}px)`;
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{main.style.transition="transform .2s ease-out,opacity .2s ease-out";main.style.transform="";main.style.opacity="";}));
+      if(!D.swipeSeen){D.swipeSeen=1;saveData();}},140);
+  });
+  main.addEventListener("touchcancel",()=>{if(st){st=null;reset();}});
+})();
+/* one-time hint on the phone, until the person has swiped once */
+function swipeHint(){if(!D||D.swipeSeen||D.swipeHinted||!window.matchMedia("(max-width:820px)").matches||!SWIPE.includes(S.view))return;D.swipeHinted=1;saveData();setTimeout(()=>toast(L("Tipp: Seitlich wischen wechselt zwischen Projekt, Rechnungen, Handwerker und Budget.","Tip: swipe left or right to move between Project, Invoices, Contractors and Budget."),6000),900);}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&(S.drawer||S.fdrawer||S.modal||S.sheet||S.form||S.kvx)){closeAll();render();}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)stopCam();});
 window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(D&&v!==S.view&&VIEWS.includes(v))go(v);});

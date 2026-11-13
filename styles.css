@@ -489,3 +489,7 @@ details.site>summary .sc{white-space:nowrap;margin-left:0}
 .padd:hover{text-decoration:underline}
 @media (hover:none){.pitem:hover{background:none}}
 .psw .plist[hidden]{display:none}
+/* keep the page from panning sideways on iOS */
+html,body{max-width:100%;overflow-x:hidden;overscroll-behavior-x:none}
+body{touch-action:manipulation}
+.app{max-width:100vw;overflow-x:clip}

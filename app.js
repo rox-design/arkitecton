@@ -607,7 +607,7 @@ function viewFirm(){
   const ps=D.projects.map(p=>withP(p.id,()=>{const chk=PI().filter(i=>!counted(i)),fo=PF().filter(f=>!f.paid);return {p,chk,n:chk.length,sum:chk.reduce((a,i)=>a+net(i),0),fl:flags().length,fees:fo.reduce((a,f)=>a+feeTotal(f),0),rem:fo.filter(f=>remDue(f)).length};}));
   const feeOpen=ps.reduce((a,x)=>a+x.fees,0),remN=ps.reduce((a,x)=>a+x.rem,0),tot=ps.reduce((a,x)=>a+x.sum,0),nChk=ps.reduce((a,x)=>a+x.n,0),nFl=ps.reduce((a,x)=>a+x.fl,0);
   const tOpen=D.tenders.filter(x=>!closedT(x)&&fitOf(x).fit!=="no"&&daysTo(x.due)>=0).length;
-  const parts=x=>[x.n?x.n+" "+L("offen","open"):"",x.fl?x.fl+" "+L("gefunden","found"):"",x.rem?x.rem+" "+(x.rem===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):""].filter(Boolean).join(" · ")||L("nichts offen","nothing open");
+  const parts=x=>[x.n?x.n+" "+L("offen","open"):"",x.fl?x.fl+" "+L("auffällig","issues"):"",x.rem?x.rem+" "+(x.rem===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):""].filter(Boolean).join(" · ")||L("nichts offen","nothing open");
   const rows=ps.map(x=>row({act:"open-project",id:x.p.id,c:x.rem?"crit":x.fl?"warn":x.n?"n":"ok",title:esc(x.p.name),meta:(x.p.place?esc(x.p.place)+" · ":"")+parts(x),amt:x.sum?chf(x.sum,false):"",label:""})).join("");
   const name=(D.firm&&D.firm.name)||L("Ihr Büro","Your firm");
   const tl=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0).sort((a,b)=>toDate(a.due)-toDate(b.due));
@@ -618,7 +618,7 @@ function viewFirm(){
     ${dataNotice()}${startSteps()}
     <div class="stats">
       <div class="stat"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${openSub(ps.flatMap(x=>x.chk))}</span></div>
-      <div class="stat"><span class="sl">${L("Von arkitecton gefunden","Found by arkitecton")}</span><span class="sv${nFl?" warn":""}">${nFl}</span><span class="ss">${L("in allen Projekten","across all projects")}</span></div>
+      <div class="stat"><span class="sl">${L("Auffälligkeiten","Issues")}</span><span class="sv${nFl?" warn":""}">${nFl}</span><span class="ss">${L("Mehrkosten, fehlende Angaben","extra costs, missing details")}</span></div>
       <div class="stat"><span class="sl">${L("Honorar offen","Fees open")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung fällig","no reminder due")}</span></div>
       <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${tOpen} ${L("mit Eignung","eligible")}</span></button>
     </div>
@@ -647,12 +647,12 @@ function viewOverview(){
     ${startSteps()}
     <div class="stats">
       <button type="button" class="stat" data-act="nav" data-v="rechnungen"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${openSub(toCheck)}</span></button>
-      <button type="button" class="stat" data-act="jump-flags"><span class="sl">${L("Von arkitecton gefunden","Found by arkitecton")}</span><span class="sv${fl.length?" warn":""}">${fl.length}</span><span class="ss">${L("Auffälligkeiten","issues")} · ${chf(flSum,false)}</span></button>
+      <button type="button" class="stat" data-act="jump-flags"><span class="sl">${L("Auffälligkeiten","Issues")}</span><span class="sv${fl.length?" warn":""}">${fl.length}</span><span class="ss">${flSum?chf(flSum,false)+" "+L("Mehrkosten","extra costs"):L("Mehrkosten, fehlende Angaben","extra costs, missing details")}</span></button>
       <button type="button" class="stat" data-act="nav" data-v="budget"><span class="sl">${L("Kostenstand","Cost status")}</span><span class="sv">${t.kv?pct+"%":"–"}</span><span class="ss"><span class="mini"><i style="width:${Math.min(100,pct)}%"></i></span>${t.kv?L("von","of")+" "+chf(t.kv,false):L("kein Budget","no budget")}</span></button>
     </div>
     ${PF().length?(()=>{const fs=PF(),b=fs.reduce((a,f)=>a+feeTotal(f),0),pd=fs.filter(f=>f.paid).reduce((a,f)=>a+feeTotal(f),0);return `<button type="button" class="feesum" data-act="to-fees"><span class="fh"><span class="sl">${L("Honorar","Fees")}</span><span class="go">→</span></span><span class="fv"><small>${L("Gestellt","Billed")}</small><b>CHF ${nfq.format(Math.round(b))}</b></span><span class="fv"><small>${L("Eingegangen","Received")}</small><b>CHF ${nfq.format(Math.round(pd))}</b></span><span class="fv"><small>${L("Offen","Open")}</small><b>CHF ${nfq.format(Math.round(b-pd))}</b></span></button>`;})():""}
     <section><div class="sh"><h2>${L("Zu erledigen","To do")}</h2><span class="cnt">${toCheck.length+tTodo.length+PF().filter(f=>remDue(f)).length}</span></div><div class="rows">${todo||`<div class="empty">${L("Alles erledigt.","All done.")}</div>`}</div></section>
-    <section id="flags"><div class="sh"><h2>${L("Gefunden","Found")}</h2><span class="cnt">${fl.length}</span></div><div class="rows">${flagRows||`<div class="empty">${L("Nichts Auffälliges.","Nothing unusual.")}</div>`}</div>
+    <section id="flags"><div class="sh"><h2>${L("Auffälligkeiten","Issues")}</h2><span class="cnt">${fl.length}</span></div><div class="rows">${flagRows||`<div class="empty">${L("Nichts Auffälliges.","Nothing unusual.")}</div>`}</div>
       ${fl.length>3?`<button type="button" class="more" data-act="all-flags">${S.allFlags?L("Weniger anzeigen","Show less"):L("Alle anzeigen","Show all")}</button>`:""}</section>
     ${docsBlock("project",p.id,L("Projektdokumente","Project documents"),L("Pläne, Bewilligungen, Kostenvoranschlag mit ＋ ablegen.","Store plans, permits and estimates with ＋."))}
   </div>`;
@@ -678,7 +678,7 @@ function viewContractors(){
   const p=P();
   const sorted=D.contractors.slice().sort((a,b)=>(!!CW(b.id))-(!!CW(a.id))||a.name.localeCompare(b.name));
   const rows=sorted.map(k=>{const m=missingOf(k),ws=PC().filter(w=>w.k===k.id),w=ws[0],sum=ws.reduce((a,x)=>a+(x.sum||0),0);
-    return row({act:"open-k",id:k.id,c:m.length?"crit":"ok",title:esc(k.name),meta:ws.length>1?ws.map(x=>"BKP "+x.bkp).join(", "):w?"BKP "+w.bkp+" "+esc(bName(w.bkp)):L("nicht in diesem Projekt","not in this project"),amt:sum?chf(sum,false):"",label:m.length?L(m.length+" fehlt",m.length+" missing"):L("Vollständig","Complete")});}).join("");
+    return row({act:"open-k",id:k.id,c:m.length?"crit":"ok",title:esc(k.name),meta:ws.length>1?ws.map(x=>"BKP "+x.bkp).join(", "):w?"BKP "+w.bkp+" "+esc(bName(w.bkp)):L("nicht in diesem Projekt","not in this project"),amt:sum?chf(sum,false):"",label:m.length?L(m.length===1?"1 Angabe fehlt":m.length+" Angaben fehlen",m.length+" missing"):L("Angaben vollständig","Details complete")});}).join("");
   return `<div class="page">
     ${ph(p?esc(p.name):L("Büro","Office"),L("Handwerker","Contractors"),"",ib("plus",L("Handwerker erfassen","Add contractor"),'data-act="form" data-f="contractor"')+excelBtn("handwerker"))}
     <section><div class="rows">${rows||`<div class="empty">${L("Noch keine Handwerker. Scannen Sie eine QR-Rechnung oder legen Sie einen an.","No contractors yet. Scan a QR-bill or add one.")}</div>`}</div></section>
@@ -777,7 +777,7 @@ function viewTenders(){
   const rows=list.map(t=>{const f=fitOf(t).fit,c=closedT(t),dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:c?"n":FIT[f].c,title:esc(tx(t.title)),meta:esc(t.client),amt:c?tx(TST[t.status]):L(dd+" Tage",dd+" days"),label:c?"":tx(FIT[f])});}).join("");
   return `<div class="page">${ph(L("Büro · Beispieldaten","Office · example data"),L("Ausschreibungen","Tenders"),"",excelBtn("tender"))}
     <div class="stats">
-      <div class="stat"><span class="sl">${L("Offen","Open")}</span><span class="sv">${active.length}</span><span class="ss">BKP 291 · ${L("Kanton Zürich","Canton of Zurich")}</span></div>
+      <div class="stat"><span class="sl">${L("Offene Verfahren","Open procedures")}</span><span class="sv">${active.length}</span><span class="ss">${L("Architektur, Kanton Zürich","Architecture, Canton of Zurich")}</span></div>
       <div class="stat"><span class="sl">${L("Eignung erfüllt","Eligible")}</span><span class="sv ok">${fits.filter(f=>f==="ok").length}</span><span class="ss">${fits.filter(f=>f==="partner").length} ${L("mit Partner","with partner")} · ${fits.filter(f=>f==="no").length} ${L("nicht","not")}</span></div>
       <div class="stat"><span class="sl">${L("Nächste Eingabe","Next deadline")}</span><span class="sv">${next?fdate(next.due):"–"}</span><span class="ss">${next?esc(tx(next.title)):""}</span></div>
     </div>

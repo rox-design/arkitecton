@@ -240,7 +240,7 @@ function renderChrome(){
   document.documentElement.lang=S.lang;
   const p=P();
   document.getElementById("railScan").textContent=L("Rechnung scannen","Scan invoice");
-  const firmLvl=S.view==="buero"||S.view==="ausschreibungen";document.getElementById("topProj").textContent=firmLvl?L("Alle Projekte","All projects"):(p?p.name:L("Kein Projekt","No project"));
+  const firmLvl=S.view==="buero"||S.view==="ausschreibungen";document.getElementById("topProj").textContent=firmLvl?((D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name")):(p?p.name:L("Kein Projekt","No project"));document.getElementById("topProj").dataset.v=firmLvl?"buero":"uebersicht";
   document.querySelector(".topbar").classList.toggle("home",firmLvl);
   const fn=(D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name");["railFirm","topFirm"].forEach(id=>{const e=document.getElementById(id);if(e){e.textContent=fn;e.title=L("Alle Projekte","All projects");e.setAttribute("aria-current",S.view==="buero"?"page":"false");}});
   document.getElementById("railData").textContent=L("Daten und Sicherung","Data and backup");

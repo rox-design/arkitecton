@@ -819,6 +819,9 @@ function viewBudget(){
 
 /* ---------- settings ---------- */
 const navMode=()=>{try{return localStorage.getItem("arkitecton:nav")==="min"?"min":"open";}catch(e){return "open";}};
+const themeMode=()=>{try{const t=localStorage.getItem("arkitecton:theme");return t==="light"||t==="dark"?t:"auto";}catch(e){return "auto";}};
+function setTheme(t){try{if(t==="auto")localStorage.removeItem("arkitecton:theme");else localStorage.setItem("arkitecton:theme",t);}catch(e){}if(t==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.setAttribute("data-theme",t);themeMeta();}
+function themeMeta(){const t=themeMode(),dark=t==="dark"||(t==="auto"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",dark?"#111110":"#fafaf8");}
 function setNavMode(m){try{localStorage.setItem("arkitecton:nav",m);}catch(e){}document.getElementById("app").classList.toggle("rail-min",m==="min");}
 function viewSettings(){
   const st=SET(),f=D.firm||{},nm=navMode();
@@ -829,6 +832,7 @@ function viewSettings(){
   return `<div class="page">${ph("",L("Einstellungen","Settings"),"","")}
     <section><div class="sh"><h2>${L("Ansicht","View")}</h2></div>
       <div class="deskonly">${row(L("Navigation","Navigation"),L("Zugeklappt: nur Symbole. Mit der Maus darüberfahren öffnet die Leiste. Nur am Computer.","Collapsed: icons only. Hover with the mouse to open it. Desktop only."),seg("nav-mode",nm,[["open",L("Fest offen","Always open")],["min",L("Zugeklappt","Collapsed")]]))}</div>
+      ${row(L("Erscheinungsbild","Appearance"),L("Automatisch folgt der Einstellung Ihres Geräts.","Automatic follows your device setting."),seg("theme-set",themeMode(),[["auto",L("Automatisch","Automatic")],["light",L("Hell","Light")],["dark",L("Dunkel","Dark")]]))}
       ${row(L("Sprache","Language"),"",seg("lang-set",S.lang,[["de","Deutsch"],["en","English"]]))}
     </section>
     <section><div class="sh"><h2>${L("Büro","Office")}</h2></div>
@@ -1479,6 +1483,7 @@ document.addEventListener("click",e=>{
     case "start-example":D=seedExample();runMigrations();S.view="uebersicht";render();break;
     case "start-empty":D=seedEmpty();S.view="buero";render();openForm("firm");break;
     case "nav":S.kid=null;S.tid=null;go(el.dataset.v);break;
+    case "theme-set":setTheme(el.dataset.v);render();toast(L("Gespeichert","Saved"));break;
     case "nav-mode":setNavMode(el.dataset.v||(navMode()==="min"?"open":"min"));renderChrome();if(S.view==="einstellungen")render();break;
     case "lang-set":if(el.dataset.v!==S.lang)exampleSwap(el.dataset.v);S.lang=el.dataset.v;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
     case "lang":if(el.dataset.l!==S.lang)exampleSwap(el.dataset.l);S.lang=el.dataset.l;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
@@ -1612,7 +1617,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&(S.drawer||S.fdrawe
 document.addEventListener("visibilitychange",()=>{if(document.hidden)stopCam();});
 window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(D&&v!==S.view&&VIEWS.includes(v))go(v);});
 
-try{const l=localStorage.getItem("arkitecton:lang");if(l==="de"||l==="en")S.lang=l;}catch(e){}
+try{const l=localStorage.getItem("arkitecton:lang");if(l==="de"||l==="en")S.lang=l;}catch(e){}themeMeta();
 D=loadData();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
 runMigrations();
 const h0=location.hash.slice(1);if(VIEWS.includes(h0))S.view=h0;

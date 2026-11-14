@@ -276,6 +276,11 @@ ausschreibungen:'<path d="M6 21V4"/><path d="M6 4h11l-2 4 2 4H6"/>',
 einstellungen:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/>',
 scan:'<path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M16 4h3a1 1 0 0 1 1 1v3"/><path d="M20 16v3a1 1 0 0 1-1 1h-3"/><path d="M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 9h3v3H8z"/><path d="M13 9h3"/><path d="M13 12h3"/><path d="M8 15h8"/>',
 pin:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9 4.5v15"/>'};
+/* one rail row: the link plus quick actions that appear on hover (desktop) */
+const NAV_PLUS={uebersicht:["form-project","",L("Neues Projekt","New project")],rechnungen:["capture","",L("Rechnung scannen","Scan invoice")],handwerker:["form","contractor",L("Handwerker erfassen","Add contractor")],budget:["form","bkp",L("BKP-Position erfassen","Add BKP item")]};
+const NAV_MORE={uebersicht:L("Projekt bearbeiten, Kostenübersicht","Edit project, cost overview"),rechnungen:L("Ohne QR, Honorar, Excel","Without QR, fee, Excel"),handwerker:L("Importieren, Excel","Import, Excel"),budget:L("Excel-Auswertungen","Excel reports"),ausschreibungen:L("Excel-Listen","Excel lists")};
+function navRow(v){const pl=NAV_PLUS[v],mo=NAV_MORE[v];
+  return `<div class="nrow"><button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span></button><span class="nact">${pl?`<button type="button" class="na" data-act="${pl[0]}"${pl[1]?` data-f="${pl[1]}"`:""} data-tip="${pl[2]}" aria-label="${pl[2]}">+</button>`:""}${mo?`<button type="button" class="na" data-act="nmore" data-v="${v}" data-tip="${mo}" aria-label="${L("Weitere Aktionen","More actions")}">···</button>`:""}</span></div>`;}
 const navIco=v=>`<svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICO[v]}</svg>`;
 const vName=v=>({buero:"Home",uebersicht:L("Projekt","Project"),rechnungen:L("Rechnungen","Invoices"),handwerker:L("Handwerker","Contractors"),budget:"Budget",ausschreibungen:L("Ausschreibungen","Tenders"),einstellungen:L("Einstellungen","Settings")})[v];
 const SCAN_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M8 8h3v3H8zM13 13h3v3h-3zM13 8h3M8 13v3"/></svg>';
@@ -290,8 +295,10 @@ function renderChrome(){
   document.getElementById("footNav").innerHTML=`<button type="button" data-act="nav" data-v="einstellungen"${S.view==="einstellungen"?' aria-current="page"':""}>${navIco("einstellungen")}<span>${vName("einstellungen")}</span></button><button type="button" class="pinb" data-act="nav-mode" data-v="${min?"open":"min"}" title="${min?L("Leiste fest offen lassen","Keep the bar open"):L("Leiste einklappen","Collapse the bar")}">${navIco("pin")}<span>${min?L("Leiste fixieren","Keep open"):L("Einklappen","Collapse")}</span></button>`;
   document.querySelectorAll(".lang button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.l===S.lang)));
   const nb=v=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span></button>`;
-  document.getElementById("nav").innerHTML=["uebersicht","rechnungen","handwerker","budget"].map(nb).join("");
-  const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=nb("buero")+nb("ausschreibungen");
+  const cp=P(),open=!!S.projOpen;
+  const plist=open?activeProjects().map(x=>`<div class="nrow prow${x.id===D.pid?" cur":""}"><button type="button" data-act="pick-project" data-id="${x.id}"><span class="pi" aria-hidden="true">${x.fav?"★":"·"}</span><span>${esc(x.name)}</span></button><span class="nact"><button type="button" class="na" data-act="pmore" data-id="${x.id}" data-tip="${L("Favorit, umbenennen, Papierkorb","Favourite, rename, bin")}" aria-label="${L("Weitere Aktionen","More actions")}">···</button></span></div>`).join("")+`<div class="nrow prow"><button type="button" data-act="form-project"><span class="pi" aria-hidden="true">+</span><span>${L("Neues Projekt","New project")}</span></button></div>`:"";
+  document.getElementById("nav").innerHTML=(cp||D.projects.length?`<button type="button" class="nsec psec" data-act="ptoggle" aria-expanded="${open}" data-tip="${open?L("Projektliste schliessen","Close project list"):L("Alle Projekte anzeigen","Show all projects")}"><span class="chev" aria-hidden="true">›</span><span>${esc(cp?cp.name:L("Projekte","Projects"))}</span></button>`:"")+`<div class="plist">${plist}</div>`+["uebersicht","rechnungen","handwerker","budget"].map(navRow).join("");
+  const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=`<div class="nsec">${L("Büro","Office")}</div>`+navRow("buero")+navRow("ausschreibungen");
   const tb=(v,l)=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${l}</span></button>`;
   document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget");
   const ts=document.getElementById("topSet");if(ts){ts.innerHTML=navIco("einstellungen");ts.setAttribute("aria-label",L("Einstellungen","Settings"));ts.title=L("Einstellungen","Settings");ts.setAttribute("aria-current",S.view==="einstellungen"?"page":"false");}
@@ -822,6 +829,16 @@ const navMode=()=>{try{return localStorage.getItem("arkitecton:nav")==="min"?"mi
 const themeMode=()=>{try{const t=localStorage.getItem("arkitecton:theme");return t==="light"||t==="dark"?t:"auto";}catch(e){return "auto";}};
 function setTheme(t){try{if(t==="auto")localStorage.removeItem("arkitecton:theme");else localStorage.setItem("arkitecton:theme",t);}catch(e){}if(t==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.setAttribute("data-theme",t);themeMeta();}
 function themeMeta(){const t=themeMode(),dark=t==="dark"||(t==="auto"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",dark?"#111110":"#fafaf8");}
+/* ---------- projects: last change, favourites, bin ---------- */
+const projSig=p=>{const ws=D.contracts.filter(w=>w.pid===p.id),ids=new Set(ws.map(w=>w.id));const j=JSON.stringify([p.name,p.place,p.client,p.desc,p.budget,ws,D.invoices.filter(i=>ids.has(i.w)),(D.fees||[]).filter(f=>f.pid===p.id)]);let h=0;for(let i=0;i<j.length;i++)h=(h*31+j.charCodeAt(i))|0;return h+":"+j.length;};
+function stampProjects(){if(!D||!D.projects)return;D.projects.forEach(p=>{const g=projSig(p);if(p.sig&&p.sig!==g)p.edited=new Date().toISOString();p.sig=g;});}
+function lastEdited(p){if(p.edited)return p.edited.slice(0,10);const ids=new Set(D.contracts.filter(w=>w.pid===p.id).map(w=>w.id));const ds=[...D.invoices.filter(i=>ids.has(i.w)),...(D.fees||[]).filter(f=>f.pid===p.id)].flatMap(x=>(x.log||[]).map(l=>l.d)).filter(Boolean).sort();return ds.length?ds[ds.length-1].slice(0,10):null;}
+const activeProjects=()=>D.projects.filter(p=>!p.closed).sort((a,b)=>(b.fav?1:0)-(a.fav?1:0));
+function trashProject(id){const p=D.projects.find(x=>x.id===id);if(!p)return;const ws=D.contracts.filter(w=>w.pid===id),ids=new Set(ws.map(w=>w.id));
+  const e={id:"t"+Date.now(),at:iso(TODAY),p,contracts:ws,invoices:D.invoices.filter(i=>ids.has(i.w)),fees:(D.fees||[]).filter(f=>f.pid===id)};
+  D.trash=D.trash||[];D.trash.unshift(e);D.projects=D.projects.filter(x=>x.id!==id);D.contracts=D.contracts.filter(w=>w.pid!==id);D.invoices=D.invoices.filter(i=>!ids.has(i.w));if(D.fees)D.fees=D.fees.filter(f=>f.pid!==id);
+  if(D.pid===id){const n=activeProjects()[0];D.pid=n?n.id:null;}}
+function restoreTrash(tid){const e=(D.trash||[]).find(x=>x.id===tid);if(!e)return;D.projects.push(e.p);D.contracts.push(...e.contracts);D.invoices.push(...e.invoices);D.fees=(D.fees||[]).concat(e.fees);D.trash=D.trash.filter(x=>x.id!==tid);if(!D.pid)D.pid=e.p.id;}
 function setNavMode(m){try{localStorage.setItem("arkitecton:nav",m);}catch(e){}document.getElementById("app").classList.toggle("rail-min",m==="min");}
 function viewSettings(){
   const st=SET(),f=D.firm||{},nm=navMode();
@@ -845,6 +862,9 @@ function viewSettings(){
       ${row(L("Mahnungen","Reminders"),L("1., 2. und 3. Mahnung, Tage ab Rechnungsdatum.","1st, 2nd and 3rd reminder, days from the invoice date."),`<div class="setrem">${num("rem0",st.rem[0],"",L("1. Mahnung","1st reminder"))}${num("rem1",st.rem[1],"",L("2. Mahnung","2nd reminder"))}${num("rem2",st.rem[2],L("Tage","days"),L("3. Mahnung","3rd reminder"))}</div>`)}
       <div class="ferr" id="setErr" role="alert"></div>
     </section>
+    <section><div class="sh"><h2>${L("Papierkorb","Bin")}</h2><span class="cnt">${(D.trash||[]).length}</span></div>
+      ${(D.trash||[]).length?(D.trash||[]).map(t=>row(esc(t.p.name),L("Gelöscht am ","Deleted on ")+fdate(t.at)+" · "+t.invoices.length+" "+L("Rechnungen","invoices")+", "+t.fees.length+" "+L("Honorarrechnungen","fee invoices"),`<div class="setbtns"><button type="button" class="btn" data-act="trash-restore" data-id="${t.id}">${L("Wiederherstellen","Restore")}</button>${S.confirm==="tp:"+t.id?`<button type="button" class="btn danger" data-act="trash-purge" data-id="${t.id}">${L("Wirklich endgültig löschen?","Really delete permanently?")}</button>`:`<button type="button" class="btn" data-act="ask" data-c="tp:${t.id}">${L("Endgültig löschen","Delete permanently")}</button>`}</div>`)).join(""):`<p class="fine" style="color:var(--muted);font-size:.9rem;margin:14px 0 0">${L("Leer. Gelöschte Projekte landen hier und lassen sich wiederherstellen.","Empty. Deleted projects land here and can be restored.")}</p>`}
+    </section>
     <section><div class="sh"><h2>${L("Daten und Sicherung","Data and backup")}</h2></div>
       <div class="menu setmenu">${menuItems(sheetDef("daten"))}</div>
       <p class="fine" style="color:var(--muted);font-size:.84rem;max-width:62ch">${esc(sheetDef("daten").note||"")}</p>
@@ -865,6 +885,28 @@ function saveSetting(el){
     D.settings.rem=r;}
   saveData();toast(L("Gespeichert","Saved"));
 }
+function popItems(kind,key){
+  const it=(label,act,ex)=>({label,act,ex:ex||""}),im=(label,imp)=>({label,imp}),xl=" (Excel)";
+  if(kind==="nav") return ({
+    uebersicht:[it(L("Projekt bearbeiten","Edit project"),"form-project-edit",`data-id="${D.pid}"`),it(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client")+xl,"x-report")],
+    rechnungen:[it(L("Ohne QR erfassen","Add without QR"),"form",'data-f="invoice"'),it(L("Honorarrechnung erstellen","New fee invoice"),"form",'data-f="fee"'),it(L("Rechnungsliste","Invoice list")+xl,"x-invoices")],
+    handwerker:[im(L("Handwerkerliste importieren","Import contractor list"),"contractors"),it(L("Handwerkerliste","Contractor list")+xl,"x-contractors")],
+    budget:[it(L("Budget nach BKP","Budget by BKP")+xl,"x-budget"),it(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client")+xl,"x-report")],
+    ausschreibungen:[it(L("Verfahrensliste","Procedure list")+xl,"x-tenders"),it(L("Referenzliste","Reference list")+xl,"x-refs")]})[key]||[];
+  const p=D.projects.find(x=>x.id===key);if(!p)return [];
+  return [it(p.fav?L("Aus Favoriten entfernen","Remove from favourites"):L("Zu Favoriten","Add to favourites"),"pfav",`data-id="${p.id}"`),
+    it(L("Umbenennen","Rename"),"form-project-edit",`data-id="${p.id}"`),
+    S.pconfirm===p.id?it(L("Wirklich in den Papierkorb?","Really move to bin?"),"ptrash",`data-id="${p.id}"`):it(L("In den Papierkorb","Move to bin"),"pask",`data-id="${p.id}"`)].map((x,i)=>i===2?Object.assign(x,{danger:true}):x);
+}
+function renderPop(){let el=document.getElementById("pop");if(!el){el=document.createElement("div");el.id="pop";el.setAttribute("role","menu");document.body.appendChild(el);}
+  const P0=S.pop;if(!P0){el.className="";el.innerHTML="";return;}
+  const items=popItems(P0.kind,P0.key);
+  const foot=P0.kind==="proj"?(()=>{const p=D.projects.find(x=>x.id===P0.key),d=p&&lastEdited(p);return d?`<div class="popfoot">${L("Zuletzt geändert am ","Last changed on ")+fdate(d)}</div>`:"";})():"";
+  el.innerHTML=`<div class="pophead">${P0.kind==="proj"?L("Projekt","Project"):vName(P0.key)}</div>`+items.map(x=>x.imp?`<label class="popi" role="menuitem"><span>${esc(x.label)}</span><input type="file" accept=".xlsx,.xls,.csv" data-imp="${x.imp}" aria-label="${esc(x.label)}"></label>`:`<button type="button" class="popi${x.danger?" danger":""}" role="menuitem" data-act="${x.act}" ${x.ex}>${esc(x.label)}</button>`).join("")+foot;
+  el.className="on";const r=P0.rect,w=el.offsetWidth,h=el.offsetHeight;
+  el.style.left=Math.min(innerWidth-w-8,r.right+6)+"px";el.style.top=Math.max(8,Math.min(innerHeight-h-8,r.top-6))+"px";
+  const f=el.querySelector(".popi");if(f&&P0.kb)f.focus();}
+function closePop(){if(S.pop){S.pop=null;S.pconfirm=null;renderPop();}}
 function viewTenders(){
   if(S.tid&&T(S.tid)) return viewTender(T(S.tid));
   const O=D.office;
@@ -915,7 +957,7 @@ function viewTender(t){
 }
 
 function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
-  saveData();
+  stampProjects();saveData();
   const app=document.getElementById("app");
   if(!D){
     app.style.display="block";
@@ -1476,7 +1518,9 @@ const openForm=(f,id,w)=>{const keepDrawer=S.drawer;closeAll();S.form={f,id:id||
 
 document.addEventListener("toggle",e=>{const d=e.target;if(d&&d.classList&&d.classList.contains("site")&&S.kOpen)S.kOpen.ids[d.dataset.pid]=d.open;},true);
 document.addEventListener("click",e=>{
+  if(S.pop&&!e.target.closest("#pop")&&!e.target.closest('[data-act="nmore"],[data-act="pmore"]'))closePop();
   const el=e.target.closest("[data-act]");if(!el)return;
+  if(el.closest("#pop")&&!["pask","nmore","pmore"].includes(el.dataset.act)){S.pop=null;S.pconfirm=null;renderPop();}
   const a=el.dataset.act,id=el.dataset.id;
   if(EXPORT[a])return void EXPORT[a](id);
   switch(a){
@@ -1484,6 +1528,13 @@ document.addEventListener("click",e=>{
     case "start-empty":D=seedEmpty();S.view="buero";render();openForm("firm");break;
     case "nav":S.kid=null;S.tid=null;go(el.dataset.v);break;
     case "theme-set":setTheme(el.dataset.v);render();toast(L("Gespeichert","Saved"));break;
+    case "nmore":case "pmore":{const r=el.getBoundingClientRect();S.pconfirm=null;S.pop={kind:a==="nmore"?"nav":"proj",key:a==="nmore"?el.dataset.v:id,rect:r,kb:e.detail===0};renderPop();return;}
+    case "ptoggle":S.projOpen=!S.projOpen;renderChrome();break;
+    case "pfav":{const p=D.projects.find(x=>x.id===id);if(p){p.fav=!p.fav;closePop();render();toast(p.fav?L("Zu Favoriten hinzugefügt","Added to favourites"):L("Aus Favoriten entfernt","Removed from favourites"));}break;}
+    case "pask":S.pconfirm=id;renderPop();return;
+    case "ptrash":{const p=D.projects.find(x=>x.id===id);trashProject(id);closePop();if(!D.pid)S.view="buero";render();toast((p?p.name:"")+L(" ist im Papierkorb. Wiederherstellen unter Einstellungen."," moved to the bin. Restore it under Settings."),6000);break;}
+    case "trash-restore":{restoreTrash(id);S.confirm=null;render();toast(L("Wiederhergestellt","Restored"));break;}
+    case "trash-purge":{D.trash=(D.trash||[]).filter(x=>x.id!==id);S.confirm=null;render();toast(L("Endgültig gelöscht","Deleted permanently"));break;}
     case "nav-mode":setNavMode(el.dataset.v||(navMode()==="min"?"open":"min"));renderChrome();if(S.view==="einstellungen")render();break;
     case "lang-set":if(el.dataset.v!==S.lang)exampleSwap(el.dataset.v);S.lang=el.dataset.v;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
     case "lang":if(el.dataset.l!==S.lang)exampleSwap(el.dataset.l);S.lang=el.dataset.l;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
@@ -1563,7 +1614,7 @@ document.addEventListener("change",e=>{
   if(t.id==="pSearch")return;
   if(t.dataset.imp==="doc"){const fs=[...(t.files||[])];t.value="";if(fs.length)addDocs(fs,t.dataset.id).catch(()=>toast(L("Speichern nicht möglich.","Could not save.")));return;}
   const f=t.files&&t.files[0];if(!f)return;
-  if(t.id==="scanIn")onScanFile(f);else if(t.dataset.imp){handleImport(t.dataset.imp,f,t.dataset.id);t.value="";}
+  if(t.id==="scanIn")onScanFile(f);else if(t.dataset.imp){closePop();handleImport(t.dataset.imp,f,t.dataset.id);t.value="";}
 });
 document.addEventListener("input",e=>{if(e.target.getAttribute&&e.target.getAttribute("aria-invalid")){e.target.removeAttribute("aria-invalid");const fe=e.target.closest(".f")&&e.target.closest(".f").querySelector(".ferr");if(fe)fe.remove();}if(e.target.id==="pSearch"){const q=e.target.value.trim().toLowerCase(),sh=document.querySelector(".psw");let n=0;sh.querySelectorAll(".pitem").forEach(b=>{const on=!q||b.dataset.q.includes(q);b.hidden=!on;if(on)n++;});sh.querySelectorAll(".plist").forEach(l=>{l.hidden=![...l.querySelectorAll(".pitem")].some(b=>!b.hidden);});const dd=sh.querySelector(".pdone");if(dd&&q)dd.open=true;sh.querySelector(".pnone").hidden=n>0;return;}if(S.form&&S.form.f==="fee"&&e.target.closest&&e.target.closest("#frm"))feeCalcUpdate();});
 /* ---------- swipe between the main areas on a phone (same order as the tab bar) ----------
@@ -1611,9 +1662,17 @@ const SWIPE=["uebersicht","rechnungen","handwerker","budget"];
   });
   main.addEventListener("touchcancel",()=>{if(st){st=null;set(0,180);}});
 })();
+/* ---------- tooltips in the navigation (desktop) ---------- */
+(function(){let tm=null,cur=null;const tip=document.createElement("div");tip.id="tip";tip.setAttribute("role","tooltip");document.body.appendChild(tip);
+  const hide=()=>{clearTimeout(tm);tm=null;cur=null;tip.classList.remove("on");};
+  document.addEventListener("mouseover",e=>{const t=e.target.closest(".rail [data-tip]");if(t===cur)return;hide();if(!t||!window.matchMedia("(hover:hover)").matches)return;cur=t;
+    tm=setTimeout(()=>{if(S.pop)return;tip.textContent=t.dataset.tip;tip.classList.add("on");const r=t.getBoundingClientRect(),w=tip.offsetWidth;
+      tip.style.left=Math.min(innerWidth-w-8,Math.max(8,r.left+r.width/2-w/2))+"px";tip.style.top=(r.bottom+6)+"px";},380);});
+  document.addEventListener("mousedown",hide,true);document.addEventListener("scroll",hide,true);
+})();
 /* one-time hint on the phone, until the person has swiped once */
 function swipeHint(){if(!D||D.swipeSeen||D.swipeHinted||!window.matchMedia("(max-width:820px)").matches||!SWIPE.includes(S.view))return;D.swipeHinted=1;saveData();setTimeout(()=>{if(document.querySelector("#overlay.on")){D.swipeHinted=0;return;}toast(L("Tipp: Seitlich wischen wechselt zwischen Projekt, Rechnungen, Handwerker und Budget.","Tip: swipe left or right to move between Project, Invoices, Contractors and Budget."),6000,true);},900);}
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&(S.drawer||S.fdrawer||S.modal||S.sheet||S.form||S.kvx)){closeAll();render();}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&S.pop){closePop();return;}if(e.key==="Escape"&&(S.drawer||S.fdrawer||S.modal||S.sheet||S.form||S.kvx)){closeAll();render();}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)stopCam();});
 window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(D&&v!==S.view&&VIEWS.includes(v))go(v);});
 

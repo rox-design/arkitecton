@@ -562,3 +562,5 @@ details.site[open]>summary::after{content:"";transform:rotate(-135deg) translate
   .ofoot .act-hint{flex-basis:100%;margin:0 0 2px}
 }
 #toast{width:max-content;max-width:min(560px,calc(100vw - 32px));box-sizing:border-box}
+/* horizontal gestures belong to the app, vertical scrolling stays native */
+@media (max-width:820px){main{touch-action:pan-y;overscroll-behavior-x:none;will-change:transform}}

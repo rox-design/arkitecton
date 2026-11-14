@@ -1493,35 +1493,50 @@ document.addEventListener("change",e=>{
   if(t.id==="scanIn")onScanFile(f);else if(t.dataset.imp){handleImport(t.dataset.imp,f,t.dataset.id);t.value="";}
 });
 document.addEventListener("input",e=>{if(e.target.getAttribute&&e.target.getAttribute("aria-invalid")){e.target.removeAttribute("aria-invalid");const fe=e.target.closest(".f")&&e.target.closest(".f").querySelector(".ferr");if(fe)fe.remove();}if(e.target.id==="pSearch"){const q=e.target.value.trim().toLowerCase(),sh=document.querySelector(".psw");let n=0;sh.querySelectorAll(".pitem").forEach(b=>{const on=!q||b.dataset.q.includes(q);b.hidden=!on;if(on)n++;});sh.querySelectorAll(".plist").forEach(l=>{l.hidden=![...l.querySelectorAll(".pitem")].some(b=>!b.hidden);});const dd=sh.querySelector(".pdone");if(dd&&q)dd.open=true;sh.querySelector(".pnone").hidden=n>0;return;}if(S.form&&S.form.f==="fee"&&e.target.closest&&e.target.closest("#frm"))feeCalcUpdate();});
-/* ---------- swipe between the main areas on a phone (same order as the tab bar) ---------- */
+/* ---------- swipe between the main areas on a phone (same order as the tab bar) ----------
+   the page follows the finger 1:1, a short flick is enough, and the next page
+   slides in from where the old one left: one continuous movement, no blank moment */
 const SWIPE=["uebersicht","rechnungen","handwerker","budget"];
 (function(){
-  const main=document.getElementById("main");let st=null;
+  const main=document.getElementById("main");let st=null,busy=false;
   const phone=()=>window.matchMedia("(max-width:820px)").matches;
-  const blocked=t=>t.closest("input,textarea,select,.tabs,.chart,.bar,[data-noswipe]")||document.querySelector("#overlay.on");
+  const blocked=t=>t.closest("input,textarea,select,.tabs:not(.chips),.chart,[data-noswipe]")||document.querySelector("#overlay.on");
+  const set=(x,ms,ease)=>{main.style.transition=ms?`transform ${ms}ms ${ease||"cubic-bezier(.2,.7,.2,1)"}`:"none";main.style.transform=x?`translate3d(${x}px,0,0)`:"";};
   main.addEventListener("touchstart",e=>{
-    if(!D||!phone()||e.touches.length!==1||!SWIPE.includes(S.view)||blocked(e.target)){st=null;return;}
-    const t=e.touches[0];if(t.clientX<24||t.clientX>innerWidth-24){st=null;return;} /* leave the screen edges to the system back gesture */
-    st={x:t.clientX,y:t.clientY,t:Date.now(),dir:0};
+    if(busy||!D||!phone()||e.touches.length!==1||!SWIPE.includes(S.view)||blocked(e.target)){st=null;return;}
+    const t=e.touches[0];if(t.clientX<20||t.clientX>innerWidth-20){st=null;return;} /* screen edges stay with the system back gesture */
+    st={x:t.clientX,y:t.clientY,dir:0,dx:0,v:0,lx:t.clientX,lt:performance.now()};
   },{passive:true});
   main.addEventListener("touchmove",e=>{
-    if(!st)return;const t=e.touches[0],dx=t.clientX-st.x,dy=t.clientY-st.y;
-    if(!st.dir){if(Math.abs(dx)<10&&Math.abs(dy)<10)return;st.dir=Math.abs(dx)>Math.abs(dy)*1.4?1:-1;}
+    if(!st)return;const t=e.touches[0],dx=t.clientX-st.x,dy=t.clientY-st.y,now=performance.now();
+    if(!st.dir){if(Math.abs(dx)<8&&Math.abs(dy)<8)return;st.dir=Math.abs(dx)>Math.abs(dy)?1:-1;}
     if(st.dir!==1)return;
+    st.v=(t.clientX-st.lx)/Math.max(1,now-st.lt);st.lx=t.clientX;st.lt=now;st.dx=dx;
     const i=SWIPE.indexOf(S.view),end=(dx>0&&i===0)||(dx<0&&i===SWIPE.length-1);
-    main.style.transition="none";main.style.transform=`translateX(${end?dx*0.25:dx*0.6}px)`;main.style.opacity=String(1-Math.min(.35,Math.abs(dx)/900));
+    set(end?dx*0.2:dx,0);
   },{passive:true});
-  const reset=()=>{main.style.transition="transform .2s ease,opacity .2s ease";main.style.transform="";main.style.opacity="";};
-  main.addEventListener("touchend",e=>{
-    if(!st)return;const s0=st;st=null;if(s0.dir!==1)return reset();
-    const t=e.changedTouches[0],dx=t.clientX-s0.x,fast=Date.now()-s0.t<350,i=SWIPE.indexOf(S.view),n=i+(dx<0?1:-1);
-    if(!(Math.abs(dx)>innerWidth*0.28||(fast&&Math.abs(dx)>50))||n<0||n>=SWIPE.length)return reset();
-    const out=dx<0?-1:1;main.style.transition="transform .14s ease-in,opacity .14s ease-in";main.style.transform=`translateX(${out*innerWidth*0.5}px)`;main.style.opacity="0";
-    setTimeout(()=>{S.kid=null;S.tid=null;go(SWIPE[n]);main.style.transition="none";main.style.transform=`translateX(${-out*innerWidth*0.35}px)`;
-      requestAnimationFrame(()=>requestAnimationFrame(()=>{main.style.transition="transform .2s ease-out,opacity .2s ease-out";main.style.transform="";main.style.opacity="";}));
-      if(!D.swipeSeen){D.swipeSeen=1;saveData();}},140);
+  main.addEventListener("touchend",()=>{
+    if(!st)return;const s0=st;st=null;if(s0.dir!==1){set(0,180);return;}
+    const dx=s0.dx,i=SWIPE.indexOf(S.view),flick=Math.abs(s0.v)>0.35&&Math.sign(s0.v)===Math.sign(dx),n=i+(dx<0?1:-1);
+    if(!(Math.abs(dx)>innerWidth*0.2||(flick&&Math.abs(dx)>24))||n<0||n>=SWIPE.length){set(0,220);return;}
+    busy=true;const W=innerWidth,out=dx<0?-1:1,rest=W-Math.abs(dx),ms=Math.max(140,Math.min(260,rest/Math.max(1.4,Math.abs(s0.v)||1.4)));
+    /* keep a picture of the old page and slide it out while the new page slides in right next to it */
+    const r=main.getBoundingClientRect(),cs=getComputedStyle(main),g=document.createElement("div"),gi=document.createElement("div");
+    g.setAttribute("aria-hidden","true");
+    g.style.cssText=`position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;overflow:hidden;background:var(--bg);z-index:5;pointer-events:none;transform:translate3d(${dx}px,0,0)`;
+    gi.style.cssText=`padding:${cs.padding};box-sizing:border-box;transform:translate3d(0,${-main.scrollTop}px,0)`;
+    gi.innerHTML=main.innerHTML;g.appendChild(gi);document.body.appendChild(g);
+    S.kid=null;S.tid=null;go(SWIPE[n]);
+    set(dx-out*W,0);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      const ease="cubic-bezier(.25,.8,.3,1)";
+      g.style.transition=`transform ${ms}ms ${ease}`;g.style.transform=`translate3d(${out*W}px,0,0)`;
+      set(0,ms,ease);
+      setTimeout(()=>{g.remove();main.style.transition="";main.style.transform="";busy=false;},ms+40);
+    }));
+    if(!D.swipeSeen){D.swipeSeen=1;saveData();}
   });
-  main.addEventListener("touchcancel",()=>{if(st){st=null;reset();}});
+  main.addEventListener("touchcancel",()=>{if(st){st=null;set(0,180);}});
 })();
 /* one-time hint on the phone, until the person has swiped once */
 function swipeHint(){if(!D||D.swipeSeen||D.swipeHinted||!window.matchMedia("(max-width:820px)").matches||!SWIPE.includes(S.view))return;D.swipeHinted=1;saveData();setTimeout(()=>toast(L("Tipp: Seitlich wischen wechselt zwischen Projekt, Rechnungen, Handwerker und Budget.","Tip: swipe left or right to move between Project, Invoices, Contractors and Budget."),6000),900);}

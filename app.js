@@ -191,9 +191,11 @@ function budgetRows(){
     const awarded=ws.reduce((a,w)=>a+w.sum,0), billed=inv.filter(counted).reduce((a,i)=>a+net(i),0);
     const paid=inv.filter(i=>i.status==="bezahlt").reduce((a,i)=>a+payout(i),0), approved=inv.filter(i=>i.status==="frei").reduce((a,i)=>a+payout(i),0);
     const open=inv.filter(i=>!counted(i)&&live(i)).reduce((a,i)=>a+net(i),0), ret=inv.filter(counted).reduce((a,i)=>a+retention(i),0);
-    /* forecast: the contract, or what is billed incl. invoices still to check, whichever is higher */
-    const forecast=Math.max(awarded,billed+open);
-    return {b,awarded,billed,paid,approved,open,ret,forecast,rest:b.kv-forecast,over:b.kv>0&&forecast>b.kv};
+    /* forecast: the contract, or what is billed under it incl. invoices still to check, whichever is higher;
+       time & materials (Regie) is outside the contract and always comes on top */
+    const regie=inv.filter(i=>live(i)&&i.type==="regie").reduce((a,i)=>a+net(i),0);
+    const forecast=Math.max(awarded,billed+open-regie)+regie;
+    return {b,awarded,billed,paid,approved,open,ret,regie,forecast,rest:b.kv-forecast,over:b.kv>0&&forecast>b.kv};
   });
 }
 function totals(rows){const t={kv:0,awarded:0,billed:0,paid:0,approved:0,open:0,ret:0,rest:0};rows.forEach(r=>{for(const k in t)t[k]+=k==="kv"?r.b.kv:r[k];});return t;}
@@ -342,7 +344,7 @@ const remName=n=>[L("1. Mahnung","1st reminder"),L("2. Mahnung","2nd reminder"),
 function feeState(f){
   if(f.paid) return {c:"ok",t:L("Bezahlt","Paid")};
   const r=remDue(f); if(r) return {c:"crit",t:remName(r)+L(" fällig"," due")};
-  const sent=(f.rem||[]).length; if(sent) return {c:"warn",t:remName(sent)+L(" gesendet"," sent")};
+  const sent=(f.rem||[]).length; if(sent) return {c:"warn",t:remName(sent)+L(" erstellt"," created"),d:f.rem[sent-1].d};
   const d=daysTo(feeDue(f)); return {c:d<0?"warn":"n",t:dueText(d)};
 }
 const firmMissing=()=>{const f=D.firm||{},m=[];if(!f.name)m.push(L("Name","name"));if(!f.street||!f.zip||!f.city)m.push(L("Adresse","address"));if(!ibanValid(f.iban||""))m.push("IBAN");if(f.vat&&!f.vatNo)m.push(L("MWST-Nummer","VAT number"));return m;};
@@ -532,7 +534,7 @@ function feeDrawerHTML(f){
     <div class="ohead"><div><h2 id="dT">${esc(p.client||L("Bauherrschaft","Client"))}</h2><div class="sub">${esc(f.no)} · ${fdate(f.date)}${f.title?" · "+esc(f.title):""}</div></div><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <div class="obody">
       <div class="big"><span class="amt">${chf(feeTotal(f))}</span></div>
-      <div class="payline"><span class="l-${st.c}">${st.t}</span><span>${f.paid?L("am ","on ")+fdate(f.paid):fdate(feeDue(f))}</span></div>
+      <div class="payline"><span class="l-${st.c}">${st.t}</span><span>${f.paid?L("am ","on ")+fdate(f.paid):st.d?L("am ","on ")+fdate(st.d):L("fällig ","due ")+fdate(feeDue(f))}</span></div>
       ${r?`<div class="notice"><span class="ic crit" aria-hidden="true">!</span><span>${L("Seit ","Open for ")}${feeAge(f)}${L(" Tagen offen. "," days. ")}${remName(r)}${L(" ist fällig."," is due.")}</span></div>`:""}
       <div class="calc">${lines}<span>${L("Zwischentotal","Subtotal")}</span><span class="r">${nf2.format(feeSub(f))}</span>${f.vat?`<span>${L("MWST ","VAT ")+VAT_RATE} %</span><span class="r">${nf2.format(feeVat(f))}</span>`:""}<span class="sum">${L("Total","Total")}</span><span class="r sum">CHF ${nf2.format(feeTotal(f))}</span></div>
       <details><summary>${L("Zahlungsdaten","Payment details")}</summary><div class="in"><dl class="kv"><dt>IBAN</dt><dd>${esc(fmtIban(D.firm.iban||""))}</dd><dt>${L("Referenz","Reference")}</dt><dd>${esc(fmtRefOut(f.refType,f.ref))}</dd></dl></div></details>
@@ -658,7 +660,7 @@ function viewFirm(){
       <div class="stat"><span class="sl">${L("Zu zahlen","To pay")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(ps.flatMap(x=>x.chk))}</span></div>
       <div class="stat"><span class="sl">${L("Mehrkosten","Extra costs")}</span><span class="sv${nFl?" warn":""}">${chf(flc,false)}</span><span class="ss">${nFl?nFl+" "+(nFl===1?L("Hinweis","finding"):L("Hinweise","findings")):L("keine","none")}</span></div>
       <div class="stat"><span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung fällig","no reminder due")}</span></div>
-      <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${tOpen} ${L("mit Eignung","eligible")}</span></button>
+      <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${(()=>{const o=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0),y=o.filter(x=>fitOf(x).fit==="ok").length,pa=o.filter(x=>fitOf(x).fit==="partner").length;return [y?y+" "+L("Eignung erfüllt","eligible"):"",pa?pa+" "+L("nur mit Partner","only with partner"):""].filter(Boolean).join(" · ")||L("keine passend","none suitable");})()}</span></button>
     </div>
     ${FEES().length?incomeSection():""}
     <section><div class="sh"><h2>${L("Projekte","Projects")}</h2><span class="cnt">${ps.length}</span><span class="right">${ib("plus",L("Neues Projekt","New project"),'data-act="form-project"')}</span></div><div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div></section>
@@ -764,7 +766,7 @@ function viewContractor(k){
       const ws=all.filter(w=>w.pid===pid),inv=invOf(ws),multi=ws.length>1;
       const stats=ws.map(w=>{const iv=inv.filter(i=>i.w===w.id),billed=iv.filter(counted).reduce((a,i)=>a+net(i),0),paid=iv.filter(i=>i.status==="bezahlt").reduce((a,i)=>a+payout(i),0),ret=iv.filter(counted).reduce((a,i)=>a+retention(i),0);
         return `${multi?`<div class="ctx">BKP ${w.bkp} ${esc(bName(w.bkp))}</div>`:""}<div class="stats">
-        <button type="button" class="stat" data-act="form" data-f="contract" data-id="${k.id}" data-w="${w.id}"><span class="sl">${multi?"":"BKP "+w.bkp+" · "}${L("Werkvertrag","Contract")} · ${retPct(w)}% ${L("Rückbehalt","retention")}</span><span class="sv">${w.sum?chf(w.sum,false):"–"}</span><span class="ss">${L("abgerechnet","billed")} ${chf(billed,false)}</span></button>
+        <button type="button" class="stat" data-act="form" data-f="contract" data-id="${k.id}" data-w="${w.id}"><span class="sl">${multi?"":"BKP "+w.bkp+" · "}${L("Werkvertrag","Contract")} · ${retPct(w)}% ${L("Rückbehalt","retention")}</span><span class="sv">${w.sum?chf(w.sum,false):"–"}</span><span class="ss">${L("freigegeben","approved")} ${chf(billed,false)}</span></button>
         <div class="stat"><span class="sl">${L("Ausbezahlt","Paid out")}</span><span class="sv">${chf(paid,false)}</span><span class="ss">${(n=>n+" "+(n===1?L("Zahlung","payment"):L("Zahlungen","payments")))(iv.filter(i=>i.status==="bezahlt").length)}</span></div>
         <div class="stat"><span class="sl">${L("Rückbehalt","Retention")}</span><span class="sv">${chf(ret,false)}</span><span class="ss">${L("bis Schlusszahlung","until final payment")}</span></div></div>`;}).join("");
       const rows=inv.map(i=>{const w=W(i.w);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:typeLabel(i)+(multi?` <span class="sp">· BKP ${w.bkp}</span>`:""),meta:esc(i.no)+" · "+fdate(i.date),amt:chf(i.gross,false),label:stLabel(i.status)});}).join("");
@@ -792,7 +794,7 @@ function viewBudget(){
   const p=P(); if(!p) return noProject();
   const rows=budgetRows(), t=totals(rows);
   const br=rows.map(r=>{const base=Math.max(r.b.kv,r.awarded,r.billed+r.open,1),pc=x=>Math.max(0,x)/base*100,aw=r.awarded?chf(r.awarded,false):L("nicht vergeben","not awarded");
-    const act=r.over?`data-act="kv-explain" data-id="${r.b.bkp}"`:`data-act="form" data-f="kv" data-id="${r.b.bkp}"`;
+    const act=`data-act="kv-explain" data-id="${r.b.bkp}"`;
     return `<button type="button" class="brow row${S.hl===r.b.bkp?" hl":""}" ${act}><span class="code">${r.b.bkp}</span><div><span>${esc(tx(r.b))}</span><div class="bar"><i class="c-paid" style="width:${pc(r.paid)}%"></i><i class="c-appr" style="width:${pc(r.approved)}%"></i><i class="c-open" style="width:${pc(r.open)}%"></i>${r.b.kv?`<span class="kv" style="left:${r.b.kv/base*100}%"></span>`:""}</div><span class="bsub">KV ${r.b.kv?nf0.format(r.b.kv):"–"} · ${r.awarded?L("vergeben ","awarded ")+nf0.format(r.awarded):L("nicht vergeben","not awarded")}</span></div><span class="kvc">${r.b.kv?chf(r.b.kv,false):"–"}</span><span class="nums">${aw}</span><span class="rest ${r.rest<0?"up":r.awarded?"":"mute"}">${r.b.kv?chf(r.rest,false):"–"}</span></button>`;}).join("");
   return `<div class="page">
     ${ph(esc(p.name),"Budget","",ib("plus",L("BKP-Position erfassen","Add BKP item"),'data-act="form" data-f="bkp"')+excelBtn("budget"))}
@@ -902,6 +904,7 @@ function drawerHTML(i){
   if(i.status==="rueckfrage") actions=why+`<button type="button" class="btn" data-act="answer" data-id="${i.id}">${L("Antwort erhalten","Reply received")}</button><button type="button" class="btn primary" data-act="approve" data-id="${i.id}"${crit?" disabled":""}>${apLbl}</button>`;
   else if(!counted(i)) actions=why+`<button type="button" class="btn" data-act="query">${L("Rückfrage","Query")}</button><button type="button" class="btn primary" data-act="approve" data-id="${i.id}"${crit?" disabled":""}>${apLbl}</button>`;
   else if(i.status==="frei") actions=`<button type="button" class="btn" data-act="unapprove" data-id="${i.id}">${L("Freigabe zurücknehmen","Undo approval")}</button><button type="button" class="btn primary" data-act="paid" data-id="${i.id}">${L("Als bezahlt markieren","Mark as paid")}</button>`;
+  else if(i.status==="bezahlt") actions=`<button type="button" class="btn" data-act="inv-unpaid" data-id="${i.id}">${L("Zahlung zurücknehmen","Undo payment")}</button>`;
   const done=S.done&&S.done.id===i.id?`<div class="done"><span class="h">${L("Für Sie erledigt","Done for you")}</span><div class="chips">${S.done.items.map(x=>`<span class="chip ok">${esc(x)}</span>`).join("")}</div></div>`:"";
   const log=i.log&&i.log.length?`<details><summary>${L("Verlauf","History")}</summary><div class="in"><dl class="kv">${i.log.map(e=>`<dt>${fdate(e.d)}</dt><dd>${esc(e.t)}</dd>`).join("")}</dl></div></details>`:"";
   const delBtn=S.confirm==="del:"+i.id?`<button type="button" class="ghost danger" data-act="del-inv" data-id="${i.id}">${L("Wirklich löschen?","Really delete?")}</button>`:ib("trash",L("Rechnung löschen","Delete invoice"),`data-act="ask" data-c="del:${i.id}"`);
@@ -1139,6 +1142,7 @@ function formHTML(){
 const val=id=>{const e=document.getElementById(id);return e?e.value.trim():"";};
 function submitForm(){
   const F=S.form,p=P();S.formErr="";
+  const backTo=()=>{const bk=F.back;closeAll();if(bk&&INV(bk))S.drawer=bk;};
   const fail=(m,id)=>{const e=document.getElementById("formErr"),frm=document.getElementById("frm");
     document.querySelectorAll("#frm [aria-invalid]").forEach(x=>x.removeAttribute("aria-invalid"));document.querySelectorAll("#frm .ferr").forEach(x=>x.remove());
     const fe=id?document.getElementById(id):frm?[...frm.querySelectorAll("input[required]")].find(x=>!x.value.trim()):null;
@@ -1148,7 +1152,7 @@ function submitForm(){
     if(!val("fName")) return fail(L("Projektname fehlt.","Project name missing."));
     if(F.id){const x=D.projects.find(q=>q.id===F.id);Object.assign(x,{name:val("fName"),place:val("fPlace"),client:val("fClient"),cstreet:val("fCStreet"),czip:val("fCZip"),ccity:val("fCCity"),desc:val("fDesc"),closed:!!(document.getElementById("fClosed")||{}).checked});}
     else{const x={id:newId("p"),name:val("fName"),place:val("fPlace"),client:val("fClient"),cstreet:val("fCStreet"),czip:val("fCZip"),ccity:val("fCCity"),desc:val("fDesc"),budget:[]};D.projects.push(x);D.pid=x.id;S.view="uebersicht";}
-    closeAll();render();return toast(L("Projekt gespeichert","Project saved"));
+    backTo();render();return toast(L("Projekt gespeichert","Project saved"));
   }
   if(F.f==="contractor"){
     if(!val("fName")) return fail(L("Firma fehlt.","Company missing."));
@@ -1156,7 +1160,7 @@ function submitForm(){
     if(iban&&!/^(CH|LI)\d{2}[0-9A-Z]{17}$/.test(norm(iban))) return fail(L("IBAN prüfen: Schweizer IBAN hat 21 Zeichen (CH…).","Check the IBAN: Swiss IBANs have 21 characters (CH…)."),"fIban");
     const rec={name:val("fName"),street:val("fStreet"),zip:val("fZip"),city:val("fCity"),iban:iban?fmtIban(iban):"",email:val("fEmail"),phone:val("fPhone")};
     if(F.id) Object.assign(K(F.id),rec); else{const k=Object.assign({id:newId("k")},rec);D.contractors.push(k);S.kid=k.id;S.view="handwerker";}
-    closeAll();render();return toast(L("Handwerker gespeichert","Contractor saved"));
+    backTo();render();return toast(L("Handwerker gespeichert","Contractor saved"));
   }
   if(F.f==="contract"){
     const sum=num(val("fSum")),ret=num(val("fRet"));
@@ -1164,7 +1168,7 @@ function submitForm(){
     if(ret===null||ret<0||ret>30) return fail(L("Rückbehalt zwischen 0 und 30 %.","Retention between 0 and 30 %."),"fRet");
     const bkp=document.getElementById("fBkp").value;ensureBkp(bkp);
     let w=F.w&&W(F.w); if(w) Object.assign(w,{bkp,sum:r2(sum),ret}); else{w={id:newId("w"),pid:D.pid,k:F.id,bkp,sum:r2(sum),ret};D.contracts.push(w);}
-    closeAll();render();return toast(L("Werkvertrag gespeichert","Contract saved"));
+    backTo();render();return toast(L("Werkvertrag gespeichert","Contract saved"));
   }
   if(F.f==="invoice"){
     const kid=val("fK"),amt=num(val("fAmt"));const w=CW(kid);
@@ -1183,16 +1187,16 @@ function submitForm(){
     if(p.budget.some(b=>b.bkp===code)) return fail(L("Diese Position gibt es schon.","This item already exists."));
     const s=STD_BKP.find(x=>x[0]===code);
     p.budget.push({bkp:code,de:label||(s?s[1]:code),en:label||(s?s[2]:code),kv:r2(num(val("fKv"))||0)});p.budget.sort((a,b)=>a.bkp.localeCompare(b.bkp));
-    closeAll();render();return toast("BKP "+code);
+    backTo();render();return toast("BKP "+code);
   }
   if(F.f==="kv"){
     const b=B(F.id),kv=num(val("fKv"));
     if(kv===null||kv<0) return fail(L("Betrag eingeben.","Enter an amount."),"fKv");
     b.kv=r2(kv);const lab=val("fLabel");if(lab){if(S.lang==="de")b.de=lab;else b.en=lab;}
-    closeAll();render();return toast(L("Gespeichert","Saved"));
+    backTo();render();return toast(L("Gespeichert","Saved"));
   }
   if(F.f==="fee") return saveFee(F,fail);
-  if(F.f==="docvalid"){const d=DOCS().find(x=>x.id===F.id);if(d)d.until=val("fUntil")||null;closeAll();render();return toast(L("Gespeichert","Saved"));}
+  if(F.f==="docvalid"){const d=DOCS().find(x=>x.id===F.id);if(d)d.until=val("fUntil")||null;backTo();render();return toast(L("Gespeichert","Saved"));}
   if(F.f==="answer"){const i=INV(F.id),note=(document.getElementById("fNote").value||"").trim();i.status="pruefen";logInv(i,L("Antwort erhalten","Reply received")+(note?": "+note:""));const id=i.id;closeAll();S.drawer=id;render();return toast(L("Wieder zu prüfen","Back to review"));}
   if(F.f==="ded"){const i=INV(F.id),amt=num(val("fDedAmt")),why=(document.getElementById("fDedWhy").value||"").trim();
     if(amt===null||amt<0) return fail(L("Betrag eingeben.","Enter an amount."),"fDedAmt");
@@ -1206,7 +1210,7 @@ function submitForm(){
     const vat=document.getElementById("fVat").checked,vno=val("fVatNo");
     if(vat&&!/^CHE-?\d{3}\.?\d{3}\.?\d{3}/i.test(vno)) return fail(L("MWST-Nummer im Format CHE-123.456.789 MWST eingeben.","Enter the VAT number as CHE-123.456.789 MWST."),"fVatNo");
     Object.assign(D.firm,{name:val("fName"),street:val("fStreet"),zip:val("fZip"),city:val("fCity"),iban:ib_,email:val("fEmail"),phone:val("fPhone"),vat,vatNo:vno});
-    closeAll();render();return toast(L("Gespeichert","Saved"));}
+    backTo();render();return toast(L("Gespeichert","Saved"));}
 }
 function formDelete(){
   const F=S.form;
@@ -1244,12 +1248,15 @@ function kvHTML(){
   const line=(a,b,c,cls)=>`<span${cls?` class="${cls}"`:""}>${a}</span><span class="r${cls?" "+cls:""}">${b}</span><span class="r d${cls?" "+cls:""}">${c||""}</span>`;
   let rows=line(L("Kostenvoranschlag","Cost estimate"),nfq.format(kv),"");
   if(ws.length===1){const w=ws[0];rows+=line(L("Werkvertrag ","Contract ")+esc(K(w.k).name),nfq.format(w.sum),"("+sg(w.sum-kv)+")");}
-  else{ws.forEach(w=>{rows+=line(L("Werkvertrag ","Contract ")+esc(K(w.k).name),nfq.format(w.sum),"");});rows+=line(L("Vergeben total","Awarded total"),nfq.format(r.awarded),"("+sg(r.awarded-kv)+")");}
-  if(r.billed+r.open>r.awarded) rows+=line(r.open?L("Abgerechnet inkl. offene Rechnungen","Billed incl. open invoices"):L("Abgerechnet (freigegeben)","Billed (approved)"),nfq.format(r.billed+r.open),"("+sg(r.billed+r.open-r.awarded)+")");
-  rows+=line(L("Über Kostenvoranschlag","Over cost estimate"),nfq.format(-r.rest),"","sum");
+  else if(ws.length){ws.forEach(w=>{rows+=line(L("Werkvertrag ","Contract ")+esc(K(w.k).name),nfq.format(w.sum),"");});rows+=line(L("Vergeben total","Awarded total"),nfq.format(r.awarded),"("+sg(r.awarded-kv)+")");}
+  const base=r.billed+r.open-r.regie;
+  if(base>r.awarded) rows+=line(r.open?L("Abgerechnet inkl. offene Rechnungen","Billed incl. open invoices"):L("Abgerechnet (freigegeben)","Billed (approved)"),nfq.format(base),"("+sg(base-r.awarded)+")");
+  if(r.regie) rows+=line(L("Regie ausserhalb Werkvertrag","Time & materials outside contract"),nfq.format(r.regie),"(+"+nfq.format(r.regie)+")");
+  if(!r.awarded&&!r.regie) rows+=line(L("Noch nicht vergeben","Not awarded yet"),"–","");
+  rows+=line(r.rest<0?L("Über Kostenvoranschlag","Over cost estimate"):L("Reserve","Reserve"),nfq.format(Math.abs(r.rest)),"","sum");
   const cmpBtns=ws.filter(w=>compare(w)).map(w=>`<button type="button" class="btn primary" data-act="open-cmp" data-id="${w.id}">${L("Abweichungen","Differences")}${ws.length>1?" · "+esc(K(w.k).name):""}</button>`).join("");
   return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="kT">
-    <div class="ohead"><div><h2 id="kT" style="font-size:1.25rem;font-weight:500">BKP ${esc(r.b.bkp)} ${esc(tx(r.b))}</h2><div class="sub">CHF ${nfq.format(-r.rest)} ${L("über Kostenvoranschlag","over cost estimate")}</div></div><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
+    <div class="ohead"><div><h2 id="kT" style="font-size:1.25rem;font-weight:500">BKP ${esc(r.b.bkp)} ${esc(tx(r.b))}</h2><div class="sub">${r.rest<0?"CHF "+nfq.format(-r.rest)+" "+L("über Kostenvoranschlag","over cost estimate"):L("Reserve CHF ","Reserve CHF ")+nfq.format(r.rest)}</div></div><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <div class="obody"><div class="calc kvx">${rows}</div></div>
     <div class="ofoot"><button type="button" class="btn" data-act="form" data-f="kv" data-id="${esc(r.b.bkp)}">${L("Kostenvoranschlag ändern","Edit estimate")}</button>${S.view==="budget"?"":`<button type="button" class="btn" data-act="kv-budget" data-id="${esc(r.b.bkp)}">${L("Budget","Budget")}</button>`}${cmpBtns}</div></div>`;
 }
@@ -1283,7 +1290,7 @@ function sheetHTML(){
 function renderOverlay(){queueMicrotask(()=>{if(S.form&&S.form.f==="fee")feeCalcUpdate();});queueMicrotask(()=>{const q=document.getElementById("qtext");if(q&&!q.dataset.top){q.scrollTop=0;q.dataset.top="1";}});queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
   const o=document.getElementById("overlay");let h="";
   if(S.form) h=formHTML(); else if(S.modal) h=captureHTML(); else if(S.sheet) h=sheetHTML(); else if(S.kvx) h=kvHTML(); else if(S.drawer&&INV(S.drawer)) h=drawerHTML(INV(S.drawer)); else if(S.fdrawer&&FE(S.fdrawer)) h=feeDrawerHTML(FE(S.fdrawer));
-  o.innerHTML=h;o.classList.toggle("on",!!h);{const t=document.getElementById("toast");if(t)t.classList.toggle("top",!!h);}
+  o.innerHTML=h;o.classList.toggle("on",!!h);{const t=document.getElementById("toast");if(t){t.classList.toggle("top",!!h);if(h&&t.dataset.hint)t.classList.remove("on");}}
   if(S.modal&&S.modal.step===1&&P()&&!S.modal.camErr){if(cam)attachCam();else startCam();}
   const f=document.getElementById("frm");if(f)f.addEventListener("submit",e=>{e.preventDefault();submitForm();});
 }
@@ -1399,7 +1406,7 @@ const EXPORT={
 
 /* ---------- events ---------- */
 let toastT;
-function toast(msg,ms){const t=document.getElementById("toast");t.classList.toggle("top",!!document.querySelector("#overlay.on"));t.textContent=msg;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),ms||3000);}
+function toast(msg,ms,hint){const t=document.getElementById("toast");if(hint)t.dataset.hint="1";else delete t.dataset.hint;t.classList.toggle("top",!!document.querySelector("#overlay.on"));t.textContent=msg;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),ms||3000);}
 async function copy(text,ok){try{await navigator.clipboard.writeText(text);toast(ok);}catch(e){toast(L("Kopieren nicht möglich","Copy failed"));}}
 function closeAll(){stopCam();S.kvx=null;S.fdrawer=null;S.drawer=null;S.modal=null;S.sheet=null;S.form=null;S.formErr="";S.confirm=null;S.queryOpen=false;S.done=null;}
 function go(v){if(!VIEWS.includes(v))v="uebersicht";closeAll();if(v!=="handwerker")S.cmpBack=null;S.view=v;if(v!=="handwerker")S.kid=null;if(v!=="ausschreibungen")S.tid=null;try{history.replaceState(null,"","#"+v);}catch(e){}render();document.getElementById("main").scrollTop=0;}
@@ -1466,6 +1473,7 @@ document.addEventListener("click",e=>{
     case "approve":{const i=INV(id);i.status="frei";logInv(i,L("Freigegeben","Approved"));S.done=null;S.queryOpen=false;render();toast(L("Freigegeben · ","Approved · ")+chf(payout(i)));break;}
     case "unapprove":{const i=INV(id);i.status="pruefen";logInv(i,L("Freigabe zurückgenommen","Approval undone"));render();break;}
     case "paid":{const i=INV(id);i.status="bezahlt";logInv(i,L("Bezahlt","Paid"));render();toast(L("Bezahlt","Paid"));break;}
+    case "inv-unpaid":{const i=INV(id);i.status="frei";logInv(i,L("Zahlung zurückgenommen","Payment undone"));render();toast(L("Wieder freigegeben, nicht bezahlt","Back to approved, not paid"));break;}
     case "del-inv":D.invoices=D.invoices.filter(x=>x.id!==id);closeAll();render();toast(L("Rechnung gelöscht","Invoice deleted"));break;
     case "query":S.queryOpen=true;renderOverlay();{const q=document.getElementById("qtext");if(q)q.scrollIntoView({block:"nearest"});}break;
     case "copy-query":{const q=document.getElementById("qtext");copy(q?q.value:"",L("Kopiert","Copied"));break;}
@@ -1539,7 +1547,7 @@ const SWIPE=["uebersicht","rechnungen","handwerker","budget"];
   main.addEventListener("touchcancel",()=>{if(st){st=null;set(0,180);}});
 })();
 /* one-time hint on the phone, until the person has swiped once */
-function swipeHint(){if(!D||D.swipeSeen||D.swipeHinted||!window.matchMedia("(max-width:820px)").matches||!SWIPE.includes(S.view))return;D.swipeHinted=1;saveData();setTimeout(()=>toast(L("Tipp: Seitlich wischen wechselt zwischen Projekt, Rechnungen, Handwerker und Budget.","Tip: swipe left or right to move between Project, Invoices, Contractors and Budget."),6000),900);}
+function swipeHint(){if(!D||D.swipeSeen||D.swipeHinted||!window.matchMedia("(max-width:820px)").matches||!SWIPE.includes(S.view))return;D.swipeHinted=1;saveData();setTimeout(()=>{if(document.querySelector("#overlay.on")){D.swipeHinted=0;return;}toast(L("Tipp: Seitlich wischen wechselt zwischen Projekt, Rechnungen, Handwerker und Budget.","Tip: swipe left or right to move between Project, Invoices, Contractors and Budget."),6000,true);},900);}
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&(S.drawer||S.fdrawer||S.modal||S.sheet||S.form||S.kvx)){closeAll();render();}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)stopCam();});
 window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(D&&v!==S.view&&VIEWS.includes(v))go(v);});

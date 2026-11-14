@@ -298,7 +298,7 @@ function renderChrome(){
   const cp=P(),open=!!S.projOpen;
   const plist=open?activeProjects().map(x=>`<div class="nrow prow${x.id===D.pid?" cur":""}"><button type="button" data-act="pick-project" data-id="${x.id}"><span class="pi" aria-hidden="true">${x.fav?"★":"·"}</span><span>${esc(x.name)}</span></button><span class="nact"><button type="button" class="na" data-act="pmore" data-id="${x.id}" data-tip="${L("Favorit, umbenennen, Papierkorb","Favourite, rename, bin")}" aria-label="${L("Weitere Aktionen","More actions")}">···</button></span></div>`).join("")+`<div class="nrow prow"><button type="button" data-act="form-project"><span class="pi" aria-hidden="true">+</span><span>${L("Neues Projekt","New project")}</span></button></div>`:"";
   const tog=(cp||D.projects.length)?`<span class="chev" role="button" tabindex="0" data-act="ptoggle" aria-expanded="${open}" aria-label="${open?L("Projektliste schliessen","Close project list"):L("Alle Projekte anzeigen","Show all projects")}" data-tip="${open?L("Projektliste schliessen","Close project list"):L("Alle Projekte anzeigen","Show all projects")}">›</span>`:"";
-  document.getElementById("nav").innerHTML=navRow("uebersicht",tog)+`<div class="plist">${plist}</div>`+["rechnungen","handwerker","budget"].map(v=>navRow(v)).join("");
+  document.getElementById("nav").innerHTML=["uebersicht","rechnungen","handwerker","budget"].map(v=>navRow(v)).join("");void tog;void plist;
   const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=`<div class="nsec">${L("Büro","Office")}</div>`+navRow("buero")+navRow("ausschreibungen");
   const tb=(v,l)=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${l}</span></button>`;
   document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget");
@@ -889,7 +889,7 @@ function saveSetting(el){
 function popItems(kind,key){
   const it=(label,act,ex)=>({label,act,ex:ex||""}),im=(label,imp)=>({label,imp}),xl=" (Excel)";
   if(kind==="nav") return ({
-    uebersicht:[it(L("Projekt bearbeiten","Edit project"),"form-project-edit",`data-id="${D.pid}"`),it(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client")+xl,"x-report")],
+    uebersicht:[it(L("Projekt bearbeiten","Edit project"),"form-project-edit",`data-id="${D.pid}"`),it(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client")+xl,"x-report"),...popItems("proj",D.pid).filter(x=>x.act!=="form-project-edit")],
     rechnungen:[it(L("Ohne QR erfassen","Add without QR"),"form",'data-f="invoice"'),it(L("Honorarrechnung erstellen","New fee invoice"),"form",'data-f="fee"'),it(L("Rechnungsliste","Invoice list")+xl,"x-invoices")],
     handwerker:[im(L("Handwerkerliste importieren","Import contractor list"),"contractors"),it(L("Handwerkerliste","Contractor list")+xl,"x-contractors")],
     budget:[it(L("Budget nach BKP","Budget by BKP")+xl,"x-budget"),it(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client")+xl,"x-report")],
@@ -902,7 +902,7 @@ function popItems(kind,key){
 function renderPop(){let el=document.getElementById("pop");if(!el){el=document.createElement("div");el.id="pop";el.setAttribute("role","menu");document.body.appendChild(el);}
   const P0=S.pop;if(!P0){el.className="";el.innerHTML="";return;}
   const items=popItems(P0.kind,P0.key);
-  const foot=P0.kind==="proj"?(()=>{const p=D.projects.find(x=>x.id===P0.key),d=p&&lastEdited(p);return d?`<div class="popfoot">${L("Zuletzt geändert am ","Last changed on ")+fdate(d)}</div>`:"";})():"";
+  const foot=(P0.kind==="proj"||(P0.kind==="nav"&&P0.key==="uebersicht"))?(()=>{const p=D.projects.find(x=>x.id===(P0.kind==="proj"?P0.key:D.pid)),d=p&&lastEdited(p);return d?`<div class="popfoot">${L("Zuletzt geändert am ","Last changed on ")+fdate(d)}</div>`:"";})():"";
   el.innerHTML=`<div class="pophead">${P0.kind==="proj"?L("Projekt","Project"):vName(P0.key)}</div>`+items.map(x=>x.imp?`<label class="popi" role="menuitem"><span>${esc(x.label)}</span><input type="file" accept=".xlsx,.xls,.csv" data-imp="${x.imp}" aria-label="${esc(x.label)}"></label>`:`<button type="button" class="popi${x.danger?" danger":""}" role="menuitem" data-act="${x.act}" ${x.ex}>${esc(x.label)}</button>`).join("")+foot;
   el.className="on";const r=P0.rect,w=el.offsetWidth,h=el.offsetHeight;
   el.style.left=Math.min(innerWidth-w-8,r.right+6)+"px";el.style.top=Math.max(8,Math.min(innerHeight-h-8,r.top-6))+"px";
@@ -1360,8 +1360,8 @@ function kvHTML(){
     <div class="ofoot"><button type="button" class="btn" data-act="form" data-f="kv" data-id="${esc(r.b.bkp)}">${L("Kostenvoranschlag ändern","Edit estimate")}</button>${S.view==="budget"?"":`<button type="button" class="btn" data-act="kv-budget" data-id="${esc(r.b.bkp)}">${L("Budget","Budget")}</button>`}${cmpBtns}</div></div>`;
 }
 function projectsHTML(){
-  const item=p=>{const cur=p.id===D.pid;return `<button type="button" class="pitem${cur?" cur":""}" data-act="pick-project" data-id="${p.id}" data-q="${esc((p.name+" "+(p.place||"")+" "+(p.client||"")).toLowerCase())}"><span class="pn">${esc(p.name)}</span><span class="pp">${esc([p.place,p.client].filter(Boolean).join(" · "))}</span><span class="pc">${cur?"✓":""}</span></button>`;};
-  const act=D.projects.filter(p=>!p.closed),done=D.projects.filter(p=>p.closed);
+  const item=p=>{const cur=p.id===D.pid;return `<button type="button" class="pitem${cur?" cur":""}" data-act="pick-project" data-id="${p.id}" data-q="${esc((p.name+" "+(p.place||"")+" "+(p.client||"")).toLowerCase())}"><span class="pn">${p.fav?'<span class="pfav" aria-label="'+L("Favorit","Favourite")+'">★ </span>':""}${esc(p.name)}</span><span class="pp">${esc([p.place,p.client].filter(Boolean).join(" · "))}</span><span class="pc">${cur?"✓":""}</span></button>`;};
+  const act=activeProjects(),done=D.projects.filter(p=>p.closed);
   return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pT">
     <div class="ohead"><h2 id="pT" style="font-size:1.25rem;font-weight:500">${L("Wechseln","Switch")}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <div class="obody psw">

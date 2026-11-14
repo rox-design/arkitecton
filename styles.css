@@ -628,3 +628,11 @@ details.site[open]>summary::after{content:"";transform:rotate(-135deg) translate
   .scanbig{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;font-size:1rem;margin:-6px 0 4px}
   .scanbig .ni{width:21px;height:21px}
 }
+/* lighter glass for the floating tab bar: ~40% see-through, strong blur keeps labels readable */
+@media (max-width:820px){
+  .tabbar{background:color-mix(in srgb,var(--raise) 94%,transparent)}
+  @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
+    .tabbar{background:color-mix(in srgb,var(--raise) 60%,transparent);-webkit-backdrop-filter:blur(26px) saturate(1.8);backdrop-filter:blur(26px) saturate(1.8);border-color:color-mix(in srgb,var(--line) 70%,transparent)}
+    .tabbar button[aria-current="page"]{background:color-mix(in srgb,var(--ink) 9%,transparent)}
+  }
+}

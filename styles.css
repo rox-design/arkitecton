@@ -566,3 +566,47 @@ details.site[open]>summary::after{content:"";transform:rotate(-135deg) translate
 @media (max-width:820px){main{touch-action:pan-y;overscroll-behavior-x:none;will-change:transform}}
 .ss.kst{flex-direction:column;align-items:flex-start;gap:5px}
 .ss.kst .mini{margin:2px 0 4px}
+
+/* ---- navigation: hover pill, collapsible rail (Einstellungen: fest offen / zugeklappt) ---- */
+.rail{position:relative;z-index:30;background:var(--bg);overflow:hidden;box-sizing:border-box}
+.nav button{position:relative;padding:8px 10px;margin:0 -10px;border-radius:10px;transition:background .15s,color .15s}
+.nav button:hover{background:var(--hover)}
+.nav button span,.rail .scan span,.rail .wt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rail .scan{display:flex;align-items:center;justify-content:center;gap:10px;white-space:nowrap;overflow:hidden}
+.rail .scan .ni{width:19px;height:19px;flex:none}
+.rail .scan span{max-width:200px}
+.rail .foot .nav{gap:0}
+.rail .pinb{font-size:.86rem}
+.rail .pinb .ni{width:17px;height:17px}
+
+.app.rail-min{grid-template-columns:72px 1fr}
+.app.rail-min .rail{width:72px;padding:36px 10px;gap:40px;transition:width .22s cubic-bezier(.3,.7,.3,1) .12s,box-shadow .22s ease .12s}
+.app.rail-min .rail:hover,.app.rail-min .rail:focus-within{width:248px;transition-delay:0s,0s;box-shadow:12px 0 32px rgba(0,0,0,.07)}
+.app.rail-min .rail .word{padding-left:14px}
+.app.rail-min .rail .firm{padding-left:16px}
+.app.rail-min .rail .scan{width:44px;height:44px;padding:0;margin-left:4px;justify-content:flex-start;padding-left:12px;box-sizing:border-box;transition:width .22s cubic-bezier(.3,.7,.3,1) .12s}
+.app.rail-min .rail:hover .scan,.app.rail-min .rail:focus-within .scan{width:208px;transition-delay:0s}
+.app.rail-min .rail :is(.wt,.firm,.nav span,.scan span){transition:opacity .16s ease .1s}
+.app.rail-min .rail:not(:hover):not(:focus-within) :is(.wt,.firm,.nav span,.scan span){opacity:0;transition-delay:0s}
+@media (prefers-reduced-motion:reduce){.app.rail-min .rail,.app.rail-min .rail *{transition:none!important}}
+
+/* ---- settings page ---- */
+.setrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center;padding:18px 0;border-bottom:1px solid var(--line)}
+.setrow .st{font-size:1rem}
+.setrow .sh2{color:var(--muted);font-size:.86rem;margin-top:4px;line-height:1.4}
+.setrow .sc{display:flex;justify-content:flex-end}
+.setrow .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.setnum{display:inline-flex;align-items:baseline;gap:6px;color:var(--muted);font-size:.9rem}
+.setnum input{all:unset;width:3.2ch;text-align:right;font-size:1.05rem;color:var(--ink);border-bottom:1px solid var(--line);padding:4px 2px;font-variant-numeric:tabular-nums}
+.setnum input:focus{border-bottom-color:var(--ink)}
+.setnum input[aria-invalid="true"]{border-bottom-color:var(--crit)}
+.setrem{display:flex;gap:14px;align-items:baseline}
+#setErr:empty{display:none}#setErr{margin-top:10px}
+.setmenu{max-width:520px}
+@media (max-width:820px){.setrow{grid-template-columns:1fr;gap:10px}.setrow .sc{justify-content:flex-start}}
+.setrow .seg{margin:0}
+.word svg{flex:none}.word .wt{min-width:0}
+.rail .scan{align-self:stretch;padding-left:16px;padding-right:16px}
+.app.rail-min .rail .scan{align-self:flex-start}
+.app:not(.rail-min) .rail .scan{margin-left:-10px;margin-right:-10px;padding-left:14px;padding-right:14px}
+@media (max-width:820px){.deskonly{display:none}}

@@ -612,7 +612,8 @@ details.site[open]>summary::after{content:"";transform:rotate(-135deg) translate
 @media (max-width:820px){.deskonly{display:none}}
 
 /* ---- phone navigation: settings tile on top, floating tab bar, scan inside Rechnungen ---- */
-.scanbig{display:none}
+.scanbig{display:inline-flex;align-items:center;gap:10px;align-self:flex-start;width:auto;min-height:46px;padding:0 22px;margin:-6px 0 6px}
+.scanbig .ni{width:20px;height:20px}
 @media (max-width:820px){
   .topbar .tile{all:unset;cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;background:var(--hover);color:var(--ink);display:flex;align-items:center;justify-content:center}
   .topbar .tile .ni{width:21px;height:21px}

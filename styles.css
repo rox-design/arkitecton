@@ -610,3 +610,21 @@ details.site[open]>summary::after{content:"";transform:rotate(-135deg) translate
 .app.rail-min .rail .scan{align-self:flex-start}
 .app:not(.rail-min) .rail .scan{margin-left:-10px;margin-right:-10px;padding-left:14px;padding-right:14px}
 @media (max-width:820px){.deskonly{display:none}}
+
+/* ---- phone navigation: settings tile on top, floating tab bar, scan inside Rechnungen ---- */
+.scanbig{display:none}
+@media (max-width:820px){
+  .topbar .tile{all:unset;cursor:pointer;flex:none;width:42px;height:42px;border-radius:12px;background:var(--hover);color:var(--ink);display:flex;align-items:center;justify-content:center}
+  .topbar .tile .ni{width:21px;height:21px}
+  .topbar .tile[aria-current="page"]{background:var(--ink);color:var(--bg)}
+  .topbar .tile:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .tabbar{grid-template-columns:repeat(4,1fr);align-items:center;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));border:1px solid var(--line);border-radius:999px;padding:6px;
+    background:color-mix(in srgb,var(--raise) 82%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);box-shadow:0 8px 28px rgba(0,0,0,.12)}
+  .tabbar button{border-radius:999px;padding:7px 0 6px;gap:3px;transition:background .18s,color .18s}
+  .tabbar button::before{content:none}
+  .tabbar button[aria-current="page"]{background:var(--hover);color:var(--ink);font-weight:500}
+  .tabbar button .ni{width:22px;height:22px}
+  main{padding-bottom:110px}
+  .scanbig{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:52px;font-size:1rem;margin:-6px 0 4px}
+  .scanbig .ni{width:21px;height:21px}
+}

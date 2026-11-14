@@ -293,7 +293,8 @@ function renderChrome(){
   document.getElementById("nav").innerHTML=["uebersicht","rechnungen","handwerker","budget"].map(nb).join("");
   const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=nb("buero")+nb("ausschreibungen");
   const tb=(v,l)=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${l}</span></button>`;
-  document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+`<button type="button" class="fab" data-act="capture" aria-label="${L("Rechnung scannen","Scan invoice")}">${SCAN_ICON}</button>`+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget");
+  document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget");
+  const ts=document.getElementById("topSet");if(ts){ts.innerHTML=navIco("einstellungen");ts.setAttribute("aria-label",L("Einstellungen","Settings"));ts.title=L("Einstellungen","Settings");ts.setAttribute("aria-current",S.view==="einstellungen"?"page":"false");}
 }
 const ph=(eyebrow,title,lead,tools)=>`<header class="ph"><span class="eyebrow">${eyebrow}</span><h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;
 const ICO={
@@ -719,6 +720,7 @@ function viewInvoices(){
   const rows=list.map(i=>{const w=W(i.w),k=K(w.k),dd=daysTo(i.due);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:esc(k.name),meta:typeLabel(i)+" · "+esc(i.no),amt:chf(i.gross,false),label:byDue?dueText(dd):stLabel(i.status),lc:byDue?dueTone(dd):STATUS[i.status].c});}).join("");
   return `<div class="page">
     ${ph(esc(p.name),L("Rechnungen","Invoices"),"",ib("plus",L("Rechnung ohne QR erfassen","Add invoice without QR"),'data-act="form" data-f="invoice"')+excelBtn("rechnungen"))}
+    <button type="button" class="btn primary scanbig" data-act="capture">${navIco("scan")}<span>${L("Rechnung scannen","Scan invoice")}</span></button>
     ${sw}<div class="tabs chips" role="tablist">${F.map(f=>`<button type="button" role="tab" data-act="filter" data-f="${f}" aria-selected="${S.filter===f}">${f==="all"?L("Alle","All"):stLabel(f)}<span class="c">${cnt(f)}</span></button>`).join("")}</div>
     <section><div class="rows">${rows||(all.length?`<div class="empty">${L("Keine Rechnungen mit diesem Status.","No invoices with this status.")}</div>`:`<div class="empty"><span>${L("Noch keine Rechnungen. Scannen Sie den QR-Zahlteil einer Handwerker-Rechnung.","No invoices yet. Scan the QR payment part of a contractor invoice.")}</span><div class="eb"><button type="button" class="btn primary" data-act="capture">${L("Rechnung scannen","Scan invoice")}</button><button type="button" class="btn" data-act="form" data-f="invoice">${L("Ohne QR erfassen","Add without QR")}</button></div></div>`)}</div></section>
   </div>`;

@@ -648,3 +648,7 @@ details.site[open]>summary::after{content:"";transform:rotate(-135deg) translate
 /* rail items keep the same height collapsed and open: no vertical jump on hover */
 .app.rail-min .rail .firm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;box-sizing:border-box}
 .app.rail-min .rail .word{white-space:nowrap}
+/* the page itself never scrolls or bounces: only the content area does, so top bar and tab bar stay put (iOS rubber band) */
+html,body{overflow:hidden;overscroll-behavior:none}
+main{overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
+.app{height:100%;height:100dvh}

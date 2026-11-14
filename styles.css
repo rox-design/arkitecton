@@ -645,3 +645,6 @@ details.site[open]>summary::after{content:"";transform:rotate(-135deg) translate
     .tabbar button[aria-current="page"]{background:color-mix(in srgb,var(--ink) 10%,transparent);color:var(--ink)}
   }
 }
+/* rail items keep the same height collapsed and open: no vertical jump on hover */
+.app.rail-min .rail .firm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;box-sizing:border-box}
+.app.rail-min .rail .word{white-space:nowrap}

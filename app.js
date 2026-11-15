@@ -488,16 +488,22 @@ function incomeSection(){
 }
 function viewFees(){
   const list=PF().slice().sort((a,b)=>toDate(b.date)-toDate(a.date));
-  const open=list.filter(f=>!f.paid),sum=open.reduce((a,f)=>a+feeTotal(f),0),due=list.filter(f=>remDue(f)).length;
-  const rows=list.map(f=>{const st=feeState(f);return row({act:"open-fee",id:f.id,c:st.c,title:esc(f.title||L("Honorar","Fee")),meta:esc(f.no)+" · "+fdate(f.date),amt:chf(feeTotal(f),false),label:st.t,lc:st.c});}).join("");
+  const G={open:list.filter(f=>!f.paid),due:list.filter(f=>remDue(f)),paid:list.filter(f=>f.paid)};
+  if(!S.ffilter)S.ffilter="open";
+  if(S.ffilter!=="all"&&!G[S.ffilter].length)S.ffilter=["open","due","paid"].find(k=>G[k].length)||"all";
+  const shown=S.ffilter==="all"?list:G[S.ffilter];
+  const tot=a=>a.reduce((x,f)=>x+feeTotal(f),0),nInv=n=>n===1?L("1 Rechnung","1 invoice"):n+" "+L("Rechnungen","invoices");
+  const T={open:[L("Zu erhalten","To receive"),chf(tot(G.open),false),nInv(G.open.length),""],
+    due:[L("Mahnung fällig","Reminder due"),G.due.length?chf(tot(G.due),false):"–",G.due.length?nInv(G.due.length):L("nach ","after ")+SET().rem.join(", ")+L(" Tagen"," days"),G.due.length?" warn":""],
+    paid:[L("Bezahlt","Paid"),chf(tot(G.paid),false),nInv(G.paid.length),""]};
+  const tile=k=>{const [l,v,ss,c]=T[k],n=G[k].length,sel=S.ffilter===k,inner=`<span class="sl">${l}</span><span class="sv${c}">${v}</span><span class="ss">${ss}</span>`;
+    return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="ffilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
+  const rows=shown.map(f=>{const st=feeState(f);return row({act:"open-fee",id:f.id,c:st.c,title:esc(f.title||L("Honorar","Fee")),meta:esc(f.no)+" · "+fdate(f.date),amt:chf(feeTotal(f),false),label:st.t,lc:st.c});}).join("");
   const miss=firmMissing();
+  const head=list.length?`<div class="sh"><h2>${S.ffilter==="all"?L("Alle Honorarrechnungen","All fee invoices"):T[S.ffilter][0]}</h2><span class="cnt">${shown.length}</span><span class="right">${S.ffilter==="all"?"":`<button type="button" class="ghost" data-act="ffilter" data-f="all">${L("Alle anzeigen","Show all")} (${list.length})</button>`}</span></div>`:"";
   return `${miss.length?`<div class="notice"><span class="ic warn" aria-hidden="true">!</span><span>${L("Für Rechnungen mit QR-Code fehlen Büro-Angaben: ","Firm details missing for QR invoices: ")}${miss.join(", ")}. <button type="button" class="ghost link" data-act="form" data-f="firm">${L("Ergänzen","Add")}</button></span></div>`:""}
-    <div class="stats">
-      <div class="stat"><span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(sum,false)}</span><span class="ss">${open.length} ${open.length===1?L("Rechnung","invoice"):L("Rechnungen","invoices")}</span></div>
-      <div class="stat"><span class="sl">${L("Mahnungen fällig","Reminders due")}</span><span class="sv${due?" warn":""}">${due}</span><span class="ss">${L("nach ","after ")+SET().rem.join(", ")+L(" Tagen"," days")}</span></div>
-      <div class="stat"><span class="sl">${L("Bezahlt","Paid")}</span><span class="sv">${chf(list.filter(f=>f.paid).reduce((a,f)=>a+feeTotal(f),0),false)}</span><span class="ss">${list.filter(f=>f.paid).length} ${L("Rechnungen","invoices")}</span></div>
-    </div>
-    <section><div class="rows">${rows||`<div class="empty"><span>${L("Noch keine Honorarrechnungen.","No fee invoices yet.")}</span>${D.example?`<button type="button" class="btn" data-act="fee-demo">${L("Beispielrechnungen anzeigen","Show example invoices")}</button>`:""}</div>`}</div></section>`;
+    ${list.length?`<div class="stats">${["open","due","paid"].map(tile).join("")}</div>`:""}
+    <section>${head}<div class="rows">${rows||`<div class="empty"><span>${L("Noch keine Honorarrechnungen.","No fee invoices yet.")}</span>${D.example?`<button type="button" class="btn" data-act="fee-demo">${L("Beispielrechnungen anzeigen","Show example invoices")}</button>`:""}</div>`}</div></section>`;
 }
 
 function feeFormDef(F){
@@ -1557,6 +1563,7 @@ document.addEventListener("click",e=>{
     case "nav-mode":setNavMode(el.dataset.v||(navMode()==="min"?"open":"min"));renderChrome();if(S.view==="einstellungen")render();break;
     case "lang-set":if(el.dataset.v!==S.lang)exampleSwap(el.dataset.v);S.lang=el.dataset.v;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
     case "lang":if(el.dataset.l!==S.lang)exampleSwap(el.dataset.l);S.lang=el.dataset.l;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
+    case "ffilter":S.ffilter=el.dataset.f;render();break;
     case "filter":S.filter=el.dataset.f;render();break;
     case "to-fees":S.rtab="deb";go("rechnungen");break;
     case "rtab":S.rtab=el.dataset.t;render();break;

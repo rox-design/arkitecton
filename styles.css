@@ -769,3 +769,5 @@ button.eyebrow.pname:focus-visible{outline:2px solid var(--ink);outline-offset:2
   .tabbar .tabscan:active{background:color-mix(in srgb,#141414 70%,transparent)}
   [data-theme="dark"] .tabbar .tabscan{color:#141414;background:color-mix(in srgb,#f4f4f2 55%,transparent);border-color:rgba(0,0,0,.12)}
 }
+.hint.warn{color:var(--warn)}
+select.needs{border-color:var(--warn)}

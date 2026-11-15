@@ -118,7 +118,7 @@ function exampleSwap(to){
   fix(D.firm);fix(D.projects);fix(D.fees);
 }
 function seedEmpty(){const tt=seedTenders();return {v:1,seq:100,events:[],pid:null,firm:{name:""},projects:[],contractors:[],contracts:[],invoices:[],fees:[],office:tt.office,tenders:tt.tenders,example:false};}
-const SAMPLE={name:"Meier Malerei GmbH",street:"Zürcherstrasse 88",zip:"8820",city:"Wädenswil",iban:"CH44 3199 9123 0008 8901 2",amount:12450,ref:"21 00000 00003 13947 14300 09017",no:"2026-417"};
+const SAMPLE={name:"Meier Malerei GmbH",street:"Zürcherstrasse 88",zip:"8820",city:"Wädenswil",iban:"CH44 3199 9123 0008 8901 2",amount:12450,ref:"21 00000 00003 13947 14300 09017",no:"2026-417",msg:"Objekt: MFH Seestr. 12, Wädenswil – Malerarbeiten Treppenhaus"};
 const EX_OFFER=[{pos:"1",text:"Wände streichen, 2 Anstriche",unit:"m²",qty:1420,price:14},{pos:"2",text:"Decken streichen",unit:"m²",qty:610,price:12},{pos:"3",text:"Türzargen lackieren",unit:"Stk",qty:42,price:95},{pos:"4",text:"Abdeck- und Vorarbeiten",unit:"pauschal",qty:1,price:3410}];
 const EX_FINAL=[{pos:"1",text:"Wände streichen, 2 Anstriche",unit:"m²",qty:1465,price:14},{pos:"2",text:"Decken streichen",unit:"m²",qty:610,price:12},{pos:"3",text:"Türzargen lackieren",unit:"Stk",qty:44,price:95},{pos:"4",text:"Abdeck- und Vorarbeiten",unit:"pauschal",qty:1,price:3410},{pos:"5",text:"Ausbesserungen nach Elektriker",unit:"h",qty:6,price:98}];
 
@@ -1182,7 +1182,7 @@ function captureHTML(){
         <div class="f wide"><span class="l">${L("Von","From")}</span><span class="v">${esc(R.k?R.k.name:d.name)}</span></div>
         <div class="f wide"><span class="l">${L("Adresse","Address")}</span><span class="v">${qAdr?esc(qAdr):"–"}</span>${adrHint?`<span class="hint">${adrHint}</span>`:""}</div>
         <div class="f wide"><span class="l">IBAN</span><span class="v">${esc(d.iban)}</span></div>
-        <div class="f wide"><label for="capProj">${L("Projekt","Project")}</label>${projs.length>1?`<select id="capProj">${projs.map(p=>`<option value="${p.id}"${p.id===M.pid?" selected":""}>${esc(p.name)}${p.place?" · "+esc(p.place):""}</option>`).join("")}</select>`:`<span class="v">${esc(P().name)}</span>`}</div>
+        <div class="f wide"><label for="capProj">${L("Projekt","Project")}</label>${projs.length>1?`<select id="capProj" class="${M.pidSrc==="none"?"needs":""}">${projs.map(p=>`<option value="${p.id}"${p.id===M.pid?" selected":""}>${esc(p.name)}${p.place?" · "+esc(p.place):""}</option>`).join("")}</select>`:`<span class="v">${esc(P().name)}</span>`}${pidHint(M)?`<span class="hint${M.pidSrc==="none"?" warn":""}">${pidHint(M)}</span>`:""}</div>
         ${R.w?`<div class="f wide"><span class="l">${L("Werkvertrag","Contract")}</span><span class="v">BKP ${R.w.bkp} ${esc(bName(R.w.bkp))}${R.w.sum?" · "+chf(R.w.sum,false):""}</span></div>`
           :`<div class="f wide"><label for="capBkp">BKP</label><select id="capBkp">${bkpOptions(d.bkpSel||guessBkp(d))}</select><span class="hint">${L("Noch kein Werkvertrag in diesem Projekt. Die Summe können Sie später ergänzen.","No contract in this project yet. You can add the sum later.")}</span></div>`}
         <div class="f"><label for="capType">${L("Art","Type")}</label><select id="capType"><option value="akonto"${so("akonto")}>${L("Akonto ","Progress payment ")+nAk}</option><option value="schluss"${so("schluss")}>${L("Schlussrechnung","Final invoice")}</option><option value="regie"${so("regie")}>${L("Regie","Time & materials")}</option></select></div>
@@ -1196,11 +1196,26 @@ function captureHTML(){
   }
   return wrapCapture(title,body,foot);
 }
+const normTxt=t=>String(t||"").toLowerCase().replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss").replace(/str\.?(?=\s|\d|$)/g,"strasse").replace(/[^a-z0-9]+/g," ").trim();
+function projectFromText(d){
+  const raw=[d.msg,d.bill,d.text].filter(Boolean).join("\n");if(!raw)return null;
+  const line=(raw.match(/(?:objekt|baustelle|bauvorhaben|bauobjekt|projekt)\s*[:\-]?\s*([^\n\/–;|]{3,80}?)(?=\s+[-–]\s|[\n\/–;|]|$)/i)||[])[1];
+  const hay=" "+normTxt(line||raw)+" ";let best=null;
+  D.projects.filter(p=>!p.closed).forEach(p=>{
+    const toks=normTxt(p.name).split(" ").filter(t=>t.length>2&&!/^(mfh|efh|zfh|neubau|umbau|haus|ueberbauung)$/.test(t)||/^\d+[a-z]?$/.test(t));
+    if(!toks.length)return;const hit=toks.filter(t=>hay.includes(" "+t+" ")).length;
+    const words=toks.filter(t=>!/^\d/.test(t)),nums=toks.filter(t=>/^\d/.test(t));
+    const ok=words.some(t=>hay.includes(" "+t+" "))&&(!nums.length||nums.some(t=>hay.includes(" "+t+" ")));
+    const sc=ok?hit/toks.length:0;if(sc>0&&(!best||sc>best.sc))best={pid:p.id,sc,src:(line||"").trim()};});
+  return best;
+}
+const pidHint=M=>({text:L("Erkannt aus der Rechnung","Taken from the invoice")+(M.pidTxt?`: «${esc(M.pidTxt)}»`:""),k:L("Erkannt am Werkvertrag mit diesem Handwerker","Matched by this contractor's contract"),none:L("Auf der Rechnung steht kein Objekt. Bitte Projekt prüfen.","The invoice names no site. Please check the project."),man:L("Von Hand gewählt","Chosen manually")})[M.pidSrc];
 function defaultPid(d){
-  const M=S.modal,RO=M&&M.rep&&INV(M.rep);if(RO)return W(RO.w).pid;
+  const M=S.modal,RO=M&&M.rep&&INV(M.rep);if(RO){M.pidSrc="rep";return W(RO.w).pid;}
+  const t=projectFromText(d);if(t){M.pidSrc="text";M.pidTxt=t.src;return t.pid;}
   const k=D.contractors.find(c=>(c.iban&&norm(c.iban)===norm(d.iban))||c.name.trim().toLowerCase()===d.name.trim().toLowerCase());
-  if(k&&!D.contracts.some(w=>w.k===k.id&&w.pid===D.pid)){const ps=[...new Set(D.contracts.filter(w=>w.k===k.id).map(w=>w.pid))].filter(id=>{const p=PJ(id);return p&&!p.closed;});if(ps.length===1)return ps[0];}
-  return D.pid;
+  if(k&&!D.contracts.some(w=>w.k===k.id&&w.pid===D.pid)){const ps=[...new Set(D.contracts.filter(w=>w.k===k.id).map(w=>w.pid))].filter(id=>{const p=PJ(id);return p&&!p.closed;});if(ps.length===1){M.pidSrc="k";return ps[0];}}
+  M.pidSrc="none";return D.pid;
 }
 function readCapture(){const d=S.modal&&S.modal.data;if(!d)return;const g=id=>document.getElementById(id);
   if(g("capAmt")){const v=num(g("capAmt").value);d.amount=v&&v>0?r2(v):0;}
@@ -1636,7 +1651,7 @@ document.addEventListener("click",e=>{
   }
 });
 document.addEventListener("change",e=>{
-  const t=e.target;if(t.dataset&&t.dataset.set){saveSetting(t);return;}if(t.id==="capProj"&&S.modal){readCapture();S.modal.pid=t.value;delete S.modal.data.bkpSel;delete S.modal.data.typeSel;renderOverlay();return;}if(t.id==="fVatSel"){feeCalcUpdate();return;}if(!t.matches||!t.matches("input[type=file]"))return;
+  const t=e.target;if(t.dataset&&t.dataset.set){saveSetting(t);return;}if(t.id==="capProj"&&S.modal){readCapture();S.modal.pid=t.value;S.modal.pidSrc="man";delete S.modal.data.bkpSel;delete S.modal.data.typeSel;renderOverlay();return;}if(t.id==="fVatSel"){feeCalcUpdate();return;}if(!t.matches||!t.matches("input[type=file]"))return;
   if(t.id==="pSearch")return;
   if(t.dataset.imp==="doc"){const fs=[...(t.files||[])];t.value="";if(fs.length)addDocs(fs,t.dataset.id).catch(()=>toast(L("Speichern nicht möglich.","Could not save.")));return;}
   const f=t.files&&t.files[0];if(!f)return;

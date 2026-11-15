@@ -273,7 +273,7 @@ rechnungen:'<path d="M6.5 3h8l3.5 3.5V21h-11.5Z"/><path d="M14 3v4h4"/><path d="
 handwerker:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20.5c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/>',
 budget:'<path d="M4 20h16"/><path d="M7 20v-6"/><path d="M12 20V8"/><path d="M17 20v-9"/>',
 ausschreibungen:'<path d="M6 21V4"/><path d="M6 4h11l-2 4 2 4H6"/>',
-einstellungen:'<path d="M3 6h2.6M10.4 6H21"/><circle cx="8" cy="6" r="2.4"/><path d="M3 12h10.6M18.4 12H21"/><circle cx="16" cy="12" r="2.4"/><path d="M3 18h5.6M13.4 18H21"/><circle cx="11" cy="18" r="2.4"/>',
+einstellungen:'<g stroke-width="1.35"><path d="M4 6.5h2.4M10.6 6.5H20"/><circle cx="8.5" cy="6.5" r="2.1"/><path d="M4 12h9.4M17.6 12H20"/><circle cx="15.5" cy="12" r="2.1"/><path d="M4 17.5h4.9M13.1 17.5H20"/><circle cx="11" cy="17.5" r="2.1"/></g>',
 scan:'<path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M16 4h3a1 1 0 0 1 1 1v3"/><path d="M20 16v3a1 1 0 0 1-1 1h-3"/><path d="M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 9h3v3H8z"/><path d="M13 9h3"/><path d="M13 12h3"/><path d="M8 15h8"/>',
 pin:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9 4.5v15"/>'};
 /* one rail row: the link plus quick actions that appear on hover (desktop) */
@@ -962,6 +962,9 @@ function viewTender(t){
   </div>`;
 }
 
+(function(){const cur=(document.querySelector('script[src*="app.js"]')||{}).src||"";const v=(cur.match(/v=([^&]+)/)||[])[1];if(!v||location.hostname==="localhost")return;
+  const check=()=>fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(t=>{const nv=(t.match(/app\.js\?v=([^"&]+)/)||[])[1];if(nv&&nv!==v&&!sessionStorage.getItem("ark-up-"+nv)){sessionStorage.setItem("ark-up-"+nv,"1");location.replace(location.pathname+"?v="+nv+location.hash);}}).catch(()=>{});
+  check();document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")check();});})();
 function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
   stampProjects();saveData();
   const app=document.getElementById("app");

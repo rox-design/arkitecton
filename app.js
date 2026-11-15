@@ -304,7 +304,7 @@ function renderChrome(){
   document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget");
   const ts=document.getElementById("topSet");if(ts){ts.innerHTML=navIco("einstellungen");ts.setAttribute("aria-label",L("Einstellungen","Settings"));ts.title=L("Einstellungen","Settings");ts.setAttribute("aria-current",S.view==="einstellungen"?"page":"false");}
 }
-const ph=(eyebrow,title,lead,tools)=>`<header class="ph"><span class="eyebrow">${eyebrow}</span><h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;
+const ph=(eyebrow,title,lead,tools)=>`<header class="ph"><span class="eyebrow${P()&&eyebrow===esc(P().name)?" pname":""}">${eyebrow}</span><h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;
 const ICO={
 copy:'<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/>',
 share:'<path d="M12 3v12"/><path d="m7.5 7.5 4.5-4.5 4.5 4.5"/><path d="M5 12v6.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V12"/>',
@@ -669,7 +669,7 @@ function viewFirm(){
   const tRows=tl.slice(0,4).map(t=>{const f=fitOf(t).fit,dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:FIT[f].c,title:esc(tx(t.title)),meta:tx(FIT[f])+" · "+esc(t.client),amt:"",label:L("Eingabe in "+dd+" "+dayWord(dd),"due in "+dd+" "+(dd===1?"day":"days")),lc:dd<=14?"warn":"n"});}).join("");
   const tSec=`<section><div class="sh"><h2>${L("Ausschreibungen","Tenders")}</h2><span class="cnt">${tl.length}${D.example?"":" · "+L("Beispiele","examples")}</span><span class="right">${tl.length>4?`<button type="button" class="ghost" data-act="nav" data-v="ausschreibungen">${L("Alle anzeigen","Show all")}</button>`:""}</span></div><div class="rows">${tRows||`<div class="empty">${L("Keine offenen Ausschreibungen.","No open tenders.")}</div>`}</div></section>`;
   return `<div class="page">
-    ${ph(esc(today),esc(name),"",ib("edit",L("Büro bearbeiten","Edit firm"),'data-act="form" data-f="firm"'))}
+    ${ph(esc(today),esc(name),"","")}
     ${dataNotice()}${startSteps()}
     <div class="stats">
       <div class="stat"><span class="sl">${L("Zu zahlen","To pay")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(ps.flatMap(x=>x.chk))}</span></div>
@@ -702,7 +702,7 @@ function viewOverview(){
   const flagRows=shown.map(f=>row({act:f.act,id:f.id,v:f.v,c:f.c,title:esc(f.t),meta:esc(f.m),amt:f.chf===null?"":chf(f.chf,false),label:""})).join("");
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
   return `<div class="page">
-    <header class="ph"><span class="eyebrow">${esc(today)}</span><h1><button type="button" class="pswitch" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button></h1><div class="tools">${ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"')}</div>${[p.place,p.desc].filter(Boolean).length?`<p class="lead">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</p>`:""}</header>
+    <header class="ph"><span class="eyebrow">${esc(today)}</span><h1>${esc(p.name)}</h1><div class="tools">${ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"')}</div>${[p.place,p.desc].filter(Boolean).length?`<p class="lead">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</p>`:""}</header>
     ${startSteps()}
     <div class="stats">
       <button type="button" class="stat" data-act="nav" data-v="rechnungen"><span class="sl">${L("Zu zahlen","To pay")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(upl)}</span></button>
@@ -849,7 +849,6 @@ function viewSettings(){
   const adr=[f.street,[f.zip,f.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   return `<div class="page">${ph("",L("Einstellungen","Settings"),"","")}
     <section><div class="sh"><h2>${L("Ansicht","View")}</h2></div>
-      <div class="deskonly">${row(L("Navigation","Navigation"),L("Zugeklappt: nur Symbole. Mit der Maus darüberfahren öffnet die Leiste. Nur am Computer.","Collapsed: icons only. Hover with the mouse to open it. Desktop only."),seg("nav-mode",nm,[["open",L("Fest offen","Always open")],["min",L("Zugeklappt","Collapsed")]]))}</div>
       ${row(L("Erscheinungsbild","Appearance"),L("Automatisch folgt der Einstellung Ihres Geräts.","Automatic follows your device setting."),seg("theme-set",themeMode(),[["auto",L("Automatisch","Automatic")],["light",L("Hell","Light")],["dark",L("Dunkel","Dark")]]))}
       ${row(L("Sprache","Language"),"",seg("lang-set",S.lang,[["de","Deutsch"],["en","English"]]))}
     </section>
@@ -886,14 +885,20 @@ function saveSetting(el){
     D.settings.rem=r;}
   saveData();toast(L("Gespeichert","Saved"));
 }
+function pageActs(){const s=new Set();document.querySelectorAll("#main [data-act]").forEach(e=>{s.add(e.dataset.act+"|"+(e.dataset.f||""));if(e.dataset.act==="sheet"&&e.dataset.k!=="projects"&&e.dataset.k!=="daten"){const d=sheetDef(e.dataset.k);(d&&d.groups||[]).forEach(g=>g[1].forEach(x=>s.add(x.imp?"imp:"+x.imp+"|":x.act+"|")));}});return s;}
+const itemKey=x=>x.imp?"imp:"+x.imp+"|":x.act+"|"+(((x.ex||"").match(/data-f="([^"]+)"/)||[])[1]||"");
+function trimRail(){const b=document.querySelector('.rail .nrow>button[data-act="nav"][data-v="'+S.view+'"]');if(!b)return;const row=b.parentNode,on=pageActs();
+  row.querySelectorAll(".nact .na").forEach(n=>{if(n.dataset.act==="nmore"){if(!popItems("nav",S.view).length)n.remove();}else if(on.has(n.dataset.act+"|"+(n.dataset.f||"")))n.remove();});}
 function popItems(kind,key){
   const it=(label,act,ex)=>({label,act,ex:ex||""}),im=(label,imp)=>({label,imp}),xl=" (Excel)";
-  if(kind==="nav") return ({
+  const navList=kind!=="nav"?[]:({
     uebersicht:[it(L("Projekt bearbeiten","Edit project"),"form-project-edit",`data-id="${D.pid}"`),it(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client")+xl,"x-report"),...popItems("proj",D.pid).filter(x=>x.act!=="form-project-edit")],
     rechnungen:[it(L("Ohne QR erfassen","Add without QR"),"form",'data-f="invoice"'),it(L("Honorarrechnung erstellen","New fee invoice"),"form",'data-f="fee"'),it(L("Rechnungsliste","Invoice list")+xl,"x-invoices")],
     handwerker:[im(L("Handwerkerliste importieren","Import contractor list"),"contractors"),it(L("Handwerkerliste","Contractor list")+xl,"x-contractors")],
-    budget:[it(L("Budget nach BKP","Budget by BKP")+xl,"x-budget"),it(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client")+xl,"x-report")],
+    budget:[it(L("Budget nach BKP","Budget by BKP")+xl,"x-budget")],
     ausschreibungen:[it(L("Verfahrensliste","Procedure list")+xl,"x-tenders"),it(L("Referenzliste","Reference list")+xl,"x-refs")]})[key]||[];
+  if(kind==="nav"&&key===S.view){const on=pageActs();return navList.filter(x=>!on.has(itemKey(x)));}
+  if(kind==="nav")return navList;
   const p=D.projects.find(x=>x.id===key);if(!p)return [];
   return [it(p.fav?L("Aus Favoriten entfernen","Remove from favourites"):L("Zu Favoriten","Add to favourites"),"pfav",`data-id="${p.id}"`),
     it(L("Umbenennen","Rename"),"form-project-edit",`data-id="${p.id}"`),
@@ -969,7 +974,7 @@ function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]
   app.style.display="";document.querySelector(".rail").style.display="";document.querySelector(".topbar").style.display="";document.getElementById("tabbar").style.display="";
   renderChrome();swipeHint();
   document.getElementById("main").innerHTML=({buero:viewFirm,uebersicht:viewOverview,rechnungen:viewInvoices,handwerker:viewContractors,budget:viewBudget,ausschreibungen:viewTenders,einstellungen:viewSettings})[S.view]();
-  renderOverlay();
+  trimRail();renderOverlay();
 }
 
 /* ---------- invoice drawer ---------- */

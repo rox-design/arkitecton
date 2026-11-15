@@ -721,3 +721,4 @@ main{overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
 .hdone>summary::-webkit-details-marker{display:none}
 .hdone>summary::after{content:"+";margin-left:auto;color:var(--faint)}
 .hdone[open]>summary::after{content:"−"}
+@media (max-width:820px){.ph .eyebrow.pname{display:none}}

@@ -750,3 +750,11 @@ button.eyebrow.pname:focus-visible{outline:2px solid var(--ink);outline-offset:2
 .invp.page{gap:28px}
 @media (max-width:820px){.invp.page{gap:20px}.invp .fsum{margin-top:-4px}}
 .rail #nav{margin-top:-14px}
+/* Rechnungen: status tiles on desktop, chips on phone */
+@media (min-width:821px){.phoneonly{display:none!important}}
+.stats.s4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.ftile{border-top:1px solid var(--line)}
+.ftile.sel{border-top:3px solid var(--ink);padding-top:14px}
+.ftile.off .sv,.ftile.off .sl{color:var(--faint)}
+.ftile .sv{font-size:1.6rem}
+@media (max-width:820px){.invp .sh.deskonly{display:none}}

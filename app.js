@@ -789,24 +789,25 @@ function viewContractors(){
   const all=ws.map(w=>({w,k:K(w.k),...st(w)}));
   const kMiss=[...new Set([...all.map(x=>x.k),...loose])].filter(k=>missingOf(k).length);
   const T={sum:r2(all.reduce((a,x)=>a+(x.w.sum||0),0)),billed:r2(all.reduce((a,x)=>a+x.billed,0)),ret:r2(all.reduce((a,x)=>a+x.ret,0))};
-  if(S.kfilter==="missing"&&!kMiss.length)S.kfilter="";
-  const onlyMiss=S.kfilter==="missing";
-  const shown=onlyMiss?all.filter(x=>missingOf(x.k).length):all, shownLoose=onlyMiss?loose.filter(k=>missingOf(k).length):loose;
+  const FL={billed:x=>x.billed>0,ret:x=>x.ret>0,missing:x=>missingOf(x.k).length>0};
+  if(S.kfilter&&FL[S.kfilter]&&!all.some(FL[S.kfilter])&&!(S.kfilter==="missing"&&kMiss.length))S.kfilter="";
+  const kf=FL[S.kfilter]?S.kfilter:"",onlyMiss=kf==="missing";
+  const shown=kf?all.filter(FL[kf]):all, shownLoose=kf==="missing"?loose.filter(k=>missingOf(k).length):kf?[]:loose;
   const missTxt=k=>{const m=missingOf(k);return m.length?`<span class="mwarn">${m.length===1?L(m[0]+" fehlt",m[0]+" missing"):L(m.length+" Angaben fehlen",m.length+" details missing")}</span>`:"";};
   const rows=shown.map(x=>{const sum=x.w.sum||0,pc=sum?Math.round(x.billed/sum*100):0,over=sum&&x.billed>sum;
       return row({act:"open-k",id:x.k.id,c:over?"crit":x.billed?"ok":"n",title:esc(x.k.name),meta:"BKP "+x.w.bkp+" "+esc(bName(x.w.bkp)),amt:chf(x.billed,false),
         label:`<span class="kprog${over?" over":""}"><span class="kbar"><i style="width:${Math.min(100,pc)}%"></i></span><span>${L("von","of")} ${nf0.format(sum)}${sum?" · "+pc+" %":""}</span>${missTxt(x.k)}</span>`,lc:over?"crit":"n"});}).join("")
     +shownLoose.map(k=>row({act:"open-k",id:k.id,c:"n",title:esc(k.name),meta:L("Noch kein Werkvertrag","No contract yet")+(missingOf(k).length?" · "+missTxt(k):""),amt:"",label:L("Werkvertrag erfassen","Add contract"),lc:"n"})).join("");
-  const tile=(l,v,ss,extra)=>`<div class="stat"><span class="sl">${l}</span><span class="sv">${v}</span><span class="ss">${ss}</span></div>`;
+  const tile=(f,l,v,ss,n)=>{const sel=kf===f,inner=`<span class="sl">${l}</span><span class="sv">${v}</span><span class="ss">${ss}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="kfilter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   const nV=all.length;
-  const missTile=kMiss.length?`<button type="button" class="stat ftile${onlyMiss?" sel":""}" data-act="kfilter" data-f="${onlyMiss?"":"missing"}" aria-pressed="${onlyMiss}"><span class="sl">${L("Angaben fehlen","Details missing")}</span><span class="sv warn">${kMiss.length}</span><span class="ss">${kMiss.length===1?L("1 Handwerker","1 contractor"):kMiss.length+" "+L("Handwerker","contractors")}</span></button>`
+  const missTile=kMiss.length?`<button type="button" class="stat ftile${onlyMiss?" sel":""}" data-act="kfilter" data-f="missing" aria-pressed="${onlyMiss}"><span class="sl">${L("Angaben fehlen","Details missing")}</span><span class="sv warn">${kMiss.length}</span><span class="ss">${kMiss.length===1?L("1 Handwerker","1 contractor"):kMiss.length+" "+L("Handwerker","contractors")}</span></button>`
     :`<div class="stat ftile off"><span class="sl">${L("Angaben fehlen","Details missing")}</span><span class="sv">–</span><span class="ss">${L("alles vollständig","all complete")}</span></div>`;
   const more=`<button type="button" class="ib" title="${L("Weitere Aktionen","More actions")}" aria-label="${L("Weitere Aktionen","More actions")}" data-act="sheet" data-k="handwerker">${ico("more")}</button>`;
   const plus=ib("plus",L("Handwerker hinzufügen","Add contractor"),'data-act="sheet" data-k="k-add"');
-  const head=(nV||loose.length)?`<div class="sh"><h2>${onlyMiss?L("Angaben fehlen","Details missing"):L("Werkverträge","Contracts")}</h2><span class="cnt">${shown.length+shownLoose.length}</span><span class="right">${onlyMiss?`<button type="button" class="ghost" data-act="kfilter" data-f="">${L("Alle anzeigen","Show all")} (${nV+loose.length})</button>`:""}</span></div>`:"";
+  const head=(nV||loose.length)?`<div class="sh"><h2>${({billed:L("Mit Abrechnungen","With billing"),ret:L("Mit Rückbehalt","With retention"),missing:L("Angaben fehlen","Details missing")})[kf]||L("Alle Werkverträge","All contracts")}</h2><span class="cnt">${shown.length+shownLoose.length}</span><span class="right">${kf?`<button type="button" class="ghost" data-act="kfilter" data-f="">${L("Alle anzeigen","Show all")} (${nV+loose.length})</button>`:""}</span></div>`:"";
   return `<div class="page kpage">
     ${ph(p?esc(p.name):L("Büro","Office"),L("Handwerker","Contractors"),"",plus+more)}
-    ${nV?`<div class="stats s4">${tile(L("Werkverträge","Contracts"),chf(T.sum,false),nV===1?L("1 Vertrag","1 contract"):nV+" "+L("Verträge","contracts"))}${tile(L("Abgerechnet","Billed"),chf(T.billed,false),(T.sum?Math.round(T.billed/T.sum*100):0)+" % "+L("der Verträge","of contracts"))}${tile(L("Rückbehalt","Retention"),chf(T.ret,false),L("zurückbehalten","held back"))}${missTile}</div>`:""}
+    ${nV?`<div class="stats s4">${tile("",L("Werkverträge","Contracts"),chf(T.sum,false),nV===1?L("1 Vertrag","1 contract"):nV+" "+L("Verträge","contracts"),nV)}${tile("billed",L("Abgerechnet","Billed"),chf(T.billed,false),(T.sum?Math.round(T.billed/T.sum*100):0)+" % "+L("der Verträge","of contracts"),all.filter(FL.billed).length)}${tile("ret",L("Rückbehalt","Retention"),chf(T.ret,false),L("zurückbehalten","held back"),all.filter(FL.ret).length)}${missTile}</div>`:""}
     <section>${head}<div class="rows">${rows||`<div class="empty"><span>${L("Noch keine Handwerker in diesem Projekt.","No contractors in this project yet.")}</span><button type="button" class="btn" data-act="sheet" data-k="k-add">${L("Handwerker hinzufügen","Add contractor")}</button></div>`}</div></section>
   </div>`;
 }

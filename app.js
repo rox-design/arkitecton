@@ -337,6 +337,10 @@ function viewWelcome(){
 
 /* ---------- fee invoices (Debitoren) ---------- */
 const VAT_RATE=8.1;
+const nf1=v=>new Intl.NumberFormat("de-CH",{minimumFractionDigits:1,maximumFractionDigits:1}).format(v);
+const VAT_RATES=()=>[[8.1,L("Normalsatz","Standard rate")],[3.8,L("Sondersatz Beherbergung","Accommodation rate")],[2.6,L("Reduzierter Satz","Reduced rate")]];
+const vrate=f=>f&&f.vat?(f.vatRate||VAT_RATE):0;
+const vatSelVal=()=>{const e=document.getElementById("fVatSel");const v=e?+e.value:0;return {vat:v>0,vatRate:v>0?v:null};};
 const r05=n=>Math.round(n*20)/20;
 const FEES=()=>D.fees||(D.fees=[]);
 const FE=id=>FEES().find(f=>f.id===id);
@@ -352,7 +356,7 @@ function makeRef(no){
 }
 const fmtRefOut=(t,r)=>t==="QRR"?r.slice(0,2)+" "+r.slice(2).replace(/(.{5})/g,"$1 ").trim():r.replace(/(.{4})/g,"$1 ").trim();
 const feeSub=f=>r2(f.lines.reduce((a,l)=>a+r2((+l.q||0)*(+l.p||0)),0));
-const feeVat=f=>f.vat?r2(feeSub(f)*VAT_RATE/100):0;
+const feeVat=f=>f.vat?r2(feeSub(f)*vrate(f)/100):0;
 const feeTotal=f=>r05(feeSub(f)+feeVat(f));
 const feeDue=f=>addDays(f.date,f.term||30);
 const feeAge=f=>-daysTo(f.date);
@@ -511,18 +515,18 @@ function feeFormDef(F){
     +fld("fTitle",L("Betreff","Subject"),f?f.title:"",{wide:true,ph:L("z. B. Honorar Akonto 2","e.g. Fee progress payment 2")})
     +`<div class="f wide"><span class="l">${L("Positionen","Items")}</span><div class="flhead"><span>${L("Bezeichnung","Description")}</span><span>${L("Menge","Qty")}</span><span>${L("Einheit","Unit")}</span><span>${L("Ansatz","Rate")}</span><span></span></div>${lineRows}
       <button type="button" class="ghost" data-act="fee-addline">${L("+ Position","+ Item")}</button></div>
-    <div class="f wide"><label class="chk"><input type="checkbox" id="fVatOn"${vat?" checked":""}> ${L("MWST "+VAT_RATE+" %","VAT "+VAT_RATE+" %")}</label></div>
+    <div class="f"><label for="fVatSel">${L("MWST","VAT")}</label><select id="fVatSel">${VAT_RATES().map(([r,n])=>`<option value="${r}"${vat&&vrate(f||{vat:1})===r?" selected":""}>${nf1(r)} %  ·  ${n}</option>`).join("")}<option value="0"${vat?"":" selected"}>${L("Ohne MWST","No VAT")}</option></select>${D.firm.vat?"":`<span class="hint">${L("Ihr Büro ist in den Einstellungen als nicht MWST-pflichtig erfasst.","Your firm is set as not subject to VAT in Settings.")}</span>`}</div>
     <div class="f wide"><div class="calc" id="feeCalc"></div><span class="hint">${L("An: ","To: ")}${esc(p&&p.client||L("Bauherrschaft im Projekt ergänzen","add the client in the project"))}${p&&p.ccity?" · "+esc([p.cstreet,[p.czip,p.ccity].join(" ")].filter(Boolean).join(", ")):""}</span></div>`;
   return {title:f?L("Honorarrechnung bearbeiten","Edit fee invoice"):L("Neue Honorarrechnung","New fee invoice"),body};
 }
-function keepFeeFields(fn){const keep=["fNo","fDate","fTitle"].map(i=>[i,val(i)]),vat=(document.getElementById("fVatOn")||{}).checked;fn();keep.forEach(([i,v])=>{const e=document.getElementById(i);if(e)e.value=v;});const c=document.getElementById("fVatOn");if(c)c.checked=vat;feeCalcUpdate();}
+function keepFeeFields(fn){const keep=["fNo","fDate","fTitle"].map(i=>[i,val(i)]),vat=(document.getElementById("fVatSel")||{}).value;fn();keep.forEach(([i,v])=>{const e=document.getElementById(i);if(e)e.value=v;});const c=document.getElementById("fVatSel");if(c&&vat!=null)c.value=vat;feeCalcUpdate();}
 function readFirmForm(){if(!S.form||S.form.f!=="firm")return;const g=i=>val(i);Object.assign(S.form,{tmp:{fName:g("fName"),fStreet:g("fStreet"),fZip:g("fZip"),fCity:g("fCity"),fIban:g("fIban"),fEmail:g("fEmail"),fPhone:g("fPhone"),fVatNo:g("fVatNo"),fVat:(document.getElementById("fVat")||{}).checked}});}
 function readFeeLines(){const F=S.form;if(!F||!F.lines)return;F.lines=F.lines.map((l,i)=>({t:val("lt"+i),q:val("lq"+i),u:val("lu"+i),p:val("lp"+i)}));}
 function feeCalcUpdate(){
   const F=S.form;if(!F||F.f!=="fee")return;readFeeLines();
-  const tmp={lines:F.lines.map(l=>({q:num(l.q)||0,p:num(l.p)||0})),vat:!!(document.getElementById("fVatOn")||{}).checked};
+  const tmp={lines:F.lines.map(l=>({q:num(l.q)||0,p:num(l.p)||0})),...vatSelVal()};
   const e=document.getElementById("feeCalc");if(!e)return;
-  e.innerHTML=`<span>${L("Zwischentotal","Subtotal")}</span><span class="r">${nf2.format(feeSub(tmp))}</span>${tmp.vat?`<span>${L("MWST ","VAT ")+VAT_RATE} %</span><span class="r">${nf2.format(feeVat(tmp))}</span>`:""}<span class="sum">${L("Total","Total")}</span><span class="r sum">CHF ${nf2.format(feeTotal(tmp))}</span>`;
+  e.innerHTML=`<span>${L("Zwischentotal","Subtotal")}</span><span class="r">${nf2.format(feeSub(tmp))}</span>${tmp.vat?`<span>${L("MWST ","VAT ")+nf1(vrate(tmp))} %</span><span class="r">${nf2.format(feeVat(tmp))}</span>`:""}<span class="sum">${L("Total","Total")}</span><span class="r sum">CHF ${nf2.format(feeTotal(tmp))}</span>`;
 }
 function saveFee(F,fail){
   readFeeLines();
@@ -533,10 +537,10 @@ function saveFee(F,fail){
   if(lines.some(l=>!l.t)) return fail(L("Jede Position braucht eine Bezeichnung.","Each item needs a description."));
   const no=val("fNo");
   if(FEES().some(x=>x.no===no&&x.id!==F.id)) return fail(L("Diese Rechnungsnummer gibt es schon.","This invoice number already exists."));
-  const vat=document.getElementById("fVatOn").checked;
+  const {vat,vatRate}=vatSelVal();
   let f=F.id&&FE(F.id);
-  if(f){Object.assign(f,{no,date:val("fDate"),title:val("fTitle"),lines,vat});logInv(f,L("Bearbeitet","Edited"));}
-  else{const r=makeRef(no);f={id:newId("h"),pid:D.pid,no,date:val("fDate"),title:val("fTitle"),lines,vat,term:SET().feeTerm,refType:r.type,ref:r.ref,rem:[],paid:null,log:[]};logInv(f,L("Erstellt","Created"));FEES().push(f);}
+  if(f){Object.assign(f,{no,date:val("fDate"),title:val("fTitle"),lines,vat,vatRate});logInv(f,L("Bearbeitet","Edited"));}
+  else{const r=makeRef(no);f={id:newId("h"),pid:D.pid,no,date:val("fDate"),title:val("fTitle"),lines,vat,vatRate,term:SET().feeTerm,refType:r.type,ref:r.ref,rem:[],paid:null,log:[]};logInv(f,L("Erstellt","Created"));FEES().push(f);}
   const id=f.id;closeAll();S.rtab="deb";S.fdrawer=id;go("rechnungen");S.fdrawer=id;render();toast(L("Rechnung gespeichert","Invoice saved"));
 }
 
@@ -553,7 +557,7 @@ function feeDrawerHTML(f){
       <div class="big"><span class="amt">${chf(feeTotal(f))}</span></div>
       <div class="payline"><span class="l-${st.c}">${st.t}</span><span>${f.paid?L("am ","on ")+fdate(f.paid):st.d?L("am ","on ")+fdate(st.d):L("fällig ","due ")+fdate(feeDue(f))}</span></div>
       ${r?`<div class="notice"><span class="ic crit" aria-hidden="true">!</span><span>${L("Seit ","Open for ")}${feeAge(f)}${L(" Tagen offen. "," days. ")}${remName(r)}${L(" ist fällig."," is due.")}</span></div>`:""}
-      <div class="calc">${lines}<span>${L("Zwischentotal","Subtotal")}</span><span class="r">${nf2.format(feeSub(f))}</span>${f.vat?`<span>${L("MWST ","VAT ")+VAT_RATE} %</span><span class="r">${nf2.format(feeVat(f))}</span>`:""}<span class="sum">${L("Total","Total")}</span><span class="r sum">CHF ${nf2.format(feeTotal(f))}</span></div>
+      <div class="calc">${lines}<span>${L("Zwischentotal","Subtotal")}</span><span class="r">${nf2.format(feeSub(f))}</span>${f.vat?`<span>${L("MWST ","VAT ")+nf1(vrate(f))} %</span><span class="r">${nf2.format(feeVat(f))}</span>`:""}<span class="sum">${L("Total","Total")}</span><span class="r sum">CHF ${nf2.format(feeTotal(f))}</span></div>
       <details><summary>${L("Zahlungsdaten","Payment details")}</summary><div class="in"><dl class="kv"><dt>IBAN</dt><dd>${esc(fmtIban(D.firm.iban||""))}</dd><dt>${L("Referenz","Reference")}</dt><dd>${esc(fmtRefOut(f.refType,f.ref))}</dd></dl></div></details>
       <details><summary>${L("Verlauf","History")}</summary><div class="in"><dl class="kv">${log}</dl></div></details>
       <div class="dtools">${ibl("download",L("PDF herunterladen","Download PDF"),`data-act="fee-pdf" data-id="${f.id}"`,"PDF")}${f.paid?"":ibl("edit",L("Bearbeiten","Edit"),`data-act="form" data-f="fee" data-id="${f.id}"`)}<span class="qsep"></span>${S.confirm==="fdel:"+f.id?`<button type="button" class="ghost danger" data-act="fee-del" data-id="${f.id}">${L("Wirklich löschen?","Really delete?")}</button>`:ib("trash",L("Rechnung löschen","Delete invoice"),`data-act="ask" data-c="fdel:${f.id}"`)}</div>
@@ -569,7 +573,7 @@ function qrPayload(f){
   const hasD=!!(p.client&&p.czip&&p.ccity);
   const d=f.date.replace(/-/g,"").slice(2);
   let bill="//S1/10/"+String(f.no).replace(/\//g,"\\/")+"/11/"+d;
-  if(f.vat&&F.vatNo) bill+="/30/"+String(F.vatNo).replace(/\D/g,"")+"/32/"+VAT_RATE;
+  if(f.vat&&F.vatNo) bill+="/30/"+String(F.vatNo).replace(/\D/g,"")+"/32/"+vrate(f);
   bill+="/40/0:30";
   const cut=(s,n)=>String(s||"").slice(0,n);
   return ["SPC","0200","1",norm(F.iban),"S",cut(F.name,70),cut(cs,70),cut(cb,16),cut(F.zip,16),cut(F.city,35),"CH",
@@ -605,7 +609,7 @@ async function feePDF(f,level){
   f.lines.forEach(l=>{const tl=doc.splitTextToSize(l.t,95);tl.forEach((t,i)=>T(t,20,y+i*4.5));T(nfq.format(l.q)+" "+(l.u||""),128,y,{align:"right"});T(nf2.format(l.p),160,y,{align:"right"});T(nf2.format(r2(l.q*l.p)),190,y,{align:"right"});y+=Math.max(1,tl.length)*4.5+2;});
   doc.line(120,y,190,y);y+=5;
   T(L("Zwischentotal","Subtotal"),120,y);T(nf2.format(feeSub(f)),190,y,{align:"right"});y+=5;
-  if(f.vat){T(L("MWST ","VAT ")+VAT_RATE+" %",120,y);T(nf2.format(feeVat(f)),190,y,{align:"right"});y+=5;}
+  if(f.vat){T(L("MWST ","VAT ")+nf1(vrate(f))+" %",120,y);T(nf2.format(feeVat(f)),190,y,{align:"right"});y+=5;}
   font(10,true);T(L("Total CHF","Total CHF"),120,y+1);T(nf2.format(feeTotal(f)),190,y+1,{align:"right"});
   font(9);T(level?L("Zahlbar innert 10 Tagen.","Payable within 10 days."):L("Zahlbar innert "+(f.term||30)+" Tagen netto.","Payable within "+(f.term||30)+" days net."),20,y+1);
   if(!f.vat){font(8);T(L("Nicht MWST-pflichtig.","Not subject to VAT."),20,y+6);}
@@ -1241,7 +1245,7 @@ function formDef(){
     +fld("fStreet",L("Strasse und Nr.","Street and no."),B.street,{wide:true,ph:L("z. B. Seestrasse 40","e.g. Seestrasse 40")})+fld("fZip",L("PLZ","Postcode"),B.zip,{mode:"numeric"})+fld("fCity",L("Ort","Town"),B.city)
     +fld("fIban","IBAN",B.iban?fmtIban(B.iban):"",{wide:true,hint:L("Für den QR-Code auf Ihren Rechnungen.","For the QR code on your invoices.")})
     +fld("fEmail",L("E-Mail","Email"),B.email,{type:"email"})+fld("fPhone",L("Telefon","Phone"),B.phone,{type:"tel"})
-    +`<div class="f wide"><label class="chk"><input type="checkbox" id="fVat"${B.vat?" checked":""}> ${L("MWST-pflichtig ("+VAT_RATE+" %)","Subject to VAT ("+VAT_RATE+" %)")}</label><span class="hint">${L("Pflichtig ab CHF 100'000 Umsatz im Jahr.","Required from CHF 100,000 turnover a year.")}</span></div>`
+    +`<div class="f wide"><label class="chk"><input type="checkbox" id="fVat"${B.vat?" checked":""}> ${L("MWST-pflichtig","Subject to VAT")}</label><span class="hint">${L("Pflichtig ab CHF 100'000 Umsatz im Jahr.","Required from CHF 100,000 turnover a year.")}</span></div>`
     +fld("fVatNo",L("MWST-Nummer","VAT number"),B.vatNo,{wide:true,ph:"CHE-123.456.789 MWST"})
     +`<div class="f wide"><span class="l">Logo</span><div class="logo-row">${B.logo?`<img src="${B.logo}" alt="" class="logo-prev">`:""}<label class="btn">${B.logo?L("Ersetzen","Replace"):L("Logo wählen","Choose logo")}<input type="file" accept="image/png,image/jpeg" data-imp="logo"></label>${B.logo?`<button type="button" class="ghost" data-act="logo-del">${L("Entfernen","Remove")}</button>`:""}</div><span class="hint">${L("Erscheint oben auf Ihren Rechnungen. PNG oder JPG.","Shown at the top of your invoices. PNG or JPG.")}</span></div>`};}
   return null;
@@ -1625,7 +1629,7 @@ document.addEventListener("click",e=>{
   }
 });
 document.addEventListener("change",e=>{
-  const t=e.target;if(t.dataset&&t.dataset.set){saveSetting(t);return;}if(t.id==="capProj"&&S.modal){readCapture();S.modal.pid=t.value;delete S.modal.data.bkpSel;delete S.modal.data.typeSel;renderOverlay();return;}if(t.id==="fVatOn"){feeCalcUpdate();return;}if(!t.matches||!t.matches("input[type=file]"))return;
+  const t=e.target;if(t.dataset&&t.dataset.set){saveSetting(t);return;}if(t.id==="capProj"&&S.modal){readCapture();S.modal.pid=t.value;delete S.modal.data.bkpSel;delete S.modal.data.typeSel;renderOverlay();return;}if(t.id==="fVatSel"){feeCalcUpdate();return;}if(!t.matches||!t.matches("input[type=file]"))return;
   if(t.id==="pSearch")return;
   if(t.dataset.imp==="doc"){const fs=[...(t.files||[])];t.value="";if(fs.length)addDocs(fs,t.dataset.id).catch(()=>toast(L("Speichern nicht möglich.","Could not save.")));return;}
   const f=t.files&&t.files[0];if(!f)return;

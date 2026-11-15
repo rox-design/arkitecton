@@ -725,3 +725,8 @@ main{overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
 /* no grey tap flash; name on Home is not a button */
 html{-webkit-tap-highlight-color:transparent}
 .topbar .proj.static{pointer-events:none;cursor:default}
+button.eyebrow.pname{all:unset;cursor:pointer;grid-column:1/-1;display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:.8rem;letter-spacing:.01em;justify-self:start}
+button.eyebrow.pname .cv{font-size:.85em}
+button.eyebrow.pname:hover{color:var(--ink)}
+button.eyebrow.pname:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+@media (max-width:820px){button.eyebrow.pname{display:none}}

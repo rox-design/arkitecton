@@ -302,7 +302,7 @@ function renderChrome(){
   document.getElementById("nav").innerHTML=["uebersicht","rechnungen","handwerker","budget"].map(v=>navRow(v)).join("");void tog;void plist;
   const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=navRow("buero")+navRow("ausschreibungen");
   const tb=(v,l)=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${l}</span></button>`;
-  document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget");
+  document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget")+(S.view==="rechnungen"&&S.rtab!=="deb"?`<button type="button" class="tabscan" data-act="capture">${navIco("scan")}<span>${L("QR scannen","Scan QR")}</span></button>`:"");
   const ts=document.getElementById("topSet");if(ts){ts.innerHTML=navIco("einstellungen");ts.setAttribute("aria-label",L("Einstellungen","Settings"));ts.title=L("Einstellungen","Settings");ts.setAttribute("aria-current",S.view==="einstellungen"?"page":"false");}
 }
 const ph=(eyebrow,title,lead,tools)=>`<header class="ph">${P()&&eyebrow===esc(P().name)?`<button type="button" class="eyebrow pname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${eyebrow}<span class="cv" aria-hidden="true">⌄</span></button>`:`<span class="eyebrow">${eyebrow}</span>`}<h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;

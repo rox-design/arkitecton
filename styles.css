@@ -758,3 +758,14 @@ button.eyebrow.pname:focus-visible{outline:2px solid var(--ink);outline-offset:2
 .ftile.off .sv,.ftile.off .sl{color:var(--faint)}
 .ftile .sv{font-size:1.6rem}
 @media (max-width:820px){.invp .sh.deskonly{display:none}}
+/* phone: QR scan sits just above the tab bar, glass */
+.tabscan{display:none}
+@media (max-width:820px){
+  .invp .scanbig{display:none}
+  .tabbar{position:fixed}
+  .tabbar .tabscan{all:unset;box-sizing:border-box;position:absolute;left:50%;bottom:calc(100% + 12px);transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:0 24px;height:48px;border-radius:999px;cursor:pointer;white-space:nowrap;
+    color:#fff;font-size:.98rem;font-weight:500;background:color-mix(in srgb,#141414 52%,transparent);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);border:1px solid rgba(255,255,255,.18);box-shadow:0 6px 20px rgba(0,0,0,.14)}
+  .tabbar .tabscan .ni{width:20px;height:20px}
+  .tabbar .tabscan:active{background:color-mix(in srgb,#141414 70%,transparent)}
+  [data-theme="dark"] .tabbar .tabscan{color:#141414;background:color-mix(in srgb,#f4f4f2 55%,transparent);border-color:rgba(0,0,0,.12)}
+}

@@ -1648,7 +1648,7 @@ document.addEventListener("click",e=>{
     case "form-del":formDelete();break;
     case "open-project":D.pid=id;S.kid=null;go("uebersicht");break;
     case "home":go("buero");break;
-    case "pick-project":D.pid=id;closeAll();S.kid=null;if(S.view==="buero"||S.view==="ausschreibungen"||S.view==="einstellungen")go("uebersicht");else render();toast(P().name);break;
+    case "pick-project":D.pid=id;closeAll();S.kid=null;if(S.view==="buero"||S.view==="ausschreibungen"||S.view==="einstellungen")go("uebersicht");else render();break;
     case "ask":S.confirm=el.dataset.c;if(/^ddel:/.test(S.confirm)||!S.sheet)render();else renderOverlay();break;
     case "notice-ok":D.noticeOk=1;render();break;
     case "doc-open":openDoc(el.dataset.id);break;

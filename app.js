@@ -277,7 +277,7 @@ einstellungen:'<g stroke-width="1.35"><path d="M4 6.5h2.4M10.6 6.5H20"/><circle 
 scan:'<path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M16 4h3a1 1 0 0 1 1 1v3"/><path d="M20 16v3a1 1 0 0 1-1 1h-3"/><path d="M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 9h3v3H8z"/><path d="M13 9h3"/><path d="M13 12h3"/><path d="M8 15h8"/>',
 pin:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9 4.5v15"/>'};
 /* one rail row: the link plus quick actions that appear on hover (desktop) */
-const NAV_PLUS=()=>({uebersicht:["form-project","",L("Neues Projekt","New project")],rechnungen:["capture","",L("Rechnung scannen","Scan invoice")],handwerker:["form","contractor",L("Handwerker erfassen","Add contractor")],budget:["form","bkp",L("BKP-Position erfassen","Add BKP item")]});
+const NAV_PLUS=()=>({uebersicht:["form-project","",L("Neues Projekt","New project")],rechnungen:["capture","",L("QR scannen","Scan QR")],handwerker:["form","contractor",L("Handwerker erfassen","Add contractor")],budget:["form","bkp",L("BKP-Position erfassen","Add BKP item")]});
 const NAV_MORE=()=>({uebersicht:L("Projekt bearbeiten, Kostenübersicht","Edit project, cost overview"),rechnungen:L("Ohne QR, Honorar, Excel","Without QR, fee, Excel"),handwerker:L("Importieren, Excel","Import, Excel"),budget:L("Excel-Auswertungen","Excel reports"),ausschreibungen:L("Excel-Listen","Excel lists")});
 function navRow(v,extra=""){const pl=NAV_PLUS()[v],mo=NAV_MORE()[v];
   return `<div class="nrow"><button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span>${extra}</button><span class="nact">${pl?`<button type="button" class="na" data-act="${pl[0]}"${pl[1]?` data-f="${pl[1]}"`:""} data-tip="${pl[2]}" aria-label="${pl[2]}">+</button>`:""}${mo?`<button type="button" class="na" data-act="nmore" data-v="${v}" data-tip="${mo}" aria-label="${L("Weitere Aktionen","More actions")}">···</button>`:""}</span></div>`;}
@@ -287,7 +287,7 @@ const SCAN_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4M1
 function renderChrome(){
   document.documentElement.lang=S.lang;
   const p=P();
-  const rs=document.getElementById("railScan");if(rs)rs.innerHTML=`<svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICO.scan}</svg><span>${L("Rechnung scannen","Scan invoice")}</span>`;if(rs)rs.setAttribute("aria-label",L("Rechnung scannen","Scan invoice"));
+  const rs=document.getElementById("railScan");if(rs)rs.innerHTML=`<svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICO.scan}</svg><span>${L("QR scannen","Scan QR")}</span>`;if(rs)rs.setAttribute("aria-label",L("QR scannen","Scan QR"));
   const firmLvl=S.view==="buero"||S.view==="ausschreibungen"||S.view==="einstellungen",tp=document.getElementById("topProj");tp.innerHTML=esc(firmLvl?(S.view!=="buero"?vName(S.view):((D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name"))):(p?p.name:L("Kein Projekt","No project")));
   tp.dataset.act="home";tp.removeAttribute("aria-haspopup");tp.title=S.view==="buero"?"":L("Zu Home","Back to Home");const stat=S.view==="buero"||!firmLvl;tp.classList.toggle("static",stat);tp.tabIndex=stat?-1:0;
   document.querySelector(".topbar").classList.toggle("home",firmLvl);
@@ -313,6 +313,7 @@ mail:'<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8
 edit:'<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="m14 7 3 3"/>',
 trash:'<path d="M4 7h16"/><path d="M9 7V4.5h6V7"/><path d="M6.5 7l1 13h9l1-13"/>',
 flag:'<path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/>',
+more:'<circle cx="5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.1" fill="currentColor" stroke="none"/>',
 plus:'<path d="M12 5v14"/><path d="M5 12h14"/>',
 download:'<path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 19.5h14"/>'};
 const ico=n=>`<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[n]}</svg>`;
@@ -721,17 +722,22 @@ function viewOverview(){
 function viewInvoices(){
   const p=P(); if(!p) return noProject();
   const sw=`<div class="seg" role="tablist"><button type="button" role="tab" data-act="rtab" data-t="kred" aria-selected="${S.rtab!=="deb"}">${L("Handwerker","Contractors")}</button><button type="button" role="tab" data-act="rtab" data-t="deb" aria-selected="${S.rtab==="deb"}">${L("Honorar","Fees")}</button></div>`;
-  if(S.rtab==="deb") return `<div class="page">${ph(esc(p.name),L("Rechnungen","Invoices"),"",ib("plus",L("Honorarrechnung erstellen","New fee invoice"),'data-act="form" data-f="fee"'))}${sw}${viewFees()}</div>`;
+  if(S.rtab==="deb") return `<div class="page invp">${ph(esc(p.name),L("Rechnungen","Invoices"),"",sw+ib("plus",L("Honorarrechnung erstellen","New fee invoice"),'data-act="form" data-f="fee"'))}${viewFees()}</div>`;
   const F=["pruefen","rueckfrage","frei","bezahlt","all"], all=PIx();
   const cnt=f=>f==="all"?all.length:all.filter(i=>i.status===f).length;
+  if(S.filter!=="all"&&!cnt(S.filter)&&all.length)S.filter=F.find(f=>f!=="all"&&cnt(f))||"all";
   const list=all.filter(i=>S.filter==="all"||i.status===S.filter).slice().sort((a,b)=>toDate(b.date)-toDate(a.date));
   const byDue=S.filter!=="all"&&S.filter!=="bezahlt";
   const rows=list.map(i=>{const w=W(i.w),k=K(w.k),dd=daysTo(i.due);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:esc(k.name),meta:typeLabel(i)+" · "+esc(i.no),amt:chf(i.gross,false),label:byDue?dueText(dd):stLabel(i.status),lc:byDue?dueTone(dd):STATUS[i.status].c});}).join("");
-  return `<div class="page">
-    ${ph(esc(p.name),L("Rechnungen","Invoices"),"",ib("plus",L("Rechnung ohne QR erfassen","Add invoice without QR"),'data-act="form" data-f="invoice"')+excelBtn("rechnungen"))}
-    <button type="button" class="btn primary scanbig" data-act="capture">${navIco("scan")}<span>${L("Rechnung scannen","Scan invoice")}</span></button>
-    ${sw}<div class="tabs chips" role="tablist">${F.map(f=>`<button type="button" role="tab" data-act="filter" data-f="${f}" aria-selected="${S.filter===f}">${f==="all"?L("Alle","All"):stLabel(f)}<span class="c">${cnt(f)}</span></button>`).join("")}</div>
-    <section><div class="rows">${rows||(all.length?`<div class="empty">${L("Keine Rechnungen mit diesem Status.","No invoices with this status.")}</div>`:`<div class="empty"><span>${L("Noch keine Rechnungen. Scannen Sie den QR-Zahlteil einer Handwerker-Rechnung.","No invoices yet. Scan the QR payment part of a contractor invoice.")}</span><div class="eb"><button type="button" class="btn primary" data-act="capture">${L("Rechnung scannen","Scan invoice")}</button><button type="button" class="btn" data-act="form" data-f="invoice">${L("Ohne QR erfassen","Add without QR")}</button></div></div>`)}</div></section>
+  const more=`<button type="button" class="ib" title="${L("Weitere Aktionen","More actions")}" aria-label="${L("Weitere Aktionen","More actions")}" data-act="sheet" data-k="rechnungen">${ico("more")}</button>`;
+  const total=list.reduce((a,i)=>a+i.gross,0);
+  const sumLine=list.length?`<div class="fsum"><span>${list.length} ${({pruefen:L("zu prüfen","to check"),rueckfrage:L("mit Rückfrage","with query"),frei:L("freigegeben","approved"),bezahlt:L("bezahlt","paid")})[S.filter]||(list.length===1?L("Rechnung","invoice"):L("Rechnungen","invoices"))}</span><span>${chf(total,false)}</span></div>`:"";
+  return `<div class="page invp">
+    ${ph(esc(p.name),L("Rechnungen","Invoices"),"",sw+more)}
+    <button type="button" class="btn primary scanbig" data-act="capture">${navIco("scan")}<span>${L("QR scannen","Scan QR")}</span></button>
+    <div class="tabs chips" role="tablist">${F.filter(f=>f==="all"||cnt(f)||S.filter===f).map(f=>`<button type="button" role="tab" data-act="filter" data-f="${f}" aria-selected="${S.filter===f}">${f==="all"?L("Alle","All"):stLabel(f)}<span class="c">${cnt(f)}</span></button>`).join("")}</div>
+    ${sumLine}
+    <section><div class="rows">${rows||(all.length?`<div class="empty">${L("Keine Rechnungen mit diesem Status.","No invoices with this status.")}</div>`:`<div class="empty"><span>${L("Noch keine Rechnungen. Scannen Sie den QR-Zahlteil einer Handwerker-Rechnung.","No invoices yet. Scan the QR payment part of a contractor invoice.")}</span><div class="eb"><button type="button" class="btn primary" data-act="capture">${L("QR scannen","Scan QR")}</button><button type="button" class="btn" data-act="form" data-f="invoice">${L("Ohne QR erfassen","Add without QR")}</button></div></div>`)}</div></section>
   </div>`;
 }
 
@@ -743,7 +749,7 @@ function viewContractors(){
     return row({act:"open-k",id:k.id,c:m.length?"crit":"ok",title:esc(k.name),meta:ws.length>1?ws.map(x=>"BKP "+x.bkp).join(", "):w?"BKP "+w.bkp+" "+esc(bName(w.bkp)):L("nicht in diesem Projekt","not in this project"),amt:sum?chf(sum,false):"",label:m.length===1?L(m[0]+" fehlt",m[0]+" missing"):m.length?L(m.length+" Angaben fehlen",m.length+" details missing"):"",lc:"crit"});}).join("");
   return `<div class="page">
     ${ph(p?esc(p.name):L("Büro","Office"),L("Handwerker","Contractors"),"",ib("plus",L("Handwerker erfassen","Add contractor"),'data-act="form" data-f="contractor"')+excelBtn("handwerker"))}
-    <section>${rows?`<div class="rhead"><span></span><span>${L("Handwerker","Contractor")}</span><span>${L("Arbeitsgattung","Trade")}</span><span class="r">${L("Werkvertrag","Contract")}</span><span class="r">${L("Angaben","Details")}</span></div>`:""}<div class="rows">${rows||`<div class="empty"><span>${L("Noch keine Handwerker. Beim Scannen einer QR-Rechnung legt arkitecton den Handwerker selbst an.","No contractors yet. Scanning a QR-bill adds the contractor for you.")}</span><div class="eb"><button type="button" class="btn primary" data-act="capture">${L("Rechnung scannen","Scan invoice")}</button><button type="button" class="btn" data-act="form" data-f="contractor">${L("Handwerker erfassen","Add contractor")}</button></div></div>`}</div></section>
+    <section>${rows?`<div class="rhead"><span></span><span>${L("Handwerker","Contractor")}</span><span>${L("Arbeitsgattung","Trade")}</span><span class="r">${L("Werkvertrag","Contract")}</span><span class="r">${L("Angaben","Details")}</span></div>`:""}<div class="rows">${rows||`<div class="empty"><span>${L("Noch keine Handwerker. Beim Scannen einer QR-Rechnung legt arkitecton den Handwerker selbst an.","No contractors yet. Scanning a QR-bill adds the contractor for you.")}</span><div class="eb"><button type="button" class="btn primary" data-act="capture">${L("QR scannen","Scan QR")}</button><button type="button" class="btn" data-act="form" data-f="contractor">${L("Handwerker erfassen","Add contractor")}</button></div></div>`}</div></section>
   </div>`;
 }
 
@@ -886,7 +892,7 @@ function saveSetting(el){
     D.settings.rem=r;}
   saveData();toast(L("Gespeichert","Saved"));
 }
-function pageActs(){const s=new Set();document.querySelectorAll("#main [data-act]").forEach(e=>{s.add(e.dataset.act+"|"+(e.dataset.f||""));if(e.dataset.act==="sheet"&&e.dataset.k!=="projects"&&e.dataset.k!=="daten"){const d=sheetDef(e.dataset.k);(d&&d.groups||[]).forEach(g=>g[1].forEach(x=>s.add(x.imp?"imp:"+x.imp+"|":x.act+"|")));}});return s;}
+function pageActs(){const s=new Set();document.querySelectorAll("#main [data-act]").forEach(e=>{s.add(e.dataset.act+"|"+(e.dataset.f||""));if(e.dataset.act==="sheet"&&e.dataset.k!=="projects"&&e.dataset.k!=="daten"){const d=sheetDef(e.dataset.k);(d&&d.groups||[]).forEach(g=>g[1].forEach(x=>s.add(x.imp?"imp:"+x.imp+"|":x.act+"|"+(x.f||""))));}});return s;}
 const itemKey=x=>x.imp?"imp:"+x.imp+"|":x.act+"|"+(((x.ex||"").match(/data-f="([^"]+)"/)||[])[1]||"");
 function trimRail(){const b=document.querySelector('.rail .nrow>button[data-act="nav"][data-v="'+S.view+'"]');if(!b)return;const row=b.parentNode,on=pageActs();
   row.querySelectorAll(".nact .na").forEach(n=>{if(n.dataset.act==="nmore"){if(!popItems("nav",S.view).length)n.remove();}else if(on.has(n.dataset.act+"|"+(n.dataset.f||"")))n.remove();});}
@@ -1131,7 +1137,7 @@ function wrapCapture(title,body,foot){
     <div class="obody">${body}</div>${foot?`<div class="ofoot">${foot}</div>`:""}</div>`;
 }
 function captureHTML(){
-  const M=S.modal,d=M.data;let body="",foot="",title=L("Rechnung scannen","Scan invoice");
+  const M=S.modal,d=M.data;let body="",foot="",title=L("QR scannen","Scan QR");
   const RO=M.rep&&INV(M.rep),RK=RO&&K(W(RO.w).k);
   const repNote=RO?`<div class="notice"><span class="ic info" aria-hidden="true">i</span><span>${L("Ersetzt ","Replaces ")}${esc(RO.no)} · ${esc(RK.name)} · ${typeLabel(RO)}</span></div>`:"";
   if(!P()){
@@ -1225,7 +1231,7 @@ function formDef(){
     const ks=PC().map(w=>K(w.k)).filter(Boolean);
     const sel=F.id||"";
     return {title:L("Rechnung erfassen","Add invoice"),body:(ks.length?`<div class="f wide"><label for="fK">${L("Handwerker","Contractor")}</label><select id="fK">${ks.map(k=>`<option value="${k.id}"${k.id===sel?" selected":""}>${esc(k.name)}</option>`).join("")}</select><span class="hint">${L("Nur Handwerker mit Werkvertrag in diesem Projekt.","Only contractors with a contract in this project.")}</span></div>`:"")+(ks.length?`<div class="f"><label for="fType">${L("Art","Type")}</label><select id="fType"><option value="akonto">Akonto</option><option value="schluss">${L("Schlussrechnung","Final invoice")}</option><option value="regie">${L("Regie","Time & materials")}</option></select></div>`
-      +fld("fNo",L("Rechnungsnummer","Invoice number"),"")+fld("fAmt",L("Betrag CHF","Amount CHF"),"",{mode:"decimal",req:true})+fld("fDate",L("Datum","Date"),iso(TODAY),{type:"date"})+fld("fDue",L("Fällig am","Due"),addDays(iso(TODAY),SET().term),{type:"date"})+fld("fRef",L("Referenz (optional)","Reference (optional)"),"",{wide:true}):`<div class="f wide nok"><p>${L("In diesem Projekt gibt es noch keinen Handwerker mit Werkvertrag.","This project has no contractor with a contract yet.")}</p><p class="sp">${L("Am schnellsten: QR-Rechnung scannen. arkitecton legt Handwerker und Werkvertrag dabei selbst an.","Fastest: scan the QR-bill. arkitecton adds the contractor and contract for you.")}</p><div class="nokb"><button type="button" class="btn primary" data-act="capture">${L("Rechnung scannen","Scan invoice")}</button><button type="button" class="btn" data-act="form" data-f="contractor">${L("Handwerker erfassen","Add contractor")}</button></div></div>`),noSubmit:!ks.length};}
+      +fld("fNo",L("Rechnungsnummer","Invoice number"),"")+fld("fAmt",L("Betrag CHF","Amount CHF"),"",{mode:"decimal",req:true})+fld("fDate",L("Datum","Date"),iso(TODAY),{type:"date"})+fld("fDue",L("Fällig am","Due"),addDays(iso(TODAY),SET().term),{type:"date"})+fld("fRef",L("Referenz (optional)","Reference (optional)"),"",{wide:true}):`<div class="f wide nok"><p>${L("In diesem Projekt gibt es noch keinen Handwerker mit Werkvertrag.","This project has no contractor with a contract yet.")}</p><p class="sp">${L("Am schnellsten: QR-Rechnung scannen. arkitecton legt Handwerker und Werkvertrag dabei selbst an.","Fastest: scan the QR-bill. arkitecton adds the contractor and contract for you.")}</p><div class="nokb"><button type="button" class="btn primary" data-act="capture">${L("QR scannen","Scan QR")}</button><button type="button" class="btn" data-act="form" data-f="contractor">${L("Handwerker erfassen","Add contractor")}</button></div></div>`),noSubmit:!ks.length};}
   if(F.f==="bkp"){return {title:L("BKP-Position hinzufügen","Add BKP item"),body:`<div class="f wide"><label for="fStd">${L("Position","Item")}</label><select id="fStd">${STD_BKP.filter(s=>!p.budget.some(b=>b.bkp===s[0])).map(s=>`<option value="${s[0]}">${s[0]} ${esc(S.lang==="de"?s[1]:s[2])}</option>`).join("")}<option value="_">${L("Eigene Position …","Custom item …")}</option></select></div>`+fld("fCode",L("Eigene: BKP-Nummer","Custom: BKP number"),"",{mode:"numeric"})+fld("fLabel",L("Eigene: Bezeichnung","Custom: name"),"")+fld("fKv",L("Kostenvoranschlag CHF","Cost estimate CHF"),"",{mode:"decimal",wide:true})};}
   if(F.f==="kv"){const b=B(F.id);return {title:"BKP "+b.bkp+" "+tx(b),body:fld("fLabel",L("Bezeichnung","Name"),tx(b),{wide:true})+fld("fKv",L("Kostenvoranschlag CHF","Cost estimate CHF"),b.kv||"",{mode:"decimal",wide:true}),del:!PC().some(w=>w.bkp===b.bkp)};}
   if(F.f==="answer"){const i=INV(F.id);return {title:L("Antwort erhalten","Reply received"),body:`<div class="f wide"><label for="fNote">${L("Was war die Antwort?","What was the reply?")}</label><textarea id="fNote" rows="3" placeholder="${L("z. B. Rapporte erhalten, 6 h bestätigt","e.g. time sheets received, 6 h confirmed")}"></textarea><span class="hint">${L("Wird im Verlauf gespeichert. Die Rechnung ist danach wieder zu prüfen.","Saved in the history. The invoice goes back to review.")}</span></div>`};}
@@ -1341,7 +1347,7 @@ function sheetDef(key){
         bt(c==="reset-all"?L("Wirklich alle Daten löschen?","Really delete all data?"):L("Alle Daten löschen","Delete all data"),c==="reset-all"?"reset-all":"ask",c==="reset-all"?null:"reset-all","danger")]]],
       note:L("Testversion: Alle Daten und Dokumente liegen nur in diesem Browser auf diesem Gerät. Es wird nichts an einen Server gesendet. Die Sicherung enthält die Daten, aber nicht die Dokumente. Safari kann Daten löschen, wenn arkitecton länger als 7 Tage nicht geöffnet wird: Auf dem iPhone deshalb über Teilen → «Zum Home-Bildschirm» hinzufügen und regelmässig sichern.","Test version: all data and documents stay in this browser on this device. Nothing is sent to a server. The backup contains the data but not the documents. Safari may delete data if arkitecton is not opened for more than 7 days: on iPhone add it via Share → Add to Home Screen and back up regularly.")};
   }
-  if(key==="rechnungen") return {title:"Excel",groups:[[L("Herunterladen","Download"),[ex(L("Rechnungsliste","Invoice list"),"x-invoices")]]]};
+  if(key==="rechnungen") return {title:L("Weitere Aktionen","More actions"),groups:[["",[Object.assign(bt(L("Rechnung ohne QR erfassen","Add invoice without QR"),"form"),{f:"invoice"})]],[L("Herunterladen","Download"),[ex(L("Rechnungsliste","Invoice list"),"x-invoices")]]]};
   if(key==="handwerker") return {title:"Excel",groups:[[L("Hochladen","Upload"),[im(L("Handwerkerliste importieren","Import contractor list"),"contractors")]],[L("Herunterladen","Download"),[ex(L("Handwerkerliste","Contractor list"),"x-contractors")]]]};
   if(key==="budget") return {title:"Excel",groups:[[L("Herunterladen","Download"),[ex(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client"),"x-report"),ex(L("Budget nach BKP","Budget by BKP"),"x-budget")]]]};
   if(key==="tender") return {title:"Excel",groups:[[L("Herunterladen","Download"),[ex(L("Verfahrensliste","Procedure list"),"x-tenders"),ex(L("Referenzliste","Reference list"),"x-refs")]]]};
@@ -1390,7 +1396,7 @@ function sheetHTML(){
 function menuItems(d){
   return d.groups.filter(g=>g[1].length).map(([g,list])=>(g?`<div class="grp">${g}</div>`:"")+list.map(x=>x.imp
     ?`<label class="mi"><span>${esc(x.label)}</span><span class="k">${x.acc===".json"?".json ↑":".xlsx ↑"}</span><input type="file" accept="${x.acc||".xlsx,.xls,.csv"}" data-imp="${x.imp}"${x.id?` data-id="${x.id}"`:""} aria-label="${esc(x.label)}"></label>`
-    :x.btn?`<button type="button" class="mi ${x.cls||""}" data-act="${x.act}"${x.id?` data-id="${x.id}" data-c="${x.id}"`:""}><span>${esc(x.label)}</span><span class="k"></span></button>`
+    :x.btn?`<button type="button" class="mi ${x.cls||""}" data-act="${x.act}"${x.f?` data-f="${x.f}"`:""}${x.id?` data-id="${x.id}" data-c="${x.id}"`:""}><span>${esc(x.label)}</span><span class="k"></span></button>`
     :`<button type="button" class="mi" data-act="${x.act}"${x.id?` data-id="${x.id}"`:""}><span>${esc(x.label)}</span><span class="k">${x.act==="backup"?".json ↓":".xlsx ↓"}</span></button>`).join("")).join("");
 }
 function sheetWrap(d,items){

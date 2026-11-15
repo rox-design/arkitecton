@@ -289,7 +289,10 @@ function renderChrome(){
   const p=P();
   const rs=document.getElementById("railScan");if(rs)rs.innerHTML=`<svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICO.scan}</svg><span>${L("QR scannen","Scan QR")}</span>`;if(rs)rs.setAttribute("aria-label",L("QR scannen","Scan QR"));
   const firmLvl=S.view==="buero"||S.view==="ausschreibungen"||S.view==="einstellungen",tp=document.getElementById("topProj");tp.innerHTML=esc(firmLvl?(S.view!=="buero"?vName(S.view):((D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name"))):(p?p.name:L("Kein Projekt","No project")));
-  tp.dataset.act="home";tp.removeAttribute("aria-haspopup");tp.title=S.view==="buero"?"":L("Zu Home","Back to Home");const stat=S.view==="buero"||!firmLvl;tp.classList.toggle("static",stat);tp.tabIndex=stat?-1:0;
+  const sw=!firmLvl&&S.view!=="uebersicht";
+  if(sw){tp.innerHTML+='<span class="cv" aria-hidden="true">⌄</span>';tp.dataset.act="sheet";tp.dataset.k="projects";tp.setAttribute("aria-haspopup","dialog");tp.title=L("Projekt wechseln","Switch project");}
+  else{tp.dataset.act="home";tp.removeAttribute("aria-haspopup");tp.title=S.view==="buero"?"":L("Zu Home","Back to Home");}
+  const stat=S.view==="buero"||(!firmLvl&&!sw);tp.classList.toggle("static",stat);tp.tabIndex=stat?-1:0;
   document.querySelector(".topbar").classList.toggle("home",firmLvl);
   const fn=(D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name");["railFirm","topFirm"].forEach(id=>{const e=document.getElementById(id);if(e){e.textContent=fn;e.title=L("Alle Projekte","All projects");e.setAttribute("aria-current",S.view==="buero"?"page":"false");}});
   const min=navMode()==="min";document.getElementById("app").classList.toggle("rail-min",min);

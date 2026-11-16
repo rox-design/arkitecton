@@ -286,10 +286,10 @@ einstellungen:'<g stroke-width="1.35"><path d="M4 6.5h2.4M10.6 6.5H20"/><circle 
 scan:'<path d="M3.5 7.5v-3a1 1 0 0 1 1-1h3"/><path d="M16.5 3.5h3a1 1 0 0 1 1 1v3"/><path d="M20.5 16.5v3a1 1 0 0 1-1 1h-3"/><path d="M7.5 20.5h-3a1 1 0 0 1-1-1v-3"/><rect x="7" y="7" width="4" height="4" rx=".6"/><rect x="13" y="7" width="4" height="4" rx=".6"/><rect x="7" y="13" width="4" height="4" rx=".6"/><path d="M13.5 13.5h1.2v1.2h-1.2zM16 16h1v1h-1zM13.5 16.3h.9"/>',
 pin:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9 4.5v15"/>'};
 /* one rail row: the link plus quick actions that appear on hover (desktop) */
-const NAV_PLUS=()=>({uebersicht:["form-project","",L("Neues Projekt","New project")],rechnungen:["capture","",L("QR scannen","Scan QR")],handwerker:["form","contractor",L("Handwerker erfassen","Add contractor")],budget:["form","bkp",L("BKP-Position erfassen","Add BKP item")]});
+const NAV_PLUS=()=>({ausschreibungen:["form","tender",L("Ausschreibung erfassen","Add tender")],uebersicht:["form-project","",L("Neues Projekt","New project")],rechnungen:["capture","",L("QR scannen","Scan QR")],handwerker:["form","contractor",L("Handwerker erfassen","Add contractor")],budget:["form","bkp",L("BKP-Position erfassen","Add BKP item")]});
 const NAV_MORE=()=>({uebersicht:L("Projekt bearbeiten, Kostenübersicht","Edit project, cost overview"),rechnungen:L("Ohne QR, Honorar, Excel","Without QR, fee, Excel"),handwerker:L("Importieren, Excel","Import, Excel"),budget:L("Excel-Auswertungen","Excel reports"),ausschreibungen:L("Excel-Listen","Excel lists")});
 function navRow(v,extra=""){const pl=NAV_PLUS()[v],mo=NAV_MORE()[v];
-  return `<div class="nrow"><button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span>${extra}</button><span class="nact">${pl?`<button type="button" class="na" data-act="${pl[0]}"${pl[1]?` data-f="${pl[1]}"`:""} data-tip="${pl[2]}" aria-label="${pl[2]}">+</button>`:""}${mo?`<button type="button" class="na" data-act="nmore" data-v="${v}" data-tip="${mo}" aria-label="${L("Weitere Aktionen","More actions")}">···</button>`:""}</span></div>`;}
+  return `<div class="nrow" style="--na:${(pl?24:0)+(mo?24:0)}px"><button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span>${extra}</button><span class="nact">${pl?`<button type="button" class="na" data-act="${pl[0]}"${pl[1]?` data-f="${pl[1]}"`:""} data-tip="${pl[2]}" aria-label="${pl[2]}">+</button>`:""}${mo?`<button type="button" class="na" data-act="nmore" data-v="${v}" data-tip="${mo}" aria-label="${L("Weitere Aktionen","More actions")}">···</button>`:""}</span></div>`;}
 const navIco=v=>`<svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICO[v]}</svg>`;
 const vName=v=>({buero:"Home",uebersicht:L("Projekt","Project"),rechnungen:L("Rechnungen","Invoices"),handwerker:L("Handwerker","Contractors"),budget:"Budget",ausschreibungen:L("Ausschreibungen","Tenders"),einstellungen:L("Einstellungen","Settings")})[v];
 const SCAN_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M8 8h3v3H8zM13 13h3v3h-3zM13 8h3M8 13v3"/></svg>';
@@ -1041,7 +1041,7 @@ function viewTenders(){
     done:[L("Abgeschlossen","Closed"),String(closed.length),L("eingereicht oder verzichtet","submitted or skipped"),""]};
   const tile=k=>{const [l,v,ss,c]=TL[k],n=G[k].length,sel=S.tfilter===k,inner=`<span class="sl">${l}</span><span class="sv${c}">${n?v:"–"}</span><span class="ss">${ss}</span>`;
     return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="tfilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
-  return `<div class="page">${ph(L("Büro · Beispieldaten","Office · example data"),L("Ausschreibungen","Tenders"),"",tsw+excelBtn("tender"))}
+  return `<div class="page">${ph(L("Büro","Office"),L("Ausschreibungen","Tenders"),"",tsw+ib("plus",L("Ausschreibung erfassen","Add tender"),'data-act="form" data-f="tender"')+excelBtn("tender"))}
     <div class="stats s4">${["open","ok","partner","done"].map(tile).join("")}</div>
     <section><div class="sh"><h2>${TL[S.tfilter][0]}</h2><span class="cnt">${list.length}</span><span class="right">${S.tfilter==="open"?"":`<button type="button" class="ghost" data-act="tfilter" data-f="open">${L("Alle offenen anzeigen","Show all open")} (${active.length})</button>`}</span></div><div class="rows">${rows||`<div class="empty"><span>${L("Keine Verfahren.","No procedures.")}</span></div>`}</div></section>
   </div>`;
@@ -1355,6 +1355,21 @@ const fld=(id,label,val,o={})=>`<div class="f${o.wide?" wide":""}"><label for="$
 function formDef(){
   if(S.form&&S.form.f==="fee") return feeFormDef(S.form);
   const F=S.form, p=P();
+  if(F.f==="tender"){const opt=(o,cur,all)=>(all?`<option value="">${all}</option>`:"")+Object.keys(o).map(k=>`<option value="${k}"${cur===k?" selected":""}>${esc(tx(o[k]))}</option>`).join("");
+    const Y=YNOW();
+    return {title:L("Ausschreibung erfassen","Add tender"),body:
+      fld("fTTitle",L("Titel","Title"),"",{wide:true,req:true,ph:L("z. B. Neubau Kindergarten","e.g. New kindergarten")})
+      +fld("fTClient",L("Auftraggeber","Contracting authority"),"",{wide:true,ph:L("z. B. Gemeinde Kilchberg","e.g. Municipality of Kilchberg")})
+      +`<div class="f"><label for="fTProc">${L("Verfahren","Procedure")}</label><select id="fTProc">${opt(PROC,"sel")}</select></div>`
+      +fld("fTCost",L("Bausumme in Mio. CHF","Construction cost, CHF m"),"",{mode:"decimal",ph:"z. B. 7.2"})
+      +fld("fTDue",L("Eingabefrist","Submission deadline"),"",{type:"date",req:true})+fld("fTQDue",L("Fragefrist","Question deadline"),"",{type:"date"})
+      +`<h3 class="subh" style="grid-column:1/-1;margin:10px 0 -4px">${L("Eignungskriterien","Eligibility criteria")}</h3>`
+      +fld("fTRefN",L("Anzahl Referenzen","Number of references"),"2",{mode:"numeric"})+fld("fTRefSince",L("Referenzen seit (Jahr)","References since (year)"),String(Y-10),{mode:"numeric"})
+      +fld("fTRefMin",L("Referenzen ab Bausumme (Mio. CHF)","References from cost (CHF m)"),"",{mode:"decimal",ph:"z. B. 2.5"})
+      +`<div class="f"><label for="fTRefType">${L("Art der Referenzen","Type of references")}</label><select id="fTRefType">${opt(RTYPE,"",L("beliebig","any"))}</select></div>`
+      +`<div class="f wide"><label class="chk"><input type="checkbox" id="fTRefPub"> ${L("Referenzen mit öffentlicher Bauherrschaft verlangt","References with public client required")}</label></div>`
+      +`<div class="f wide"><label for="fTTeam">${L("Schlüsselperson","Key person")}</label><select id="fTTeam"><option value="">${L("keine verlangt","none required")}</option><option value="bl">${L("Bauleiter mit eidg. Fachausweis","Site manager, federal certificate")}</option><option value="pl">${L("Projektleiter, öffentliche Bauten","Project lead, public buildings")}</option></select></div>`
+      +`<div class="f wide"><label class="chk"><input type="checkbox" id="fTEng"> ${L("Bauingenieur im Team verlangt","Structural engineer required")}</label></div>`};}
   if(F.f==="ref"){const O=D.office,r=O.refs.find(x=>x.id===F.id)||{},pr=F.w?PJ(F.w):null,bud=pr?(pr.budget||[]).reduce((a,b)=>a+(b.kv||0),0):0;
     const v=k=>r[k]!=null?r[k]:"";const name=F.id?tx(r):pr?pr.name+(pr.place?", "+pr.place:""):"";
     const opt=(o,cur)=>Object.keys(o).map(k=>`<option value="${k}"${cur===k?" selected":""}>${esc(tx(o[k]))}</option>`).join("");
@@ -1475,6 +1490,13 @@ function submitForm(){
     if(amt>0&&!why) return fail(L("Bitte kurz begründen.","Please give a short reason."));
     if(amt>0){i.ded={amt:r2(amt),why};logInv(i,L("Abzug CHF ","Deduction CHF ")+nf2.format(r2(amt))+": "+why);}else if(i.ded){delete i.ded;logInv(i,L("Abzug entfernt","Deduction removed"));}
     const id=i.id;closeAll();S.drawer=id;render();return toast(amt>0?L("Abzug gespeichert","Deduction saved"):L("Abzug entfernt","Deduction removed"));}
+  if(F.f==="tender"){if(!val("fTTitle"))return fail(L("Titel fehlt.","Title missing."),"fTTitle");
+    if(!val("fTDue"))return fail(L("Eingabefrist fehlt.","Submission deadline missing."),"fTDue");
+    const n=parseInt(val("fTRefN"),10)||0,since=parseInt(val("fTRefSince"),10)||YNOW()-10,min=num(val("fTRefMin"))||0,typ=document.getElementById("fTRefType").value,tag=document.getElementById("fTTeam").value,eng=document.getElementById("fTEng").checked;
+    const reqs=[];if(n>0)reqs.push({k:"refs",n,since,minCost:min,pub:document.getElementById("fTRefPub").checked,types:typ?[typ]:null});if(tag)reqs.push({k:"team",tag});reqs.push({k:"disc",need:eng?["291","292"]:["291"]});
+    const docs=[];if(n>0)docs.push({id:"d1",auto:"refs"});if(tag)docs.push({id:"d2",auto:"team"});docs.push({id:"d3",auto:"self"});
+    const t={id:newId("t"),title:{de:val("fTTitle"),en:val("fTTitle")},client:val("fTClient"),proc:document.getElementById("fTProc").value,phases:"31–53",cost:num(val("fTCost"))||0,qDue:val("fTQDue")||null,due:val("fTDue"),status:"neu",reqs,docs,done:{},own:true};
+    D.tenders.push(t);S.ttab="verfahren";S.from=null;backTo();go("ausschreibungen");S.tid=t.id;render();return toast(L("Ausschreibung erfasst","Tender added"));}
   if(F.f==="ref"){const O=D.office,name=val("fRName");if(!name)return fail(L("Projekt fehlt.","Project missing."),"fRName");
     const cost=val("fRCost")?num(val("fRCost")):null;if(val("fRCost")&&(cost===null||cost<0))return fail(L("Bausumme als Zahl in Mio. CHF eingeben, z. B. 4.2","Enter the cost in CHF m, e.g. 4.2"),"fRCost");
     const run=document.getElementById("fRRun").checked,year=parseInt(val("fRYear"),10);if(!run&&!(year>1950&&year<=YNOW()+1))return fail(L("Abschlussjahr eingeben oder «läuft noch» wählen.","Enter the year or tick «still running»."),"fRYear");

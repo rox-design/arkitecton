@@ -1765,7 +1765,7 @@ const SWIPE=["uebersicht","rechnungen","handwerker","budget"];
   const upd=()=>{if(!window.matchMedia("(max-width:820px)").matches){b.classList.remove("on");return;}
     const tb=document.getElementById("tabbar"),r=tb&&tb.getBoundingClientRect();
     if(r&&r.height)b.style.bottom=(innerHeight-r.top+12)+"px";
-    const end=main.scrollTop>240&&main.scrollTop+main.clientHeight>=main.scrollHeight-48;
+    const end=main.scrollTop>40&&main.scrollTop+main.clientHeight>=main.scrollHeight-60;
     document.body.classList.toggle("at-end",end);
     if(end)lab();b.classList.toggle("on",end&&!document.querySelector("#overlay.on"));};
   main.addEventListener("scroll",upd,{passive:true});window.addEventListener("resize",upd);

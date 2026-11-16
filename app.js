@@ -1730,7 +1730,8 @@ const SWIPE=["uebersicht","rechnungen","handwerker","budget"];
     if(st.dir!==1)return;
     st.v=(t.clientX-st.lx)/Math.max(1,now-st.lt);st.lx=t.clientX;st.lt=now;st.dx=dx;
     const i=SWIPE.indexOf(S.view),end=(dx>0&&i===0)||(dx<0&&i===SWIPE.length-1);
-    set(end?dx*0.2:dx,0);
+    if(end){if(main.style.transform)set(0,0);return;} /* no page in that direction: the page stays put */
+    set(dx,0);
   },{passive:true});
   main.addEventListener("touchend",()=>{
     if(!st)return;const s0=st;st=null;if(s0.dir!==1){set(0,180);return;}

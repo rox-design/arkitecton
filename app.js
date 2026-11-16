@@ -274,7 +274,7 @@ handwerker:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20.5c.8-3.6 3.6-5.5 7-5.
 budget:'<path d="M4 20h16"/><path d="M7 20v-6"/><path d="M12 20V8"/><path d="M17 20v-9"/>',
 ausschreibungen:'<path d="M6 21V4"/><path d="M6 4h11l-2 4 2 4H6"/>',
 einstellungen:'<g stroke-width="1.35"><path d="M4 6.5h2.4M10.6 6.5H20"/><circle cx="8.5" cy="6.5" r="2.1"/><path d="M4 12h9.4M17.6 12H20"/><circle cx="15.5" cy="12" r="2.1"/><path d="M4 17.5h4.9M13.1 17.5H20"/><circle cx="11" cy="17.5" r="2.1"/></g>',
-scan:'<path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M16 4h3a1 1 0 0 1 1 1v3"/><path d="M20 16v3a1 1 0 0 1-1 1h-3"/><path d="M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 9h3v3H8z"/><path d="M13 9h3"/><path d="M13 12h3"/><path d="M8 15h8"/>',
+scan:'<path d="M3.5 7.5v-3a1 1 0 0 1 1-1h3"/><path d="M16.5 3.5h3a1 1 0 0 1 1 1v3"/><path d="M20.5 16.5v3a1 1 0 0 1-1 1h-3"/><path d="M7.5 20.5h-3a1 1 0 0 1-1-1v-3"/><rect x="7" y="7" width="4" height="4" rx=".6"/><rect x="13" y="7" width="4" height="4" rx=".6"/><rect x="7" y="13" width="4" height="4" rx=".6"/><path d="M13.5 13.5h1.2v1.2h-1.2zM16 16h1v1h-1zM13.5 16.3h.9"/>',
 pin:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9 4.5v15"/>'};
 /* one rail row: the link plus quick actions that appear on hover (desktop) */
 const NAV_PLUS=()=>({uebersicht:["form-project","",L("Neues Projekt","New project")],rechnungen:["capture","",L("QR scannen","Scan QR")],handwerker:["form","contractor",L("Handwerker erfassen","Add contractor")],budget:["form","bkp",L("BKP-Position erfassen","Add BKP item")]});
@@ -305,7 +305,7 @@ function renderChrome(){
   document.getElementById("nav").innerHTML=["uebersicht","rechnungen","handwerker","budget"].map(v=>navRow(v)).join("");void tog;void plist;
   const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=navRow("buero")+navRow("ausschreibungen");
   const tb=(v,l)=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${l}</span></button>`;
-  document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget")+(S.view==="rechnungen"&&S.rtab!=="deb"?`<button type="button" class="tabscan" data-act="capture">${navIco("scan")}<span>${L("QR scannen","Scan QR")}</span></button>`:"");
+  document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget")+(S.view==="rechnungen"&&S.rtab!=="deb"?`<button type="button" class="tabscan" data-act="capture" aria-label="${L("QR scannen","Scan QR")}" title="${L("QR scannen","Scan QR")}">${navIco("scan")}</button>`:"");
   const ts=document.getElementById("topSet");if(ts){ts.innerHTML=navIco("einstellungen");ts.setAttribute("aria-label",L("Einstellungen","Settings"));ts.title=L("Einstellungen","Settings");ts.setAttribute("aria-current",S.view==="einstellungen"?"page":"false");}
 }
 const ph=(eyebrow,title,lead,tools)=>`<header class="ph">${P()&&eyebrow===esc(P().name)?`<button type="button" class="eyebrow pname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${eyebrow}<span class="cv" aria-hidden="true">⌄</span></button>`:`<span class="eyebrow">${eyebrow}</span>`}<h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;
@@ -1765,8 +1765,8 @@ const SWIPE=["uebersicht","rechnungen","handwerker","budget"];
   const upd=()=>{if(!window.matchMedia("(max-width:820px)").matches){b.classList.remove("on");return;}
     const tb=document.getElementById("tabbar"),r=tb&&tb.getBoundingClientRect();
     if(r&&r.height)b.style.bottom=(innerHeight-r.top+12)+"px";
-    b.classList.toggle("side",!!document.querySelector(".tabbar .tabscan"));
     const end=main.scrollTop>240&&main.scrollTop+main.clientHeight>=main.scrollHeight-48;
+    document.body.classList.toggle("at-end",end);
     if(end)lab();b.classList.toggle("on",end&&!document.querySelector("#overlay.on"));};
   main.addEventListener("scroll",upd,{passive:true});window.addEventListener("resize",upd);
   new MutationObserver(()=>requestAnimationFrame(upd)).observe(main,{childList:true});

@@ -797,3 +797,9 @@ select.needs{border-color:var(--warn)}
   .totop{background:color-mix(in srgb,var(--hover) 70%,transparent);border-color:color-mix(in srgb,var(--line) 60%,transparent)}
   .totop:active{background:var(--hover)}
 }
+/* phone: round icon-only scan; at the page end it gives way to the arrow */
+@media (max-width:820px){
+  .tabbar .tabscan{width:56px;height:56px;padding:0;justify-content:center;border-radius:50%;transition:opacity .18s,transform .18s}
+  .tabbar .tabscan .ni{width:24px;height:24px}
+  body.at-end .tabbar .tabscan{opacity:0;pointer-events:none;transform:translate(-50%,8px)}
+}

@@ -300,8 +300,8 @@ function renderChrome(){
   const firmLvl=S.view==="buero"||S.view==="ausschreibungen"||S.view==="einstellungen",tp=document.getElementById("topProj");tp.innerHTML=esc(firmLvl?(S.view!=="buero"?vName(S.view):((D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name"))):(p?p.name:L("Kein Projekt","No project")));
   const sw=!firmLvl&&S.view!=="uebersicht";
   if(sw){tp.innerHTML+='<span class="cv" aria-hidden="true">⌄</span>';tp.dataset.act="sheet";tp.dataset.k="projects";tp.setAttribute("aria-haspopup","dialog");tp.title=L("Projekt wechseln","Switch project");}
-  else{tp.dataset.act="home";tp.removeAttribute("aria-haspopup");tp.title=S.view==="buero"?"":L("Zu Home","Back to Home");}
-  const stat=S.view==="buero"||(!firmLvl&&!sw);tp.classList.toggle("static",stat);tp.tabIndex=stat?-1:0;
+  else{tp.dataset.act="home";tp.removeAttribute("aria-haspopup");tp.title="";}
+  const stat=!sw; /* the name is only a button where it switches projects; the logo is the way Home */tp.classList.toggle("static",stat);tp.tabIndex=stat?-1:0;
   document.querySelector(".topbar").classList.toggle("home",firmLvl);
   const fn=(D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name");["railFirm","topFirm"].forEach(id=>{const e=document.getElementById(id);if(e){e.textContent=fn;e.title=L("Alle Projekte","All projects");e.setAttribute("aria-current",S.view==="buero"?"page":"false");}});
   const min=navMode()==="min";document.getElementById("app").classList.toggle("rail-min",min);
@@ -762,7 +762,7 @@ function viewOverview(){
     <header class="ph"><span class="eyebrow">${esc(today)}</span><h1><button type="button" class="pswitch" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button></h1><div class="tools">${ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"')}</div>${[p.place,p.desc].filter(Boolean).length?`<p class="lead">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</p>`:""}</header>
     ${startSteps()}
     <div class="stats">
-      <button type="button" class="stat" data-act="nav" data-v="rechnungen"><span class="sl">${L("Zu zahlen","To pay")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(upl)}</span></button>
+      <button type="button" class="stat" data-act="to-pay"><span class="sl">${L("Zu zahlen","To pay")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(upl)}</span></button>
       <button type="button" class="stat" data-act="jump-flags"><span class="sl">${L("Mehrkosten","Extra costs")}</span><span class="sv${fl.length?" warn":""}">${chf(flSum,false)}</span><span class="ss">${fl.length?fl.length+" "+(fl.length===1?L("Hinweis","finding"):L("Hinweise","findings"))+L(" · über Vertrag, Offerte oder Budget"," · above contract, offer or budget"):L("keine","none")}</span></button>
       <button type="button" class="stat" data-act="nav" data-v="budget"><span class="sl">${L("Kostenstand","Cost status")}</span><span class="sv">${t.kv?pct+"%":"–"}</span><span class="ss kst"><span class="mini"><i style="width:${Math.min(100,pct)}%"></i></span>${t.kv?`<span>${chf(used,false)+L(" von "," of ")+nfq.format(t.kv)+L(" freigegeben"," approved")}</span>${held>0?`<span title="${L("Zurückbehalten, wird später ausbezahlt","Withheld, paid out later")}">${L("davon ","incl. ")+chf(held,false)+L(" Rückbehalt"," retention")}</span>`:""}`:L("kein Budget","no budget")}</span></button>
     </div>
@@ -778,22 +778,25 @@ function viewInvoices(){
   const p=P(); if(!p) return noProject();
   const sw=`<div class="seg" role="tablist"><button type="button" role="tab" data-act="rtab" data-t="kred" aria-selected="${S.rtab!=="deb"}">${L("Handwerker","Contractors")}</button><button type="button" role="tab" data-act="rtab" data-t="deb" aria-selected="${S.rtab==="deb"}">${L("Honorar","Fees")}</button></div>`;
   if(S.rtab==="deb") return `<div class="page invp">${ph(esc(p.name),L("Rechnungen","Invoices"),"",sw+ib("plus",L("Honorarrechnung erstellen","New fee invoice"),'data-act="form" data-f="fee"'))}${viewFees()}</div>`;
-  const F=["pruefen","rueckfrage","frei","bezahlt","all"], all=PIx();
-  const cnt=f=>f==="all"?all.length:all.filter(i=>i.status===f).length;
+  const F=["zahlen","pruefen","rueckfrage","frei","bezahlt","all"], all=PIx();
+  const of=f=>f==="all"?all:f==="zahlen"?unpaid(all):all.filter(i=>i.status===f);
+  const fLabel=f=>f==="zahlen"?L("Zu zahlen","To pay"):stLabel(f);
+  const cnt=f=>of(f).length;
   if(S.filter!=="all"&&!cnt(S.filter)&&all.length)S.filter=F.find(f=>f!=="all"&&cnt(f))||"all";
-  const list=all.filter(i=>S.filter==="all"||i.status===S.filter).slice().sort((a,b)=>toDate(b.date)-toDate(a.date));
+  const list=of(S.filter).slice().sort((a,b)=>toDate(b.date)-toDate(a.date));
+  const pay=S.filter==="zahlen";
   const byDue=S.filter!=="all"&&S.filter!=="bezahlt";
-  const rows=list.map(i=>{const w=W(i.w),k=K(w.k),dd=daysTo(i.due);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:esc(k.name),meta:typeLabel(i)+" · "+esc(i.no),amt:chf(i.gross,false),label:byDue?dueText(dd):stLabel(i.status),lc:byDue?dueTone(dd):STATUS[i.status].c});}).join("");
+  const rows=list.map(i=>{const w=W(i.w),k=K(w.k),dd=daysTo(i.due);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:esc(k.name),meta:typeLabel(i)+" · "+esc(i.no),amt:chf(pay?payout(i):i.gross,false),label:byDue?dueText(dd):stLabel(i.status),lc:byDue?dueTone(dd):STATUS[i.status].c});}).join("");
   const more=`<button type="button" class="ib" title="${L("Weitere Aktionen","More actions")}" aria-label="${L("Weitere Aktionen","More actions")}" data-act="sheet" data-k="rechnungen">${ico("more")}</button>`;
-  const total=list.reduce((a,i)=>a+i.gross,0);
-  const sumLine=list.length?`<div class="fsum phoneonly"><span>${list.length} ${({pruefen:L("zu prüfen","to check"),rueckfrage:L("mit Rückfrage","with query"),frei:L("freigegeben","approved"),bezahlt:L("bezahlt","paid")})[S.filter]||(list.length===1?L("Rechnung","invoice"):L("Rechnungen","invoices"))}</span><span>${chf(total,false)}</span></div>`:"";
+  const total=pay?toPay(list):list.reduce((a,i)=>a+i.gross,0);
+  const sumLine=list.length?`<div class="fsum phoneonly"><span>${list.length} ${({zahlen:L("zu zahlen","to pay"),pruefen:L("zu prüfen","to check"),rueckfrage:L("mit Rückfrage","with query"),frei:L("freigegeben","approved"),bezahlt:L("bezahlt","paid")})[S.filter]||(list.length===1?L("Rechnung","invoice"):L("Rechnungen","invoices"))}</span><span>${chf(total,false)}</span></div>`:"";
   return `<div class="page invp">
     ${ph(esc(p.name),L("Rechnungen","Invoices"),"",sw+more)}
     <div class="eb invact"><button type="button" class="btn primary scanbig" data-act="capture">${navIco("scan")}<span>${L("QR scannen","Scan QR")}</span></button><button type="button" class="btn deskonly" data-act="form" data-f="invoice">${L("Ohne QR erfassen","Add without QR")}</button></div>
-    <div class="stats s4 deskonly">${["pruefen","rueckfrage","frei","bezahlt"].map(f=>{const li=all.filter(i=>i.status===f),n=li.length,sum=li.reduce((a,i)=>a+i.gross,0),sel=S.filter===f;const inner=`<span class="sl">${stLabel(f)}</span><span class="sv">${n?chf(sum,false):"–"}</span><span class="ss">${n===1?L("1 Rechnung","1 invoice"):n?n+" "+L("Rechnungen","invoices"):L("keine","none")}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="filter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;}).join("")}</div>
-    <div class="tabs chips phoneonly" role="tablist">${F.filter(f=>f==="all"||cnt(f)||S.filter===f).map(f=>`<button type="button" role="tab" data-act="filter" data-f="${f}" aria-selected="${S.filter===f}">${f==="all"?L("Alle","All"):stLabel(f)}<span class="c">${cnt(f)}</span></button>`).join("")}</div>
+    <div class="stats s5 deskonly">${["zahlen","pruefen","rueckfrage","frei","bezahlt"].map(f=>{const li=of(f),n=li.length,sum=f==="zahlen"?toPay(li):li.reduce((a,i)=>a+i.gross,0),sel=S.filter===f;const inner=`<span class="sl">${fLabel(f)}</span><span class="sv">${n?chf(sum,false):"–"}</span><span class="ss">${n===1?L("1 Rechnung","1 invoice"):n?n+" "+L("Rechnungen","invoices"):L("keine","none")}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="filter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;}).join("")}</div>
+    <div class="tabs chips phoneonly" role="tablist">${F.filter(f=>f==="all"||cnt(f)||S.filter===f).map(f=>`<button type="button" role="tab" data-act="filter" data-f="${f}" aria-selected="${S.filter===f}">${f==="all"?L("Alle","All"):fLabel(f)}<span class="c">${cnt(f)}</span></button>`).join("")}</div>
     ${sumLine}
-    <section><div class="sh deskonly"><h2>${S.filter==="all"?L("Alle Rechnungen","All invoices"):stLabel(S.filter)}</h2><span class="cnt">${list.length}</span><span class="right">${S.filter==="all"||!all.length?"":`<button type="button" class="ghost" data-act="filter" data-f="all">${L("Alle anzeigen","Show all")} (${all.length})</button>`}</span></div><div class="rows">${rows||(all.length?`<div class="empty">${L("Keine Rechnungen mit diesem Status.","No invoices with this status.")}</div>`:`<div class="empty"><span>${L("Noch keine Rechnungen in diesem Projekt. Scannen Sie den QR-Zahlteil einer Handwerker-Rechnung.","No invoices in this project yet. Scan the QR payment part of a contractor invoice.")}</span></div>`)}</div></section>
+    <section><div class="sh deskonly"><h2>${S.filter==="all"?L("Alle Rechnungen","All invoices"):fLabel(S.filter)}</h2><span class="cnt">${list.length}</span>${pay?`<span class="ss" style="margin-left:12px;color:var(--muted);font-size:.85rem">${L("Beträge nach Abzug des Rückbehalts","amounts after retention")}</span>`:""}<span class="right">${S.filter==="all"||!all.length?"":`<button type="button" class="ghost" data-act="filter" data-f="all">${L("Alle anzeigen","Show all")} (${all.length})</button>`}</span></div><div class="rows">${rows||(all.length?`<div class="empty">${L("Keine Rechnungen mit diesem Status.","No invoices with this status.")}</div>`:`<div class="empty"><span>${L("Noch keine Rechnungen in diesem Projekt. Scannen Sie den QR-Zahlteil einer Handwerker-Rechnung.","No invoices in this project yet. Scan the QR payment part of a contractor invoice.")}</span></div>`)}</div></section>
   </div>`;
 }
 
@@ -856,7 +859,7 @@ function viewContractor(k){
   if(S.wid&&W(S.wid)&&W(S.wid).k===k.id){
     const w=W(S.wid);
     const bi=S.cmpBack&&INV(S.cmpBack.inv);
-    body=`${bi?`<button type="button" class="back" data-act="back-inv">← ${L("Zurück zur Rechnung ","Back to invoice ")}${esc(bi.no)}</button>`:`<button type="button" class="back" data-act="back-w">← ${L("Alle Verträge","All contracts")}</button>`}
+    body=`${bi?`<button type="button" class="back" data-act="back-inv">← ${L("Zurück zur Rechnung ","Back to invoice ")}${esc(bi.no)}</button>`:backBtn("back-w",L("Alle Verträge","All contracts"))}
       <div class="ctx">${esc(PJ(w.pid).name)} · BKP ${w.bkp} ${esc(bName(w.bkp))}</div>${cmpBody(w)}`;
   } else if(S.ktab==="konto"){
     const oi=invOf(all).filter(i=>i.status!=="bezahlt"&&live(i)),open=oi.reduce((a,i)=>a+payout(i),0),gross=oi.reduce((a,i)=>a+net(i),0),oret=r2(gross-open);
@@ -882,7 +885,7 @@ function viewContractor(k){
   }
   const inW=S.wid&&W(S.wid)&&W(S.wid).k===k.id;
   return `<div class="page">
-    ${inW?"":`<button type="button" class="back" data-act="back-k">← ${L("Handwerker","Contractors")}</button>`}
+    ${inW?"":backBtn("back-k",L("Handwerker","Contractors"))}
     ${ph("",esc(k.name),lead,tools)}
     ${all.length?`<div class="tabs" role="tablist"><button type="button" role="tab" data-act="ktab" data-t="konto" aria-selected="${S.ktab==="konto"}">${L("Konto","Account")}</button><button type="button" role="tab" data-act="ktab" data-t="vergleich" aria-selected="${S.ktab==="vergleich"}">${L("Offerte und Abrechnung","Offer and final account")}</button></div>`:""}
     ${body||addHere}
@@ -1067,7 +1070,7 @@ function viewTender(t){
   else if(t.status==="arbeit") actions=`<button type="button" class="btn" data-act="t-status" data-id="${t.id}" data-s="verzichtet">${L("Nicht teilnehmen","Skip")}</button><button type="button" class="btn primary" data-act="t-status" data-id="${t.id}" data-s="eingereicht"${fit!=="no"&&!open.length?"":" disabled"}>${L("Eingereicht","Submitted")}</button>`;
   else actions=`<button type="button" class="btn" data-act="t-status" data-id="${t.id}" data-s="arbeit">${L("Wieder öffnen","Reopen")}</button>`;
   return `<div class="page">
-    <button type="button" class="back" data-act="back-t">← ${L("Ausschreibungen","Tenders")}</button>
+    ${backBtn("back-t",L("Ausschreibungen","Tenders"))}
     ${ph(esc(t.client)+" · "+L("Beispiel","Example"),esc(tx(t.title)),tx(PROC[t.proc])+" · SIA "+t.phases,excelBtn("t:"+t.id))}
     <div class="stats">
       <div class="stat"><span class="sl">${L("Eingabe","Submission")}</span><span class="sv${!c&&dd<=14?" warn":""}">${c?tx(TST[t.status]):dd<0?L("vorbei","closed"):L("in "+dd+" "+dayWord(dd),"in "+dd+" "+(dd===1?"day":"days"))}</span><span class="ss">${fdate(t.due)} · ${daysTo(t.qDue)<0?L("Fragefrist abgelaufen","question period over"):L("Fragen bis","questions by")+" "+fdate(t.qDue)}</span></div>
@@ -1700,6 +1703,11 @@ let toastT;
 function toast(msg,ms,hint){const t=document.getElementById("toast");if(hint)t.dataset.hint="1";else delete t.dataset.hint;t.classList.toggle("top",!!document.querySelector("#overlay.on"));t.textContent=msg;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),ms||3000);}
 async function copy(text,ok){try{await navigator.clipboard.writeText(text);toast(ok);}catch(e){toast(L("Kopieren nicht möglich","Copy failed"));}}
 function closeAll(){stopCam();S.kvx=null;S.fdrawer=null;S.drawer=null;S.modal=null;S.sheet=null;S.form=null;S.formErr="";S.confirm=null;S.queryOpen=false;S.done=null;}
+const startView=v=>{S.from=null;S.kid=null;S.wid=null;S.tid=null;S.mid=null;S.cmpBack=null;
+  if(v==="rechnungen"){S.rtab="kred";S.filter="pruefen";S.ffilter="open";}
+  if(v==="handwerker")S.kfilter="";if(v==="ausschreibungen"){S.ttab="verfahren";S.tfilter="open";S.pfilter="refs";}};
+const fromHere=target=>{S.from=S.view!==target?{view:S.view,top:document.getElementById("main").scrollTop}:null;};
+const backBtn=(act,label)=>S.from?`<button type="button" class="back" data-act="back-from">← ${vName(S.from.view)}</button>`:`<button type="button" class="back" data-act="${act}">← ${label}</button>`;
 function go(v){if(!VIEWS.includes(v))v="uebersicht";closeAll();if(v!=="handwerker")S.cmpBack=null;S.view=v;if(v!=="handwerker")S.kid=null;if(v!=="ausschreibungen")S.tid=null;try{history.replaceState(null,"","#"+v);}catch(e){}render();document.getElementById("main").scrollTop=0;}
 const openForm=(f,id,w)=>{const keepDrawer=S.drawer;closeAll();S.form={f,id:id||null,w:w||null,back:keepDrawer};renderOverlay();};
 
@@ -1713,7 +1721,7 @@ document.addEventListener("click",e=>{
   switch(a){
     case "start-example":D=seedExample();runMigrations();S.view="uebersicht";render();break;
     case "start-empty":D=seedEmpty();runMigrations();S.view="buero";render();openForm("firm");break;
-    case "nav":S.kid=null;S.tid=null;go(el.dataset.v);break;
+    case "nav":startView(el.dataset.v);go(el.dataset.v);break;
     case "theme-set":setTheme(el.dataset.v);render();toast(L("Gespeichert","Saved"));break;
     case "nmore":case "pmore":{const r=el.getBoundingClientRect();S.pconfirm=null;S.pop={kind:a==="nmore"?"nav":"proj",key:a==="nmore"?el.dataset.v:id,rect:r,kb:e.detail===0};renderPop();return;}
     case "ptoggle":S.projOpen=!S.projOpen;renderChrome();break;
@@ -1732,6 +1740,7 @@ document.addEventListener("click",e=>{
     case "kfilter":S.kfilter=el.dataset.f;render();break;
     case "ffilter":S.ffilter=el.dataset.f;render();break;
     case "filter":S.filter=el.dataset.f;render();break;
+    case "to-pay":startView("rechnungen");S.filter="zahlen";go("rechnungen");break;
     case "to-fees":S.rtab="deb";go("rechnungen");break;
     case "rtab":S.rtab=el.dataset.t;render();break;
     case "open-fee":closeAll();S.fdrawer=id;renderOverlay();break;
@@ -1744,11 +1753,11 @@ document.addEventListener("click",e=>{
     case "fee-demo":{addDemoFees();render();toast(L("3 Beispielrechnungen angelegt","3 example invoices added"));break;}
     case "fee-del":{D.fees=FEES().filter(x=>x.id!==id);closeAll();render();toast(L("Rechnung gelöscht","Invoice deleted"));break;}
     case "logo-del":readFirmForm();delete D.firm.logo;renderOverlay();break;
-    case "jump-flags":{const f=document.getElementById("flags");if(f)f.scrollIntoView({behavior:"smooth",block:"start"});break;}
+    case "jump-flags":{S.allFlags=true;render();const f=document.getElementById("flags");if(f)f.scrollIntoView({behavior:"smooth",block:"start"});break;}
     case "all-flags":S.allFlags=!S.allFlags;render();break;
     case "open-inv":closeAll();S.drawer=id;renderOverlay();break;
-    case "open-k":S.wid=null;S.kid=id;S.ktab="konto";go("handwerker");S.kid=id;render();break;
-    case "open-cmp":{const w=W(id);if(!w)break;S.cmpBack=S.drawer?{inv:S.drawer,view:S.view}:null;S.kid=w.k;S.ktab="vergleich";S.wid=w.id;go("handwerker");S.kid=w.k;S.wid=w.id;render();break;}
+    case "open-k":fromHere("handwerker");S.wid=null;S.kid=id;S.ktab="konto";go("handwerker");S.kid=id;render();break;
+    case "open-cmp":{const w=W(id);if(!w)break;if(!S.drawer)fromHere("handwerker");S.cmpBack=S.drawer?{inv:S.drawer,view:S.view}:null;S.kid=w.k;S.ktab="vergleich";S.wid=w.id;go("handwerker");S.kid=w.k;S.wid=w.id;render();break;}
     case "kv-explain":closeAll();S.kvx=id;renderOverlay();break;
     case "kv-budget":closeAll();S.hl=id;go("budget");render();setTimeout(()=>{const e=document.querySelector('.brow[data-id="'+id+'"]');if(e)e.scrollIntoView({behavior:"smooth",block:"center"});},60);setTimeout(()=>{S.hl=null;},3000);break;
     case "open-w":S.wid=id;render();break;
@@ -1758,7 +1767,8 @@ document.addEventListener("click",e=>{
     case "ktab":S.ktab=el.dataset.t;S.wid=null;render();break;
     case "to-cmp":S.ktab="vergleich";render();break;
     case "cmp-all":S.cmpAll=!S.cmpAll;render();break;
-    case "open-t":go("ausschreibungen");S.tid=id;render();break;
+    case "open-t":fromHere("ausschreibungen");go("ausschreibungen");S.tid=id;render();break;
+    case "back-from":{const f=S.from;S.from=null;S.kid=null;S.wid=null;S.tid=null;S.cmpBack=null;if(f){go(f.view);document.getElementById("main").scrollTop=f.top||0;}else render();break;}
     case "back-t":S.tid=null;render();break;
     case "ttab":S.ttab=el.dataset.t;render();break;
     case "t-status":{const t=T(id);t.status=el.dataset.s;render();toast(tx(TST[t.status]));break;}
@@ -1770,7 +1780,7 @@ document.addEventListener("click",e=>{
     case "form-firm":openForm("firm");break;
     case "form-del":formDelete();break;
     case "open-project":D.pid=id;S.kid=null;go("uebersicht");break;
-    case "home":go("buero");break;
+    case "home":startView("buero");go("buero");break;
     case "pick-project":D.pid=id;closeAll();S.kid=null;if(S.view==="buero"||S.view==="ausschreibungen"||S.view==="einstellungen")go("uebersicht");else render();break;
     case "ask":S.confirm=el.dataset.c;if(/^ddel:/.test(S.confirm)||!S.sheet)render();else renderOverlay();break;
     case "notice-ok":D.noticeOk=1;render();break;
@@ -1844,7 +1854,7 @@ const SWIPE=["uebersicht","rechnungen","handwerker","budget"];
     g.style.cssText=`position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;overflow:hidden;background:var(--bg);z-index:5;pointer-events:none;transform:translate3d(${dx}px,0,0)`;
     gi.style.cssText=`padding:${cs.padding};box-sizing:border-box;transform:translate3d(0,${-main.scrollTop}px,0)`;
     gi.innerHTML=main.innerHTML;g.appendChild(gi);document.body.appendChild(g);
-    S.kid=null;S.tid=null;go(SWIPE[n]);
+    startView(SWIPE[n]);go(SWIPE[n]);
     set(dx-out*W,0);
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       const ease="cubic-bezier(.25,.8,.3,1)";

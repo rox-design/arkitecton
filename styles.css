@@ -811,3 +811,5 @@ select.needs{border-color:var(--warn)}
 .ph .tools .seg{margin:0}
 .ph .tools .seg button{padding:6px 12px;font-size:.84rem}
 @media (max-width:820px){.ph:has(.tools .seg){grid-template-columns:1fr;gap:12px}.ph:has(.tools .seg) .tools{justify-content:space-between}}
+.stats.s5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.stats.s5 .sv{font-size:1.45rem}

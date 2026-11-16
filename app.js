@@ -827,7 +827,7 @@ function viewInvoices(){
     <div class="stats s5 deskonly">${["zahlen","pruefen","rueckfrage","frei","bezahlt"].map(f=>{const li=of(f),n=li.length,sum=f==="zahlen"?toPay(li):li.reduce((a,i)=>a+i.gross,0),sel=S.filter===f;const inner=`<span class="sl">${fLabel(f)}</span><span class="sv">${n?chf(sum,false):"–"}</span><span class="ss">${n===1?L("1 Rechnung","1 invoice"):n?n+" "+L("Rechnungen","invoices"):L("keine","none")}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="filter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;}).join("")}</div>
     <div class="tabs chips phoneonly" role="tablist">${F.filter(f=>f==="all"||cnt(f)||S.filter===f).map(f=>`<button type="button" role="tab" data-act="filter" data-f="${f}" aria-selected="${S.filter===f}">${f==="all"?L("Alle","All"):fLabel(f)}<span class="c">${cnt(f)}</span></button>`).join("")}</div>
     ${sumLine}
-    <section><div class="sh deskonly"><h2>${S.filter==="all"?L("Alle Rechnungen","All invoices"):fLabel(S.filter)}</h2><span class="cnt">${list.length}</span>${pay?`<span class="ss" style="margin-left:12px;color:var(--muted);font-size:.85rem">${L("Beträge nach Abzug des Rückbehalts","amounts after retention")}</span>`:""}<span class="right">${S.filter==="all"||!all.length?"":`<button type="button" class="ghost" data-act="filter" data-f="all">${L("Alle anzeigen","Show all")} (${all.length})</button>`}</span></div><div class="rows">${rows||(all.length?`<div class="empty">${L("Keine Rechnungen mit diesem Status.","No invoices with this status.")}</div>`:`<div class="empty"><span>${L("Noch keine Rechnungen in diesem Projekt. Scannen Sie den QR-Zahlteil einer Handwerker-Rechnung.","No invoices in this project yet. Scan the QR payment part of a contractor invoice.")}</span></div>`)}</div></section>
+    <section><div class="sh deskonly"><h2>${S.filter==="all"?L("Alle Rechnungen","All invoices"):fLabel(S.filter)}</h2><span class="cnt">${list.length}</span>${pay?`<span class="ss" style="margin-left:12px;color:var(--muted);font-size:.78rem">${L("Beträge nach Abzug des Rückbehalts","amounts after retention")}</span>`:""}<span class="right">${S.filter==="all"||!all.length?"":`<button type="button" class="ghost" data-act="filter" data-f="all">${L("Alle anzeigen","Show all")} (${all.length})</button>`}</span></div><div class="rows">${rows||(all.length?`<div class="empty">${L("Keine Rechnungen mit diesem Status.","No invoices with this status.")}</div>`:`<div class="empty"><span>${L("Noch keine Rechnungen in diesem Projekt. Scannen Sie den QR-Zahlteil einer Handwerker-Rechnung.","No invoices in this project yet. Scan the QR payment part of a contractor invoice.")}</span></div>`)}</div></section>
   </div>`;
 }
 
@@ -936,7 +936,7 @@ function viewBudget(){
   return `<div class="page">
     ${ph(esc(p.name),"Budget","",ib("plus",L("BKP-Position erfassen","Add BKP item"),'data-act="form" data-f="bkp"')+excelBtn("budget"))}
     <div class="stats s4">${bt("",L("Kostenvoranschlag","Cost estimate"),chf(t.kv,false),nP(allRows.length))}${bt("aw",L("Vergeben","Awarded"),chf(t.awarded,false),(t.kv?Math.round(t.awarded/t.kv*100)+" % "+L("des Kostenvoranschlags","of the estimate"):""))}${bt("no",L("Nicht vergeben","Not awarded"),chf(sumB("no",r=>r.b.kv),false),nP(allRows.filter(BF.no).length))}${bt("over",L("Über Budget","Over budget"),chf(sumB("over",r=>-r.rest),false),nP(allRows.filter(BF.over).length)," warn")}</div>
-    <section><div class="sh"><h2>${({aw:L("Vergeben","Awarded"),no:L("Nicht vergeben","Not awarded"),over:L("Über Budget","Over budget")})[S.bfilter]||L("Alle Positionen","All items")}</h2><span class="cnt">${rows.length}</span><span class="right"><span class="ss" style="color:var(--muted);font-size:.9rem">${L("Reserve","Reserve")} <b style="font-weight:500;color:${t.rest<0?"var(--warn)":"var(--ink)"}">${chf(t.rest,false)}</b></span>${S.bfilter?`<button type="button" class="ghost" data-act="bfilter" data-f="">${L("Alle anzeigen","Show all")} (${allRows.length})</button>`:""}</span></div></section>
+    <section><div class="sh"><h2>${({aw:L("Vergeben","Awarded"),no:L("Nicht vergeben","Not awarded"),over:L("Über Budget","Over budget")})[S.bfilter]||L("Alle Positionen","All items")}</h2><span class="cnt">${rows.length}</span><span class="right"><span class="ss" style="color:var(--muted);font-size:.875rem">${L("Reserve","Reserve")} <b style="font-weight:500;color:${t.rest<0?"var(--warn)":"var(--ink)"}">${chf(t.rest,false)}</b></span>${S.bfilter?`<button type="button" class="ghost" data-act="bfilter" data-f="">${L("Alle anzeigen","Show all")} (${allRows.length})</button>`:""}</span></div></section>
     <section>${br?`<div class="bhead"><span>BKP</span><span>${L("Arbeitsgattung","Trade")}</span><span class="kvc">${L("Kostenvoranschlag","Estimate")}</span><span class="nums">${L("Vergeben","Awarded")}</span><span class="rest">${L("Reserve","Reserve")}</span></div>`:""}${br||`<div class="empty"><span>${L("Noch kein Kostenvoranschlag. Erfassen Sie die BKP-Positionen mit Betrag, daran misst arkitecton alle Rechnungen.","No cost estimate yet. Add the BKP items with amounts; arkitecton measures every invoice against them.")}</span><div class="eb"><button type="button" class="btn primary" data-act="form" data-f="bkp">${L("BKP-Position erfassen","Add BKP item")}</button></div></div>`}
       ${rows.length?`<div class="legend"><span><i class="c-paid"></i>${L("Bezahlt","Paid")}</span><span><i class="c-appr"></i>${L("Freigegeben","Approved")}</span><span><i class="c-open"></i>${L("Zu prüfen","To check")}</span><span><i style="width:1px;height:12px;background:var(--ink)"></i>${L("Kostenvoranschlag","Estimate")}</span></div>`:""}</section>
   </div>`;
@@ -980,12 +980,12 @@ function viewSettings(){
       <div class="ferr" id="setErr" role="alert"></div>
     </section>
     <section><div class="sh"><h2>${L("Papierkorb","Bin")}</h2><span class="cnt">${(D.trash||[]).length}</span></div>
-      ${(D.trash||[]).length?(D.trash||[]).map(t=>row(esc(t.p.name),L("Gelöscht am ","Deleted on ")+fdate(t.at)+" · "+t.invoices.length+" "+L("Rechnungen","invoices")+", "+t.fees.length+" "+L("Honorarrechnungen","fee invoices"),`<div class="setbtns"><button type="button" class="btn" data-act="trash-restore" data-id="${t.id}">${L("Wiederherstellen","Restore")}</button>${S.confirm==="tp:"+t.id?`<button type="button" class="btn danger" data-act="trash-purge" data-id="${t.id}">${L("Wirklich endgültig löschen?","Really delete permanently?")}</button>`:`<button type="button" class="btn" data-act="ask" data-c="tp:${t.id}">${L("Endgültig löschen","Delete permanently")}</button>`}</div>`)).join(""):`<p class="fine" style="color:var(--muted);font-size:.9rem;margin:14px 0 0">${L("Leer. Gelöschte Projekte landen hier und lassen sich wiederherstellen.","Empty. Deleted projects land here and can be restored.")}</p>`}
+      ${(D.trash||[]).length?(D.trash||[]).map(t=>row(esc(t.p.name),L("Gelöscht am ","Deleted on ")+fdate(t.at)+" · "+t.invoices.length+" "+L("Rechnungen","invoices")+", "+t.fees.length+" "+L("Honorarrechnungen","fee invoices"),`<div class="setbtns"><button type="button" class="btn" data-act="trash-restore" data-id="${t.id}">${L("Wiederherstellen","Restore")}</button>${S.confirm==="tp:"+t.id?`<button type="button" class="btn danger" data-act="trash-purge" data-id="${t.id}">${L("Wirklich endgültig löschen?","Really delete permanently?")}</button>`:`<button type="button" class="btn" data-act="ask" data-c="tp:${t.id}">${L("Endgültig löschen","Delete permanently")}</button>`}</div>`)).join(""):`<p class="fine" style="color:var(--muted);font-size:.875rem;margin:14px 0 0">${L("Leer. Gelöschte Projekte landen hier und lassen sich wiederherstellen.","Empty. Deleted projects land here and can be restored.")}</p>`}
     </section>
     <section><div class="sh"><h2>${L("Daten und Sicherung","Data and backup")}</h2></div>
       <div class="menu setmenu">${menuItems(sheetDef("daten"))}</div>
-      <p class="fine" style="color:var(--muted);font-size:.84rem;max-width:62ch">${esc(sheetDef("daten").note||"")}</p>
-    <p class="fine" style="color:var(--faint);font-size:.8rem;margin-top:18px">${L("Version","Version")} ${esc(((document.querySelector('script[src*="app.js"]')||{}).src||"").split("v=")[1]||"–")}</p>
+      <p class="fine" style="color:var(--muted);font-size:.78rem;max-width:62ch">${esc(sheetDef("daten").note||"")}</p>
+    <p class="fine" style="color:var(--faint);font-size:.78rem;margin-top:18px">${L("Version","Version")} ${esc(((document.querySelector('script[src*="app.js"]')||{}).src||"").split("v=")[1]||"–")}</p>
     </section>
   </div>`;
 }
@@ -1183,7 +1183,7 @@ function drawerHTML(i){
   const delBtn=S.confirm==="del:"+i.id?`<button type="button" class="ghost danger" data-act="del-inv" data-id="${i.id}">${L("Wirklich löschen?","Really delete?")}</button>`:ib("trash",L("Rechnung löschen","Delete invoice"),`data-act="ask" data-c="del:${i.id}"`);
   return `<div class="scrim" data-act="close"></div>
   <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="dT">
-    <div class="ohead"><div><h2 id="dT" style="font-size:1.25rem;font-weight:500">${esc(k.name)}</h2><div class="sub">${typeLabel(i)} · ${esc(i.no)} · ${fdate(i.date)}</div></div><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
+    <div class="ohead"><div><h2 id="dT" style="font-size:1.125rem;font-weight:500">${esc(k.name)}</h2><div class="sub">${typeLabel(i)} · ${esc(i.no)} · ${fdate(i.date)}</div></div><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <div class="obody">
       <span class="biglbl">${L("Auszahlung","Payout")}</span>
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px"><span class="big">${chf(payout(i))}</span><span class="l-${STATUS[i.status].c}" style="white-space:nowrap">${stLabel(i.status)}</span></div>
@@ -1291,7 +1291,7 @@ function resolveCapture(d){
 const bkpOptions=sel=>{const p=P();const own=p?p.budget.map(b=>[b.bkp,tx(b)]):[];const rest=STD_BKP.filter(s=>!own.some(o=>o[0]===s[0])).map(s=>[s[0],S.lang==="de"?s[1]:s[2]]);return own.concat(rest).map(([c,n])=>`<option value="${c}"${c===sel?" selected":""}>${c} ${esc(n)}</option>`).join("");};
 function wrapCapture(title,body,foot){
   return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mT">
-    <div class="ohead"><h2 id="mT" style="font-size:1.25rem;font-weight:500">${title}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
+    <div class="ohead"><h2 id="mT" style="font-size:1.125rem;font-weight:500">${title}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <div class="obody">${body}</div>${foot?`<div class="ofoot">${foot}</div>`:""}</div>`;
 }
 function captureHTML(){
@@ -1461,7 +1461,7 @@ function formHTML(){
   const d=formDef(); if(!d) return "";
   const delKey="delform";
   return `<div class="scrim" data-act="close"></div><div class="sheet${S.form.f==="fee"?" wide":""}" role="dialog" aria-modal="true" aria-labelledby="fT">
-    <div class="ohead"><h2 id="fT" style="font-size:1.25rem;font-weight:500">${esc(d.title)}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
+    <div class="ohead"><h2 id="fT" style="font-size:1.125rem;font-weight:500">${esc(d.title)}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <form id="frm" class="obody" novalidate><div class="fields">${d.body}</div><span class="err" id="formErr" role="alert"></span>
     ${d.del?(S.confirm===delKey?`<button type="button" class="ghost danger" data-act="form-del">${L("Wirklich löschen?","Really delete?")}</button>`:`<button type="button" class="ghost" data-act="ask" data-c="${delKey}">${L("Löschen","Delete")}</button>`):""}</form>
     ${d.noSubmit?"":`<div class="ofoot"><button type="submit" form="frm" class="btn primary">${L("Speichern","Save")}</button></div>`}</div>`;
@@ -1609,7 +1609,7 @@ function kvHTML(){
   rows+=line(r.rest<0?L("Über Kostenvoranschlag","Over cost estimate"):L("Reserve","Reserve"),nfq.format(Math.abs(r.rest)),"","sum");
   const cmpBtns=ws.filter(w=>compare(w)).map(w=>`<button type="button" class="btn primary" data-act="open-cmp" data-id="${w.id}">${L("Abweichungen","Differences")}${ws.length>1?" · "+esc(K(w.k).name):""}</button>`).join("");
   return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="kT">
-    <div class="ohead"><div><h2 id="kT" style="font-size:1.25rem;font-weight:500">BKP ${esc(r.b.bkp)} ${esc(tx(r.b))}</h2><div class="sub">${r.rest<0?"CHF "+nfq.format(-r.rest)+" "+L("über Kostenvoranschlag","over cost estimate"):L("Reserve CHF ","Reserve CHF ")+nfq.format(r.rest)}</div></div><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
+    <div class="ohead"><div><h2 id="kT" style="font-size:1.125rem;font-weight:500">BKP ${esc(r.b.bkp)} ${esc(tx(r.b))}</h2><div class="sub">${r.rest<0?"CHF "+nfq.format(-r.rest)+" "+L("über Kostenvoranschlag","over cost estimate"):L("Reserve CHF ","Reserve CHF ")+nfq.format(r.rest)}</div></div><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <div class="obody"><div class="calc kvx">${rows}</div></div>
     <div class="ofoot"><button type="button" class="btn" data-act="form" data-f="kv" data-id="${esc(r.b.bkp)}">${L("Kostenvoranschlag ändern","Edit estimate")}</button>${S.view==="budget"?"":`<button type="button" class="btn" data-act="kv-budget" data-id="${esc(r.b.bkp)}">${L("Budget","Budget")}</button>`}${cmpBtns}</div></div>`;
 }
@@ -1617,7 +1617,7 @@ function projectsHTML(){
   const item=p=>{const cur=p.id===D.pid;return `<button type="button" class="pitem${cur?" cur":""}" data-act="pick-project" data-id="${p.id}" data-q="${esc((p.name+" "+(p.place||"")+" "+(p.client||"")).toLowerCase())}"><span class="pn">${p.fav?'<span class="pfav" aria-label="'+L("Favorit","Favourite")+'">★ </span>':""}${esc(p.name)}</span><span class="pp">${esc([p.place,p.client].filter(Boolean).join(" · "))}</span><span class="pc">${cur?"✓":""}</span></button>`;};
   const act=activeProjects(),done=D.projects.filter(p=>p.closed);
   return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pT">
-    <div class="ohead"><h2 id="pT" style="font-size:1.25rem;font-weight:500">${L("Projekte","Projects")}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
+    <div class="ohead"><h2 id="pT" style="font-size:1.125rem;font-weight:500">${L("Projekte","Projects")}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <div class="obody psw">
       ${D.projects.length>1?`<input type="search" id="pSearch" class="psearch" placeholder="${L("Projekt suchen","Search projects")}" autocomplete="off" aria-label="${L("Projekt suchen","Search projects")}">`:""}
       <div class="plist">${act.map(item).join("")||`<div class="empty">${L("Keine aktiven Projekte.","No active projects.")}</div>`}</div>
@@ -1640,8 +1640,8 @@ function menuItems(d){
 }
 function sheetWrap(d,items){
   return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sT">
-    <div class="ohead"><h2 id="sT" style="font-size:1.25rem;font-weight:500">${esc(d.title)}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
-    <div class="obody"><div class="menu">${items}</div>${d.note?`<span class="fine" style="color:var(--faint);font-size:.82rem">${esc(d.note)}</span>`:""}</div></div>`;
+    <div class="ohead"><h2 id="sT" style="font-size:1.125rem;font-weight:500">${esc(d.title)}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
+    <div class="obody"><div class="menu">${items}</div>${d.note?`<span class="fine" style="color:var(--faint);font-size:.78rem">${esc(d.note)}</span>`:""}</div></div>`;
 }
 
 function renderOverlay(){queueMicrotask(()=>{if(S.form&&S.form.f==="fee")feeCalcUpdate();});queueMicrotask(()=>{const q=document.getElementById("qtext");if(q&&!q.dataset.top){q.scrollTop=0;q.dataset.top="1";}});queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));

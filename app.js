@@ -1756,6 +1756,22 @@ const SWIPE=["uebersicht","rechnungen","handwerker","budget"];
   });
   main.addEventListener("touchcancel",()=>{if(st){st=null;set(0,180);}});
 })();
+/* ---------- phone: "back to top" once the page is scrolled to the end ---------- */
+(function(){
+  const main=document.getElementById("main"),b=document.createElement("button");
+  b.type="button";b.className="totop";b.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>';
+  document.body.appendChild(b);
+  const lab=()=>{const t=L("Nach oben","Back to top");b.setAttribute("aria-label",t);b.title=t;};
+  const upd=()=>{if(!window.matchMedia("(max-width:820px)").matches){b.classList.remove("on");return;}
+    const tb=document.getElementById("tabbar"),r=tb&&tb.getBoundingClientRect();
+    if(r&&r.height)b.style.bottom=(innerHeight-r.top+12)+"px";
+    b.classList.toggle("side",!!document.querySelector(".tabbar .tabscan"));
+    const end=main.scrollTop>240&&main.scrollTop+main.clientHeight>=main.scrollHeight-48;
+    if(end)lab();b.classList.toggle("on",end&&!document.querySelector("#overlay.on"));};
+  main.addEventListener("scroll",upd,{passive:true});window.addEventListener("resize",upd);
+  new MutationObserver(()=>requestAnimationFrame(upd)).observe(main,{childList:true});
+  b.addEventListener("click",()=>{main.scrollTo({top:0,behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});b.classList.remove("on");});
+})();
 /* ---------- tooltips in the navigation (desktop) ---------- */
 (function(){let tm=null,cur=null;const tip=document.createElement("div");tip.id="tip";tip.setAttribute("role","tooltip");document.body.appendChild(tip);
   const hide=()=>{clearTimeout(tm);tm=null;cur=null;tip.classList.remove("on");};

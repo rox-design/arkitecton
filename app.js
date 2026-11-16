@@ -315,7 +315,8 @@ function renderChrome(){
   document.getElementById("nav").innerHTML=["uebersicht","rechnungen","handwerker","budget"].map(v=>navRow(v)).join("");void tog;void plist;
   const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=navRow("buero")+navRow("ausschreibungen");
   const tb=(v,l)=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${l}</span></button>`;
-  document.getElementById("tabbar").innerHTML=tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget")+(S.view==="rechnungen"&&S.rtab!=="deb"?`<button type="button" class="tabscan" data-act="capture" aria-label="${L("QR scannen","Scan QR")}" title="${L("QR scannen","Scan QR")}">${navIco("scan")}</button>`:"");
+  const firmTabs=["buero","ausschreibungen","einstellungen"].includes(S.view);
+  document.getElementById("tabbar").innerHTML=firmTabs?tb("buero","Home")+tb("ausschreibungen",L("Ausschreibungen","Tenders"))+(P()?tb("uebersicht",L("Projekt","Project")):""):tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget")+(S.view==="rechnungen"&&S.rtab!=="deb"?`<button type="button" class="tabscan" data-act="capture" aria-label="${L("QR scannen","Scan QR")}" title="${L("QR scannen","Scan QR")}">${navIco("scan")}</button>`:"");
   const ts=document.getElementById("topSet");if(ts){ts.innerHTML=navIco("einstellungen");ts.setAttribute("aria-label",L("Einstellungen","Settings"));ts.title=L("Einstellungen","Settings");ts.setAttribute("aria-current",S.view==="einstellungen"?"page":"false");}
 }
 const ph=(eyebrow,title,lead,tools)=>`<header class="ph">${P()&&eyebrow===esc(P().name)?`<button type="button" class="eyebrow pname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${eyebrow}<span class="cv" aria-hidden="true">⌄</span></button>`:`<span class="eyebrow">${eyebrow}</span>`}<h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;
@@ -636,6 +637,31 @@ function qrPayload(f){
     hasD?"S":"",hasD?cut(p.client,70):"",hasD?cut(ds,70):"",hasD?cut(db,16):"",hasD?cut(p.czip,16):"",hasD?cut(p.ccity,35):"",hasD?"CH":"",
     f.refType,f.ref,cut(L("Rechnung ","Invoice ")+f.no,140),"EPD",bill].join("\n");
 }
+async function payPDF(i){
+  await libsPDF();
+  const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"mm",format:"a4"}),F=D.firm,w=W(i.w),k=K(w.k),p=PJ(w.pid)||{};
+  const T=(t,x,y,o)=>doc.text(String(t),x,y,o||{}),font=(sz,b)=>{doc.setFont("helvetica",b?"bold":"normal");doc.setFontSize(sz);};
+  let y=20;font(10,true);T(F.name||"",20,y);font(9);[F.street,[F.zip,F.city].filter(Boolean).join(" "),F.phone,F.email].filter(Boolean).forEach((l,n)=>T(l,20,y+5+n*4.5));
+  font(10);[p.client,p.cstreet,[p.czip,p.ccity].filter(Boolean).join(" ")].filter(Boolean).forEach((l,n)=>T(l,118,52+n*5));
+  font(9);T((F.city?F.city+", ":"")+fdate(iso(TODAY)),118,80);
+  font(14,true);T(L("Zahlungsempfehlung","Payment recommendation"),20,95);
+  font(9);T(L("Projekt: ","Project: ")+[p.name,p.place].filter(Boolean).join(", "),20,102);
+  y=114;font(10);doc.splitTextToSize(L("Wir haben die folgende Rechnung geprüft und empfehlen Ihnen, den unten stehenden Betrag zu überweisen.","We have checked the following invoice and recommend that you pay the amount below."),170).forEach((l,n)=>T(l,20,y+n*5));y+=16;
+  const kv=(a,b)=>{font(9);T(a,20,y);T(b,70,y);y+=5.5;};
+  kv(L("Unternehmer","Contractor"),[k.name,[k.zip,k.city].filter(Boolean).join(" ")].filter(Boolean).join(", "));
+  kv(L("Arbeitsgattung","Trade"),"BKP "+w.bkp+" "+bName(w.bkp));kv(L("Rechnung","Invoice"),typeLabel(i)+" · "+i.no+" · "+fdate(i.date));
+  kv(L("Werkvertrag","Contract"),"CHF "+nf2.format(w.sum||0)+(i.type==="regie"?L(" (Regie ausserhalb Werkvertrag)"," (outside contract)"):""));
+  y+=4;doc.setLineWidth(.2);doc.line(20,y,190,y);y+=7;
+  const ln=(a,b,bold)=>{font(bold?10:9,bold);T(a,20,y);T(b,190,y,{align:"right"});y+=bold?7:5.5;};
+  const ret=retention(i);ln(L("Rechnungsbetrag","Invoice amount"),nf2.format(i.gross));
+  if(i.ded&&i.ded.amt)ln(L("Abzug: ","Deduction: ")+i.ded.why,"- "+nf2.format(i.ded.amt));
+  if(ret>0)ln(L("Rückbehalt ","Retention ")+retPct(w)+" %","- "+nf2.format(ret));if(ret<0)ln(L("Freigabe Rückbehalt","Retention released"),"+ "+nf2.format(-ret));
+  doc.line(120,y-1,190,y-1);y+=4;ln(L("Zur Zahlung empfohlen CHF","Recommended for payment CHF"),nf2.format(payout(i)),true);
+  y+=4;kv(L("Zahlbar bis","Payable by"),fdate(i.due));kv("IBAN",k.iban||L("fehlt","missing"));if(i.ref)kv(L("Referenz","Reference"),i.ref);
+  const iss=checksFor(i).filter(c=>c.s==="warn");if(iss.length){y+=4;font(9,true);T(L("Hinweise aus der Prüfung","Notes from the check"),20,y);y+=5.5;font(9);iss.forEach(c=>{doc.splitTextToSize("– "+c.t,170).forEach(l=>{T(l,20,y);y+=4.8;});});}
+  y=Math.max(y+18,235);font(9);T(L("Geprüft und empfohlen","Checked and recommended"),20,y);T(L("Freigabe Bauherrschaft","Client approval"),118,y);doc.line(20,y+16,90,y+16);doc.line(118,y+16,190,y+16);font(8);T(F.name||"",20,y+20);T(L("Datum, Unterschrift","Date, signature"),118,y+20);
+  doc.save(L("Zahlungsempfehlung","Payment-recommendation")+"_"+String(k.name).replace(/[^\w]+/g,"-")+"_"+String(i.no).replace(/[^\w]+/g,"-")+".pdf");
+}
 async function feePDF(f,level){
   await libsPDF();
   const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), F=D.firm, p=PJ(f.pid)||{};
@@ -899,17 +925,18 @@ function viewContractor(k){
 }
 function viewBudget(){
   const p=P(); if(!p) return noProject();
-  const rows=budgetRows(), t=totals(rows);
+  const allRows=budgetRows(), t=totals(allRows);
+  const BF={aw:r=>r.awarded>0,no:r=>!r.awarded,over:r=>r.rest<0};if(!BF[S.bfilter]||!allRows.some(BF[S.bfilter]))S.bfilter="";
+  const rows=S.bfilter?allRows.filter(BF[S.bfilter]):allRows,nP=n=>n===1?L("1 Position","1 item"):n+" "+L("Positionen","items");
+  const bt=(f,l,v,ss,c)=>{const n=f?allRows.filter(BF[f]).length:allRows.length,sel=S.bfilter===f,inner=`<span class="sl">${l}</span><span class="sv${c||""}">${n?v:"–"}</span><span class="ss">${ss}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="bfilter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
+  const sumB=(f,g)=>allRows.filter(BF[f]).reduce((a,r)=>a+g(r),0);
   const br=rows.map(r=>{const base=Math.max(r.b.kv,r.awarded,r.billed+r.open,1),pc=x=>Math.max(0,x)/base*100,aw=r.awarded?chf(r.awarded,false):L("nicht vergeben","not awarded");
     const act=`data-act="kv-explain" data-id="${r.b.bkp}"`;
     return `<button type="button" class="brow row${S.hl===r.b.bkp?" hl":""}" ${act}><span class="code">${r.b.bkp}</span><div><span>${esc(tx(r.b))}</span><div class="bar"><i class="c-paid" style="width:${pc(r.paid)}%"></i><i class="c-appr" style="width:${pc(r.approved)}%"></i><i class="c-open" style="width:${pc(r.open)}%"></i>${r.b.kv?`<span class="kv" style="left:${r.b.kv/base*100}%"></span>`:""}</div><span class="bsub">KV ${r.b.kv?nf0.format(r.b.kv):"–"} · ${r.awarded?L("vergeben ","awarded ")+nf0.format(r.awarded):L("nicht vergeben","not awarded")}</span></div><span class="kvc">${r.b.kv?chf(r.b.kv,false):"–"}</span><span class="nums">${aw}</span><span class="rest ${r.rest<0?"up":r.awarded?"":"mute"}">${r.b.kv?chf(r.rest,false):"–"}</span></button>`;}).join("");
   return `<div class="page">
     ${ph(esc(p.name),"Budget","",ib("plus",L("BKP-Position erfassen","Add BKP item"),'data-act="form" data-f="bkp"')+excelBtn("budget"))}
-    <div class="stats">
-      <div class="stat"><span class="sl">${L("Kostenvoranschlag","Cost estimate")}</span><span class="sv">${chf(t.kv,false)}</span><span class="ss">${p.budget.length} ${p.budget.length===1?L("Position","item"):L("Positionen","items")}</span></div>
-      <div class="stat"><span class="sl">${L("Vergeben","Awarded")}</span><span class="sv">${chf(t.awarded,false)}</span><span class="ss">${t.kv?Math.round(t.awarded/t.kv*100)+"% "+L("des Kostenvoranschlags","of the estimate"):""}</span></div>
-      <div class="stat"><span class="sl">${L("Reserve","Reserve")}</span><span class="sv${t.rest<0?" warn":""}">${chf(t.rest,false)}</span><span class="ss">${L("nach Verträgen und offenen Rechnungen","after contracts and open invoices")}</span></div>
-    </div>
+    <div class="stats s4">${bt("",L("Kostenvoranschlag","Cost estimate"),chf(t.kv,false),nP(allRows.length))}${bt("aw",L("Vergeben","Awarded"),chf(t.awarded,false),(t.kv?Math.round(t.awarded/t.kv*100)+" % "+L("des Kostenvoranschlags","of the estimate"):""))}${bt("no",L("Nicht vergeben","Not awarded"),chf(sumB("no",r=>r.b.kv),false),nP(allRows.filter(BF.no).length))}${bt("over",L("Über Budget","Over budget"),chf(sumB("over",r=>-r.rest),false),nP(allRows.filter(BF.over).length)," warn")}</div>
+    <section><div class="sh"><h2>${({aw:L("Vergeben","Awarded"),no:L("Nicht vergeben","Not awarded"),over:L("Über Budget","Over budget")})[S.bfilter]||L("Alle Positionen","All items")}</h2><span class="cnt">${rows.length}</span><span class="right"><span class="ss" style="color:var(--muted);font-size:.9rem">${L("Reserve","Reserve")} <b style="font-weight:500;color:${t.rest<0?"var(--warn)":"var(--ink)"}">${chf(t.rest,false)}</b></span>${S.bfilter?`<button type="button" class="ghost" data-act="bfilter" data-f="">${L("Alle anzeigen","Show all")} (${allRows.length})</button>`:""}</span></div></section>
     <section>${br?`<div class="bhead"><span>BKP</span><span>${L("Arbeitsgattung","Trade")}</span><span class="kvc">${L("Kostenvoranschlag","Estimate")}</span><span class="nums">${L("Vergeben","Awarded")}</span><span class="rest">${L("Reserve","Reserve")}</span></div>`:""}${br||`<div class="empty"><span>${L("Noch kein Kostenvoranschlag. Erfassen Sie die BKP-Positionen mit Betrag, daran misst arkitecton alle Rechnungen.","No cost estimate yet. Add the BKP items with amounts; arkitecton measures every invoice against them.")}</span><div class="eb"><button type="button" class="btn primary" data-act="form" data-f="bkp">${L("BKP-Position erfassen","Add BKP item")}</button></div></div>`}
       ${rows.length?`<div class="legend"><span><i class="c-paid"></i>${L("Bezahlt","Paid")}</span><span><i class="c-appr"></i>${L("Freigegeben","Approved")}</span><span><i class="c-open"></i>${L("Zu prüfen","To check")}</span><span><i style="width:1px;height:12px;background:var(--ink)"></i>${L("Kostenvoranschlag","Estimate")}</span></div>`:""}</section>
   </div>`;
@@ -1149,7 +1176,7 @@ function drawerHTML(i){
   let actions="";
   if(i.status==="rueckfrage") actions=why+`<button type="button" class="btn" data-act="answer" data-id="${i.id}">${L("Antwort erhalten","Reply received")}</button><button type="button" class="btn primary" data-act="approve" data-id="${i.id}"${crit?" disabled":""}>${apLbl}</button>`;
   else if(!counted(i)) actions=why+`<button type="button" class="btn" data-act="query">${L("Rückfrage","Query")}</button><button type="button" class="btn primary" data-act="approve" data-id="${i.id}"${crit?" disabled":""}>${apLbl}</button>`;
-  else if(i.status==="frei") actions=`<button type="button" class="btn" data-act="unapprove" data-id="${i.id}">${L("Freigabe zurücknehmen","Undo approval")}</button><button type="button" class="btn primary" data-act="paid" data-id="${i.id}">${L("Als bezahlt markieren","Mark as paid")}</button>`;
+  else if(i.status==="frei") actions=`<button type="button" class="btn" data-act="pay-pdf" data-id="${i.id}">${L("Zahlungsempfehlung (PDF)","Payment recommendation (PDF)")}</button><button type="button" class="btn primary" data-act="paid" data-id="${i.id}">${L("Als bezahlt markieren","Mark as paid")}</button>`;
   else if(i.status==="bezahlt") actions=`<button type="button" class="btn" data-act="inv-unpaid" data-id="${i.id}">${L("Zahlung zurücknehmen","Undo payment")}</button>`;
   const done=S.done&&S.done.id===i.id?`<div class="done"><span class="h">${L("Für Sie erledigt","Done for you")}</span><div class="chips">${S.done.items.map(x=>`<span class="chip ok">${esc(x)}</span>`).join("")}</div></div>`:"";
   const log=i.log&&i.log.length?`<details><summary>${L("Verlauf","History")}</summary><div class="in"><dl class="kv">${i.log.map(e=>`<dt>${fdate(e.d)}</dt><dd>${esc(e.t)}</dd>`).join("")}</dl></div></details>`:"";
@@ -1172,7 +1199,7 @@ function drawerHTML(i){
         ${log}
         ${S.queryOpen?`<details open><summary>${L("Rückfrage an ","Query to ")+esc(k.name)}</summary><div class="in" style="display:flex;flex-direction:column;gap:10px"><textarea id="qtext" aria-label="${L("Nachricht","Message")}">${esc(queryText(i))}</textarea><div class="qtools">${ibl("copy",L("Kopieren","Copy"),'data-act="copy-query"')}${navigator.share?ibl("share",L("Teilen (Mail, WhatsApp …)","Share (Mail, WhatsApp …)"),`data-act="share-query" data-id="${i.id}"`,L("Teilen","Share")):""}${k.email?ibl("mail",L("In Gmail öffnen","Open in Gmail"),`data-act="gmail-query" data-id="${i.id}"`,"Gmail"):""}${k.email&&!navigator.share?`<a class="ibl" title="${L("Im Mailprogramm öffnen","Open in mail app")}" href="mailto:${esc(k.email)}?subject=${encodeURIComponent(L("Rechnung ","Invoice ")+i.no)}" data-act="mail-query">${ico("mail")}<span>${L("E-Mail","Email")}</span></a>`:""}<span class="qsep"></span><button type="button" class="btn" data-act="mark-query" data-id="${i.id}">${L("Rückfrage gesendet","Query sent")}</button></div>${k.email?"":`<span class="hint">${L("Keine E-Mail-Adresse hinterlegt. Text kopieren und per Telefon oder WhatsApp senden, oder die E-Mail ergänzen.","No email on file. Copy the text and send it another way, or add the email.")}</span>`}</div></details>`:""}
       </div>
-      ${i.status==="ersetzt"?"":`<div class="dtools">${!counted(i)?`${i.status==="rueckfrage"&&!S.queryOpen?`<button type="button" class="ghost" data-act="query">${L("Nochmals nachfragen","Ask again")}</button>`:""}<button type="button" class="ghost" data-act="form" data-f="ded" data-id="${i.id}">${i.ded?L("Abzug ändern","Edit deduction"):L("Abzug erfassen","Add deduction")}</button><button type="button" class="ghost" data-act="replace" data-id="${i.id}">${L("Durch neue Rechnung ersetzen","Replace with new invoice")}</button>`:""}<span class="qsep"></span>${delBtn}</div>`}
+      ${i.status==="ersetzt"?"":`<div class="dtools">${i.status==="frei"?`<button type="button" class="ghost" data-act="unapprove" data-id="${i.id}">${L("Freigabe zurücknehmen","Undo approval")}</button>`:""}${!counted(i)?`${i.status==="rueckfrage"&&!S.queryOpen?`<button type="button" class="ghost" data-act="query">${L("Nochmals nachfragen","Ask again")}</button>`:""}<button type="button" class="ghost" data-act="form" data-f="ded" data-id="${i.id}">${i.ded?L("Abzug ändern","Edit deduction"):L("Abzug erfassen","Add deduction")}</button><button type="button" class="ghost" data-act="replace" data-id="${i.id}">${L("Durch neue Rechnung ersetzen","Replace with new invoice")}</button>`:""}<span class="qsep"></span>${delBtn}</div>`}
     </div>
     ${actions?`<div class="ofoot">${actions}</div>`:""}
   </div>`;
@@ -1275,10 +1302,10 @@ function captureHTML(){
     body=`<div class="empty">${L("Bitte zuerst ein Projekt anlegen.","Please create a project first.")}<button type="button" class="btn primary" data-act="form" data-f="project">${L("Projekt anlegen","Create project")}</button></div>`;
   } else if(M.step===1){
     body=repNote+`<div class="scanbox">
-      ${M.camErr?`<span class="err">${esc(M.camErr)}</span>`:`<div class="cam"><video id="camv" playsinline muted autoplay></video><div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div></div><span class="camhint" id="camhint">${M.busy?L("Foto wird gelesen …","Reading photo …"):L("QR-Code des Zahlteils in den Rahmen halten","Hold the payment part's QR code in the frame")}</span>`}
+      ${M.fileFirst?`<span class="camhint">${M.busy?L("Bild wird gelesen …","Reading image …"):L("Wählen Sie ein Foto oder einen Scan der Rechnung. arkitecton liest den QR-Zahlteil.","Choose a photo or scan of the invoice. arkitecton reads the QR payment part.")}</span>`:M.camErr?`<span class="err">${esc(M.camErr)}</span>`:`<div class="cam"><video id="camv" playsinline muted autoplay></video><div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div></div><span class="camhint" id="camhint">${M.busy?L("Foto wird gelesen …","Reading photo …"):L("QR-Code des Zahlteils in den Rahmen halten","Hold the payment part's QR code in the frame")}</span>`}
       ${M.err?`<span class="err">${esc(M.err)}</span>`:""}
-      <label class="btn${M.camErr?" primary":""} block">${L("Foto aufnehmen oder wählen","Take or choose a photo")}<input type="file" id="scanIn" accept="image/*" aria-label="${L("Foto der QR-Rechnung","Photo of the QR-bill")}"></label>
-      <div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center"><button type="button" class="ghost" data-act="manual">${L("Ohne QR erfassen","Add without QR")}</button>${D.example&&!M.rep?`<button type="button" class="ghost" data-act="use-sample">${L("Beispielrechnung","Example invoice")}</button>`:""}</div></div>`;
+      <label class="btn${M.camErr||M.fileFirst?" primary":""} block">${M.fileFirst?L("Bild der Rechnung wählen","Choose invoice image"):L("Foto aufnehmen oder wählen","Take or choose a photo")}<input type="file" id="scanIn" accept="image/*" aria-label="${L("Foto der QR-Rechnung","Photo of the QR-bill")}"></label>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center">${M.fileFirst?`<button type="button" class="ghost" data-act="use-cam">${L("Kamera verwenden","Use camera")}</button>`:""}<button type="button" class="ghost" data-act="manual">${L("Ohne QR erfassen","Add without QR")}</button>${D.example&&!M.rep?`<button type="button" class="ghost" data-act="use-sample">${L("Beispielrechnung","Example invoice")}</button>`:""}</div></div>`;
   } else {
     if(!M.pid) M.pid=defaultPid(d);
     const R=withP(M.pid,()=>resolveCapture(d));
@@ -1621,7 +1648,7 @@ function renderOverlay(){queueMicrotask(()=>{if(S.form&&S.form.f==="fee")feeCalc
   const o=document.getElementById("overlay");let h="";
   if(S.form) h=formHTML(); else if(S.modal) h=captureHTML(); else if(S.sheet) h=sheetHTML(); else if(S.kvx) h=kvHTML(); else if(S.drawer&&INV(S.drawer)) h=drawerHTML(INV(S.drawer)); else if(S.fdrawer&&FE(S.fdrawer)) h=feeDrawerHTML(FE(S.fdrawer));
   o.innerHTML=h;o.classList.toggle("on",!!h);{const t=document.getElementById("toast");if(t){t.classList.toggle("top",!!h);if(h&&t.dataset.hint)t.classList.remove("on");}}
-  if(S.modal&&S.modal.step===1&&P()&&!S.modal.camErr){if(cam)attachCam();else startCam();}
+  if(S.modal&&S.modal.step===1&&P()&&!S.modal.camErr&&!S.modal.fileFirst){if(cam)attachCam();else startCam();}
   const f=document.getElementById("frm");if(f)f.addEventListener("submit",e=>{e.preventDefault();submitForm();});
 }
 
@@ -1741,7 +1768,7 @@ async function copy(text,ok){try{await navigator.clipboard.writeText(text);toast
 function closeAll(){stopCam();S.kvx=null;S.fdrawer=null;S.drawer=null;S.modal=null;S.sheet=null;S.form=null;S.formErr="";S.confirm=null;S.queryOpen=false;S.done=null;}
 const startView=v=>{S.from=null;S.kid=null;S.wid=null;S.tid=null;S.mid=null;S.cmpBack=null;
   if(v==="rechnungen"){S.rtab="kred";S.filter="pruefen";S.ffilter="open";}
-  if(v==="handwerker")S.kfilter="";if(v==="ausschreibungen"){S.ttab="verfahren";S.tfilter="open";S.pfilter="refs";}};
+  if(v==="handwerker")S.kfilter="";if(v==="budget")S.bfilter="";if(v==="ausschreibungen"){S.ttab="verfahren";S.tfilter="open";S.pfilter="refs";}};
 const fromHere=target=>{S.from=S.view!==target?{view:S.view,top:document.getElementById("main").scrollTop}:null;};
 const backBtn=(act,label)=>S.from?`<button type="button" class="back" data-act="back-from">← ${vName(S.from.view)}</button>`:`<button type="button" class="back" data-act="${act}">← ${label}</button>`;
 function go(v){if(!VIEWS.includes(v))v="uebersicht";closeAll();if(v!=="handwerker")S.cmpBack=null;S.view=v;if(v!=="handwerker")S.kid=null;if(v!=="ausschreibungen")S.tid=null;try{history.replaceState(null,"","#"+v);}catch(e){}render();document.getElementById("main").scrollTop=0;}
@@ -1774,6 +1801,7 @@ document.addEventListener("click",e=>{
     case "back-m":S.mid=null;render();break;
     case "tfilter":S.tfilter=el.dataset.f;render();break;
     case "fold":{const st=foldGet(),k=el.dataset.k;st[k]=!st[k];try{localStorage.setItem(FOLDK,JSON.stringify(st));}catch(e){}const sec=el.closest("section");sec.classList.toggle("folded",!!st[k]);el.setAttribute("aria-expanded",String(!st[k]));break;}
+    case "bfilter":S.bfilter=el.dataset.f;render();break;
     case "kfilter":S.kfilter=el.dataset.f;render();break;
     case "ffilter":S.ffilter=el.dataset.f;render();break;
     case "filter":S.filter=el.dataset.f;render();break;
@@ -1785,6 +1813,7 @@ document.addEventListener("click",e=>{
     case "fee-delline":readFeeLines();S.form.lines.splice(+el.dataset.c,1);keepFeeFields(()=>renderOverlay());break;
     case "fee-paid":{const f=FE(id);f.paid=iso(TODAY);logInv(f,L("Zahlung eingegangen","Payment received"));render();toast(L("Als bezahlt markiert","Marked as paid"));break;}
     case "fee-unpaid":{const f=FE(id);f.paid=null;logInv(f,L("Zahlung zurückgenommen","Payment undone"));render();break;}
+    case "pay-pdf":{const i=INV(id);payPDF(i).then(()=>{if(!(i.log||[]).some(x=>x.t===L("Zahlungsempfehlung erstellt","Payment recommendation created"))){logInv(i,L("Zahlungsempfehlung erstellt","Payment recommendation created"));saveData();renderOverlay();}toast(L("Zahlungsempfehlung für die Bauherrschaft erstellt","Payment recommendation for the client created"));}).catch(()=>toast(L("PDF konnte nicht erstellt werden","Could not create the PDF")));break;}
     case "fee-pdf":{const f=FE(id);feePDF(f,0).then(()=>{if(!(f.log||[]).some(x=>x.t===L("PDF erstellt","PDF created"))){logInv(f,L("PDF erstellt","PDF created"));render();}}).catch(()=>toast(L("PDF konnte nicht erstellt werden","Could not create PDF")));break;}
     case "fee-remind":{const f=FE(id),n=remDue(f);if(!n)break;feePDF(f,n).then(()=>{(f.rem=f.rem||[]).push({n,d:iso(TODAY)});logInv(f,remName(n)+L(" erstellt"," created"));render();toast(remName(n)+L(" erstellt"," created"));}).catch(()=>toast(L("PDF konnte nicht erstellt werden","Could not create PDF")));break;}
     case "fee-demo":{addDemoFees();render();toast(L("3 Beispielrechnungen angelegt","3 example invoices added"));break;}
@@ -1838,7 +1867,8 @@ document.addEventListener("click",e=>{
     case "mail-query":{const q=document.getElementById("qtext");if(q)el.href=el.href.split("&body=")[0]+"&body="+encodeURIComponent(q.value);break;}
     case "mark-query":{const i=INV(id);i.status="rueckfrage";logInv(i,L("Rückfrage gesendet","Query sent"));S.queryOpen=false;render();toast(L("Rückfrage gesendet · wartet auf Antwort","Query sent · waiting for reply"));break;}
     case "answer":openForm("answer",id);break;
-    case "capture":closeAll();S.modal={step:1,data:null,err:"",busy:false};renderOverlay();break;
+    case "capture":closeAll();S.modal={step:1,data:null,err:"",busy:false,fileFirst:window.matchMedia("(hover:hover) and (pointer:fine)").matches};renderOverlay();break;
+    case "use-cam":if(S.modal){S.modal.fileFirst=false;renderOverlay();}break;
     case "manual":{const rep=S.modal&&S.modal.rep,ro=rep&&INV(rep);closeAll();openForm("invoice",ro?W(ro.w).k:null);S.form.rep=rep||null;break;}
     case "replace":{closeAll();S.modal={step:1,data:null,err:"",busy:false,rep:id};renderOverlay();break;}
     case "use-sample":stopCam();S.modal.data=Object.assign({},SAMPLE);setDates(S.modal.data);S.modal.err="";S.modal.step=2;renderOverlay();break;

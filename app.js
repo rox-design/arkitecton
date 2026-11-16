@@ -934,6 +934,7 @@ function viewSettings(){
     <section><div class="sh"><h2>${L("Daten und Sicherung","Data and backup")}</h2></div>
       <div class="menu setmenu">${menuItems(sheetDef("daten"))}</div>
       <p class="fine" style="color:var(--muted);font-size:.84rem;max-width:62ch">${esc(sheetDef("daten").note||"")}</p>
+    <p class="fine" style="color:var(--faint);font-size:.8rem;margin-top:18px">${L("Version","Version")} ${esc(((document.querySelector('script[src*="app.js"]')||{}).src||"").split("v=")[1]||"–")}</p>
     </section>
   </div>`;
 }
@@ -1030,7 +1031,7 @@ function viewTender(t){
 
 (function(){const cur=(document.querySelector('script[src*="app.js"]')||{}).src||"";const v=(cur.match(/v=([^&]+)/)||[])[1];if(!v||location.hostname==="localhost")return;
   const check=()=>fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(t=>{const nv=(t.match(/app\.js\?v=([^"&]+)/)||[])[1];if(nv&&nv!==v&&!sessionStorage.getItem("ark-up-"+nv)){sessionStorage.setItem("ark-up-"+nv,"1");location.replace(location.pathname+"?v="+nv+location.hash);}}).catch(()=>{});
-  check();document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")check();});})();
+  check();document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")check();});window.addEventListener("pageshow",check);setInterval(()=>{if(document.visibilityState==="visible")check();},120000);})();
 function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
   stampProjects();saveData();
   const app=document.getElementById("app");

@@ -32,10 +32,19 @@ const tx=o=>o?(S.lang==="de"?o.de:(o.en||o.de)):"";
 /* ---------- reference lists ---------- */
 const STD_BKP=[["211","Baumeisterarbeiten","Building shell works"],["214","Montagebau in Holz","Timber construction"],["221","Fenster, Aussentüren","Windows, exterior doors"],["222","Spenglerarbeiten","Sheet metal works"],["224","Bedachungsarbeiten","Roofing"],["226","Fassadenputze","Facade plaster"],["230","Elektroanlagen","Electrical installations"],["240","Heizung, Lüftung, Klima","Heating, ventilation, air conditioning"],["250","Sanitäranlagen","Plumbing"],["258","Kücheneinrichtungen","Kitchens"],["271","Gipserarbeiten","Plastering"],["272","Metallbauarbeiten","Metalwork"],["273","Schreinerarbeiten","Joinery"],["281","Bodenbeläge","Floor coverings"],["285","Malerarbeiten","Painting"],["287","Baureinigung","Construction cleaning"]];
 const DISC={"291":{de:"Architektur/Baumanagement",en:"Architecture/construction management"},"292":{de:"Bauingenieurwesen",en:"Structural engineering"}};
+const ROLES={inhaber:{de:"Inhaber",en:"Owner"},pl:{de:"Projektleiter",en:"Project lead"},bl:{de:"Bauleiter",en:"Site manager"},arch:{de:"Architekt",en:"Architect"},zeich:{de:"Zeichner",en:"Draughtsman"}};
+const XQ={blfa:{de:"Bauleiter mit eidg. Fachausweis",en:"Site manager, federal certificate"},pub:{de:"Erfahrung öffentliche Bauten",en:"Public buildings experience"},sia:{de:"SIA-Mitglied",en:"SIA member"},rega:{de:"REG A",en:"REG A"}};
+const YNOW=()=>TODAY.getFullYear();
+const spanY=c=>Math.max(1,(c.to||YNOW())-c.from+1);
+const roleYears=(m,r)=>(m.career||[]).filter(c=>!r||c.role===r).reduce((a,c)=>a+spanY(c),0);
+const curRole=m=>{const c=(m.career||[]).filter(x=>!x.to).sort((a,b)=>b.from-a.from)[0]||(m.career||[]).slice().sort((a,b)=>(b.to||0)-(a.to||0))[0];return c?c.role:null;};
+const startY=m=>Math.min(...(m.career||[]).map(c=>c.from).concat([YNOW()]));
+const mTags=m=>{const t=[];if((m.extra||[]).includes("blfa"))t.push("bl");if((m.extra||[]).includes("pub")&&roleYears(m,"pl")>0)t.push("pl");return t;};
+const yrs=n=>n===1?L("1 Jahr","1 year"):n+" "+L("Jahre","years");
 const RTYPE={schule:{de:"Schulbauten",en:"School buildings"},instandsetzung:{de:"Instandsetzung",en:"Refurbishment"},wohnen:{de:"Wohnbauten",en:"Housing"}};
 const PROC={sel:{de:"Selektiv, Präqualifikation",en:"Selective, prequalification"},offen:{de:"Offenes Verfahren",en:"Open procedure"}};
 const TST={neu:{de:"Neu",en:"New",c:"acc"},arbeit:{de:"In Arbeit",en:"In progress",c:"warn"},eingereicht:{de:"Eingereicht",en:"Submitted",c:"ok"},verzichtet:{de:"Verzichtet",en:"Declined",c:"n"}};
-const FIT={ok:{de:"Erfüllt",en:"Eligible",c:"ok"},partner:{de:"Nur mit Partner",en:"Only with partner",c:"warn"},no:{de:"Nicht erfüllt",en:"Not eligible",c:"crit"}};
+const FIT={ok:{de:"Erfüllt",en:"Eligible",c:"ok"},partner:{de:"Nur mit Partner",en:"Only with partner",c:"warn"},no:{de:"Nicht erfüllt",en:"Not eligible",c:"crit"},nodata:{de:"Büroprofil fehlt",en:"Office profile missing",c:"n"}};
 const STATUS={pruefen:{de:"Zu prüfen",en:"To check",c:"warn"},rueckfrage:{de:"Rückfrage",en:"Query open",c:"crit"},frei:{de:"Freigegeben",en:"Approved",c:"acc"},bezahlt:{de:"Bezahlt",en:"Paid",c:"ok"},ersetzt:{de:"Ersetzt",en:"Replaced",c:"n"}};
 
 /* ---------- example data (dates relative to today) ---------- */
@@ -247,18 +256,18 @@ function evalReq(r){
   }
   if(r.k==="team"){
     const lab={bl:L("Bauleiter mit eidg. Fachausweis","Site manager, federal certificate"),pl:L("Projektleiter, öffentliche Bauten","Project lead, public buildings")}[r.tag];
-    const has=O.team.find(x=>x.tags.includes(r.tag));
-    return {k:"team",s:has?"ok":"crit",t:lab,res:has?has.qual+", "+has.years+L(" Jahre"," years"):L("Fehlt im Team","Missing in the team")};
+    const has=O.team.find(x=>mTags(x).includes(r.tag));
+    return {k:"team",s:has?"ok":"crit",t:lab,res:has?esc(has.name)+" · "+esc(has.qual)+", "+yrs(roleYears(has)):L("Fehlt im Team","Missing in the team")};
   }
   const miss=r.need.filter(d=>!O.disc.includes(d));
   return {k:"disc",s:miss.length?"warn":"ok",t:r.need.map(discName).join(", "),res:miss.length?L("Partner nötig: ","Partner needed: ")+miss.map(discName).join(", "):L("Im eigenen Büro","In your own office")};
 }
-function fitOf(t){const ev=t.reqs.map(evalReq);return {ev,fit:ev.some(e=>e.s==="crit")?"no":ev.some(e=>e.s==="warn")?"partner":"ok"};}
+function fitOf(t){const ev=t.reqs.map(evalReq);if(!D.office.refs.length||!D.office.team.length)return {ev,fit:"nodata"};return {ev,fit:ev.some(e=>e.s==="crit")?"no":ev.some(e=>e.s==="warn")?"partner":"ok"};}
 function docsOf(t){
   const ev=fitOf(t).ev;
   return t.docs.map(d=>{
     if(d.auto==="refs"){const e=ev.find(x=>x.k==="refs"),ok=!!e&&e.s==="ok";return {id:d.id,auto:true,done:ok,t:L("Referenzblätter","Reference sheets"),sub:ok?e.refs.map(x=>tx(x)).join(", "):L("Zu wenig passende Referenzen","Not enough matching references")};}
-    if(d.auto==="team"){const m=D.office.team.filter(x=>x.tags.length);return {id:d.id,auto:true,done:true,t:L("Schlüsselpersonen","Key people"),sub:m.map(x=>tx(x.role)).join(", ")};}
+    if(d.auto==="team"){const m=D.office.team.filter(x=>mTags(x).length);return {id:d.id,auto:true,done:m.length>0,t:L("Schlüsselpersonen","Key people"),sub:m.map(x=>esc(x.name)+" ("+(curRole(x)?tx(ROLES[curRole(x)]):"")+")").join(", ")};}
     if(d.auto==="self")return {id:d.id,auto:false,done:!!t.done[d.id],t:L("Selbstdeklaration","Self-declaration"),sub:L("Vorausgefüllt, unterschreiben","Pre-filled, sign it")};
     return {id:d.id,auto:false,done:!!t.done[d.id],t:tx(d),sub:""};
   });
@@ -472,7 +481,14 @@ async function addDemoDocs(){
   const t=D.tenders[0];if(t){await mk("tender",t.id,"Ausschreibungsunterlagen.pdf",["Ausschreibungsunterlagen",tx(t.title)],-10);await mk("tender",t.id,"Fragen und Antworten.pdf",["Fragen und Antworten",tx(t.title)],-3);}
 }
 function runMigrations(){
-  if(!D||!D.example)return;D.mig=D.mig||{};
+  if(!D)return;D.mig=D.mig||{};
+  if(!D.mig.team2&&D.office){D.mig.team2=1;const Y=YNOW(),names=["Andrea Keller","Marco Brunner","Lea Hofmann","Simon Frei","Nina Graf"];
+    D.office.team=D.office.team.map((m,i)=>{if(m.career)return m;const r=/Bauleiter/.test(m.role&&m.role.de)?"bl":/Projektleiter/.test(m.role&&m.role.de)?"pl":"arch",here=Math.min(m.years||1,r==="arch"?m.years:8);
+      const career=[{role:r,firm:D.firm.name||L("Eigenes Büro","Own office"),from:Y-here+1,to:null}];
+      if((m.years||0)>here)career.push({role:r==="pl"?"arch":r,firm:r==="bl"?"Muster Bau AG":"Atelier Weber AG",from:Y-m.years+1,to:Y-here});
+      return {id:"m"+(i+1),name:names[i]||L("Person ","Person ")+(i+1),qual:m.qual||"",extra:(m.tags||[]).map(t=>t==="bl"?"blfa":"pub"),career};});
+    (D.office.refs||[]).forEach((r,i)=>{if(!r.id)r.id="r"+(i+1);});}
+  if(!D.example)return;
   if(!D.mig.docs){D.mig.docs=1;if(!DOCS().length&&window.indexedDB)addDemoDocs().then(render).catch(()=>{});}
   if(!D.mig.fees){if(!(D.fees||[]).length)addDemoFees();D.mig.fees=1;}
   if(!D.mig.income){addIncomeHistory();D.mig.income=1;}
@@ -985,9 +1001,27 @@ function viewTenders(){
   const O=D.office;
   const tsw=`<div class="seg" role="tablist"><button type="button" role="tab" data-act="ttab" data-t="verfahren" aria-selected="${S.ttab!=="profil"}">${L("Verfahren","Procedures")}</button><button type="button" role="tab" data-act="ttab" data-t="profil" aria-selected="${S.ttab==="profil"}">${L("Büroprofil","Office profile")}</button></div>`;
   if(S.ttab==="profil"){
-    return `<div class="page">${ph(L("Büro · Beispieldaten","Office · example data"),L("Ausschreibungen","Tenders"),"",tsw+excelBtn("tender"))}
-      <section><div class="sh"><h2>${L("Referenzen","References")}</h2><span class="cnt">${O.refs.length}</span></div><div class="rows">${O.refs.map(r=>`<div class="row static">${dot(r.pub?"acc":"n")}<span class="rt">${esc(tx(r))}</span><span class="rm">${esc(r.client)}</span><span class="ra">${mio(r.cost)}</span><span class="rl l-n">${r.running?L("laufend","ongoing"):r.year}</span></div>`).join("")}</div></section>
-      <section><div class="sh"><h2>Team</h2><span class="cnt">${O.team.length}</span></div><div class="rows">${O.team.map(m=>`<div class="row static">${dot("n")}<span class="rt">${tx(m.role)}<span class="q">${esc(m.qual)}</span></span><span class="rm"></span><span class="ra">${m.years} ${L("Jahre","yrs")}</span><span class="rl"></span></div>`).join("")}</div></section>
+    if(S.mid&&O.team.find(m=>m.id===S.mid))return viewPerson(O.team.find(m=>m.id===S.mid),tsw);
+    const sugg=D.projects.filter(p=>p.closed&&!p.refId&&!(p.refSkip));
+    const G={refs:O.refs,pub:O.refs.filter(r=>r.pub),team:O.team,sugg};
+    if(!G[S.pfilter]||(!G[S.pfilter].length&&S.pfilter!=="refs"&&S.pfilter!=="team"))S.pfilter="refs";
+    const maxC=Math.max(0,...O.refs.filter(r=>!r.running).map(r=>r.cost||0));
+    const TL={refs:[L("Referenzen","References"),O.refs.length,O.refs.length?L("grösstes Projekt ","largest project ")+mio(maxC):L("noch keine erfasst","none yet")],
+      pub:[L("Öffentliche Bauherrschaft","Public clients"),G.pub.length,L("oft verlangt bei Ausschreibungen","often required in tenders")],
+      team:[L("Team","Team"),O.team.length,O.team.length?L("zusammen ","together ")+yrs(O.team.reduce((a,m)=>a+roleYears(m),0))+L(" Erfahrung"," experience"):L("noch niemand erfasst","nobody yet")],
+      sugg:[L("Vorschläge","Suggestions"),sugg.length,L("abgeschlossene Projekte als Referenz","completed projects as reference")]};
+    const tile=k=>{const [l,v,ss]=TL[k],n=G[k].length,sel=S.pfilter===k,clickable=n||k==="refs"||k==="team",inner=`<span class="sl">${l}</span><span class="sv">${v||"–"}</span><span class="ss">${ss}</span>`;
+      return clickable?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="pfilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
+    const refRow=r=>row({act:"form",id:r.id,c:r.pub?"acc":"n",title:esc(tx(r)),meta:[esc(r.client||""),r.type&&RTYPE[r.type]?tx(RTYPE[r.type]):"",r.phases?"SIA "+esc(r.phases):""].filter(Boolean).join(" · "),amt:r.cost?mio(r.cost):"",label:r.running?L("laufend","ongoing"):String(r.year||""),lc:"n"}).replace('data-act="form"','data-act="form" data-f="ref"');
+    const mRow=m=>{const cr=curRole(m);return row({act:"open-m",id:m.id,c:mTags(m).length?"ok":"n",title:esc(m.name),meta:(cr?tx(ROLES[cr]):"")+(m.qual?" · "+esc(m.qual):""),amt:yrs(roleYears(m)),label:(m.extra||[]).map(x=>XQ[x]?tx(XQ[x]):"").filter(Boolean)[0]||"",lc:"n"});};
+    const sRow=p=>row({act:"form",c:"n",title:esc(p.name),meta:[esc(p.place||""),esc(p.client||"")].filter(Boolean).join(" · "),amt:"",label:L("Als Referenz übernehmen","Use as reference"),lc:"acc"}).replace('data-act="form"','data-act="form" data-f="ref" data-w="'+p.id+'"');
+    const f=S.pfilter,list=G[f],rows=(f==="team"?list.map(mRow):f==="sugg"?list.map(sRow):list.map(refRow)).join("");
+    const plus=f==="team"?ib("plus",L("Person erfassen","Add person"),'data-act="form" data-f="person"'):ib("plus",L("Referenz erfassen","Add reference"),'data-act="form" data-f="ref"');
+    const empty=f==="team"?L("Noch niemand im Team erfasst. Mit + fügen Sie eine Person hinzu.","No team members yet. Use + to add one."):L("Noch keine Referenzen. Mit + erfassen Sie eine, oder übernehmen Sie ein abgeschlossenes Projekt.","No references yet. Use + to add one, or take over a completed project.");
+    return `<div class="page">${ph(L("Büro","Office"),L("Ausschreibungen","Tenders"),"",tsw+plus+excelBtn("tender"))}
+      ${!O.refs.length||!O.team.length?`<div class="notice"><span class="ic warn" aria-hidden="true">!</span><span>${L("Solange Referenzen und Team fehlen, kann arkitecton die Eignung bei Ausschreibungen nicht prüfen.","As long as references and team are missing, arkitecton cannot check tender eligibility.")}</span></div>`:""}
+      <div class="stats s4">${["refs","pub","team","sugg"].map(tile).join("")}</div>
+      <section><div class="sh"><h2>${TL[f][0]}</h2><span class="cnt">${list.length}</span></div><div class="rows">${rows||`<div class="empty"><span>${empty}</span></div>`}</div></section>
     </div>`;
   }
   const active=D.tenders.filter(t=>!closedT(t)),closed=D.tenders.filter(closedT);
@@ -1007,6 +1041,21 @@ function viewTenders(){
   return `<div class="page">${ph(L("Büro · Beispieldaten","Office · example data"),L("Ausschreibungen","Tenders"),"",tsw+excelBtn("tender"))}
     <div class="stats s4">${["open","ok","partner","done"].map(tile).join("")}</div>
     <section><div class="sh"><h2>${TL[S.tfilter][0]}</h2><span class="cnt">${list.length}</span><span class="right">${S.tfilter==="open"?"":`<button type="button" class="ghost" data-act="tfilter" data-f="open">${L("Alle offenen anzeigen","Show all open")} (${active.length})</button>`}</span></div><div class="rows">${rows||`<div class="empty"><span>${L("Keine Verfahren.","No procedures.")}</span></div>`}</div></section>
+  </div>`;
+}
+
+function viewPerson(m,tsw){
+  const cr=curRole(m),car=(m.career||[]).slice().sort((a,b)=>(b.to||9999)-(a.to||9999)||b.from-a.from);
+  const st=(l,v,ss)=>`<div class="stat"><span class="sl">${l}</span><span class="sv">${v}</span><span class="ss">${ss}</span></div>`;
+  const pl=roleYears(m,"pl"),bl=roleYears(m,"bl"),tot=roleYears(m);
+  const rows=car.map(c=>{const i=m.career.indexOf(c);return row({act:"form",id:m.id,c:c.to?"n":"ok",title:tx(ROLES[c.role]||{de:c.role,en:c.role}),meta:esc(c.firm||""),amt:c.from+" – "+(c.to||L("heute","today")),label:yrs(spanY(c)),lc:"n"}).replace('data-act="form"','data-act="form" data-f="career" data-w="'+i+'"');}).join("");
+  const xs=(m.extra||[]).filter(x=>XQ[x]);
+  return `<div class="page">
+    <button type="button" class="back" data-act="back-m">← ${L("Büroprofil","Office profile")}</button>
+    ${ph(L("Team","Team")+(cr?" · "+tx(ROLES[cr]):""),esc(m.name),esc(m.qual||""),ib("edit",L("Person bearbeiten","Edit person"),`data-act="form" data-f="person" data-id="${m.id}"`))}
+    <div class="stats">${st(L("Berufserfahrung","Experience"),tot?yrs(tot):"–",tot?L("seit ","since ")+startY(m):L("Werdegang erfassen","add career"))}${st(L("Als Projektleiter","As project lead"),pl?yrs(pl):"–",pl?L("Projektleitung","project management"):L("keine Erfahrung erfasst","none recorded"))}${st(L("Als Bauleiter","As site manager"),bl?yrs(bl):"–",xs.includes("blfa")?tx(XQ.blfa):bl?L("Bauleitung","site management"):L("keine Erfahrung erfasst","none recorded"))}</div>
+    <section><div class="sh"><h2>${L("Werdegang","Career")}</h2><span class="cnt">${car.length}</span><span class="right"><button type="button" class="ghost" data-act="form" data-f="career" data-id="${m.id}">+ ${L("Station","Position")}</button></span></div><div class="rows">${rows||`<div class="empty"><span>${L("Noch kein Werdegang. Erfassen Sie die Rollen mit Jahren, auch bei früheren Arbeitgebern.","No career yet. Add roles with years, including former employers.")}</span></div>`}</div></section>
+    <section><div class="sh"><h2>${L("Zusatzqualifikationen","Additional qualifications")}</h2><span class="cnt">${xs.length}</span></div><div class="rows">${xs.map(x=>`<div class="row static">${dot("ok")}<span class="rt">${tx(XQ[x])}</span><span class="rm"></span><span class="ra"></span><span class="rl"></span></div>`).join("")||`<div class="empty"><span>${L("Keine erfasst. Über den Stift oben ergänzen.","None yet. Add them with the pencil above.")}</span></div>`}</div></section>
   </div>`;
 }
 
@@ -1303,6 +1352,30 @@ const fld=(id,label,val,o={})=>`<div class="f${o.wide?" wide":""}"><label for="$
 function formDef(){
   if(S.form&&S.form.f==="fee") return feeFormDef(S.form);
   const F=S.form, p=P();
+  if(F.f==="ref"){const O=D.office,r=O.refs.find(x=>x.id===F.id)||{},pr=F.w?PJ(F.w):null,bud=pr?(pr.budget||[]).reduce((a,b)=>a+(b.kv||0),0):0;
+    const v=k=>r[k]!=null?r[k]:"";const name=F.id?tx(r):pr?pr.name+(pr.place?", "+pr.place:""):"";
+    const opt=(o,cur)=>Object.keys(o).map(k=>`<option value="${k}"${cur===k?" selected":""}>${esc(tx(o[k]))}</option>`).join("");
+    return {title:F.id?L("Referenz bearbeiten","Edit reference"):pr?L("Projekt als Referenz","Project as reference"):L("Neue Referenz","New reference"),
+      body:fld("fRName",L("Projekt und Ort","Project and place"),name,{wide:true,req:true,ph:L("z. B. Erweiterung Schulhaus, Horgen","e.g. School extension, Horgen")})
+        +fld("fRClient",L("Bauherrschaft","Client"),F.id?v("client"):pr?pr.client||"":"",{wide:true})
+        +`<div class="f wide"><label class="chk"><input type="checkbox" id="fRPub"${r.pub?" checked":""}> ${L("Öffentliche Bauherrschaft (Gemeinde, Kanton, Bund)","Public client (municipality, canton, federal)")}</label></div>`
+        +`<div class="f"><label for="fRType">${L("Art","Type")}</label><select id="fRType"><option value="">${L("andere","other")}</option>${opt(RTYPE,r.type)}</select></div>`
+        +fld("fRCost",L("Bausumme in Mio. CHF","Construction cost, CHF m"),F.id?v("cost"):bud?Math.round(bud/1e5)/10:"",{mode:"decimal",ph:"z. B. 4.2"})
+        +fld("fRYear",L("Abschlussjahr","Year completed"),F.id?(r.running?"":v("year")):YNOW(),{mode:"numeric"})
+        +fld("fRPhases",L("SIA-Phasen","SIA phases"),F.id?v("phases"):"31–53",{ph:"31–53"})
+        +`<div class="f wide"><label class="chk"><input type="checkbox" id="fRRun"${r.running?" checked":""}> ${L("Projekt läuft noch","Project still running")}</label></div>`,
+      del:!!F.id};}
+  if(F.f==="person"){const m=D.office.team.find(x=>x.id===F.id)||{extra:[]};
+    return {title:F.id?L("Person bearbeiten","Edit person"):L("Neue Person","New person"),
+      body:fld("fMName",L("Name","Name"),m.name||"",{wide:true,req:true})+fld("fMQual",L("Ausbildung","Education"),m.qual||"",{wide:true,ph:L("z. B. dipl. Architekt FH","e.g. Architect, BSc")})
+        +`<div class="f wide"><label>${L("Zusatzqualifikationen","Additional qualifications")}</label>${Object.keys(XQ).map(k=>`<label class="chk"><input type="checkbox" data-xq="${k}"${(m.extra||[]).includes(k)?" checked":""}> ${tx(XQ[k])}</label>`).join("")}</div>`
+        +(F.id?"":`<p class="hint" style="grid-column:1/-1">${L("Den Werdegang mit Rollen und Jahren erfassen Sie danach auf der Personenseite.","Add the career with roles and years on the person page afterwards.")}</p>`),
+      del:!!F.id};}
+  if(F.f==="career"){const m=D.office.team.find(x=>x.id===F.id)||{career:[]},i=F.w!=null&&F.w!==""?+F.w:-1,c=i>=0?m.career[i]:{role:"arch",firm:D.firm.name||"",from:"",to:null};
+    return {title:(i>=0?L("Station bearbeiten · ","Edit position · "):L("Neue Station · ","New position · "))+esc(m.name||""),
+      body:`<div class="f wide"><label for="fCRole">${L("Rolle","Role")}</label><select id="fCRole">${Object.keys(ROLES).map(k=>`<option value="${k}"${c.role===k?" selected":""}>${tx(ROLES[k])}</option>`).join("")}</select></div>`
+        +fld("fCFirm",L("Arbeitgeber","Employer"),c.firm||"",{wide:true})+fld("fCFrom",L("Von (Jahr)","From (year)"),c.from||"",{mode:"numeric",req:true})+fld("fCTo",L("Bis (Jahr)","To (year)"),c.to||"",{mode:"numeric",hint:L("Leer lassen, wenn die Rolle heute noch gilt.","Leave empty if the role is current.")}),
+      del:i>=0};}
   if(F.f==="docvalid"){const d=DOCS().find(x=>x.id===F.id)||{};return {title:esc(d.name||""),body:fld("fUntil",L("Gültig bis","Valid until"),d.until||"",{type:"date",wide:true,hint:L("Leer lassen, wenn das Dokument nicht abläuft. 30 Tage vor Ablauf erscheint eine Warnung.","Leave empty if it does not expire. A warning appears 30 days before.")})};}
   if(F.f==="project"){const x=F.id?D.projects.find(q=>q.id===F.id):{};return {title:F.id?L("Projekt bearbeiten","Edit project"):L("Neues Projekt","New project"),body:fld("fName",L("Projektname","Project name"),x.name,{wide:true,req:true,ph:L("z. B. EFH Bergstrasse 4","e.g. Bergstrasse 4 house")})+fld("fPlace",L("Ort","Place"),x.place,{ph:L("z. B. Horgen","e.g. Horgen")})+fld("fClient",L("Bauherrschaft","Client"),x.client)+fld("fCStreet",L("Adresse Bauherrschaft","Client address"),x.cstreet,{wide:true,ph:L("Strasse und Nr.","Street and no.")})+fld("fCZip",L("PLZ","Postcode"),x.czip,{mode:"numeric"})+fld("fCCity",L("Ort","Town"),x.ccity)+fld("fDesc",L("Beschreibung","Description"),x.desc,{wide:true,ph:L("z. B. Umbau Einfamilienhaus","e.g. house conversion")})+(F.id?`<div class="f wide"><label class="chk"><input type="checkbox" id="fClosed"${x.closed?" checked":""}> ${L("Projekt abgeschlossen","Project completed")}</label><span class="hint">${L("Abgeschlossene Projekte erscheinen in der Auswahl eingeklappt.","Completed projects are collapsed in the project switcher.")}</span></div>`:"")};}
   if(F.f==="contractor"){const x=F.id?K(F.id):{};return {title:F.id?L("Handwerker bearbeiten","Edit contractor"):L("Neuer Handwerker","New contractor"),body:fld("fName",L("Firma","Company"),x.name,{wide:true,req:true})+fld("fStreet",L("Strasse","Street"),x.street,{wide:true})+fld("fZip",L("PLZ","ZIP"),x.zip,{mode:"numeric"})+fld("fCity",L("Ort","City"),x.city)+fld("fIban","IBAN",x.iban,{wide:true})+fld("fEmail",L("E-Mail","Email"),x.email,{type:"email"})+fld("fPhone",L("Telefon","Phone"),x.phone,{type:"tel"}),del:F.id&&!D.contracts.some(w=>w.k===F.id)};}
@@ -1399,6 +1472,21 @@ function submitForm(){
     if(amt>0&&!why) return fail(L("Bitte kurz begründen.","Please give a short reason."));
     if(amt>0){i.ded={amt:r2(amt),why};logInv(i,L("Abzug CHF ","Deduction CHF ")+nf2.format(r2(amt))+": "+why);}else if(i.ded){delete i.ded;logInv(i,L("Abzug entfernt","Deduction removed"));}
     const id=i.id;closeAll();S.drawer=id;render();return toast(amt>0?L("Abzug gespeichert","Deduction saved"):L("Abzug entfernt","Deduction removed"));}
+  if(F.f==="ref"){const O=D.office,name=val("fRName");if(!name)return fail(L("Projekt fehlt.","Project missing."),"fRName");
+    const cost=val("fRCost")?num(val("fRCost")):null;if(val("fRCost")&&(cost===null||cost<0))return fail(L("Bausumme als Zahl in Mio. CHF eingeben, z. B. 4.2","Enter the cost in CHF m, e.g. 4.2"),"fRCost");
+    const run=document.getElementById("fRRun").checked,year=parseInt(val("fRYear"),10);if(!run&&!(year>1950&&year<=YNOW()+1))return fail(L("Abschlussjahr eingeben oder «läuft noch» wählen.","Enter the year or tick «still running»."),"fRYear");
+    const rec={de:name,en:name,client:val("fRClient"),pub:document.getElementById("fRPub").checked,type:document.getElementById("fRType").value||null,cost:cost||0,year:run?YNOW():year,running:run,phases:val("fRPhases")};
+    let r=O.refs.find(x=>x.id===F.id);if(r)Object.assign(r,rec);else{r=Object.assign({id:newId("r")},rec);O.refs.unshift(r);const pr=F.w&&PJ(F.w);if(pr)pr.refId=r.id;}
+    S.pfilter="refs";backTo();render();return toast(L("Referenz gespeichert","Reference saved"));}
+  if(F.f==="person"){const O=D.office;if(!val("fMName"))return fail(L("Name fehlt.","Name missing."),"fMName");
+    const extra=[...document.querySelectorAll("[data-xq]")].filter(e=>e.checked).map(e=>e.dataset.xq);
+    let m=O.team.find(x=>x.id===F.id);if(m)Object.assign(m,{name:val("fMName"),qual:val("fMQual"),extra});else{m={id:newId("m"),name:val("fMName"),qual:val("fMQual"),extra,career:[]};O.team.push(m);S.mid=m.id;}
+    backTo();render();return toast(L("Gespeichert","Saved"));}
+  if(F.f==="career"){const m=D.office.team.find(x=>x.id===F.id);if(!m)return;const from=parseInt(val("fCFrom"),10),to=val("fCTo")?parseInt(val("fCTo"),10):null,Y=YNOW();
+    if(!(from>1950&&from<=Y))return fail(L("Startjahr eingeben, z. B. 2016.","Enter the start year, e.g. 2016."),"fCFrom");
+    if(to!==null&&!(to>=from&&to<=Y))return fail(L("Endjahr muss zwischen Start und heute liegen.","End year must be between start and today."),"fCTo");
+    const rec={role:document.getElementById("fCRole").value,firm:val("fCFirm"),from,to};const i=F.w!=null&&F.w!==""?+F.w:-1;
+    m.career=m.career||[];if(i>=0)m.career[i]=rec;else m.career.push(rec);backTo();render();return toast(L("Gespeichert","Saved"));}
   if(F.f==="firm"){
     if(!val("fName")) return fail(L("Firmenname fehlt.","Company name missing."));
     const ib_=norm(val("fIban"));if(ib_&&!ibanValid(ib_)) return fail(L("IBAN prüfen: Die Prüfziffer stimmt nicht.","Check the IBAN: the check digits do not match."),"fIban");
@@ -1409,6 +1497,9 @@ function submitForm(){
 }
 function formDelete(){
   const F=S.form;
+  if(F.f==="ref"){D.office.refs=D.office.refs.filter(r=>r.id!==F.id);D.projects.forEach(p=>{if(p.refId===F.id)delete p.refId;});}
+  if(F.f==="person"){D.office.team=D.office.team.filter(m=>m.id!==F.id);S.mid=null;}
+  if(F.f==="career"){const m=D.office.team.find(x=>x.id===F.id);if(m)m.career.splice(+F.w,1);}
   if(F.f==="contractor"){D.contractors=D.contractors.filter(k=>k.id!==F.id);S.kid=null;}
   if(F.f==="contract"){const w=W(F.w);D.contracts=D.contracts.filter(x=>x!==w);S.wid=null;}
   if(F.f==="kv"){const p=P();p.budget=p.budget.filter(b=>b.bkp!==F.id);}
@@ -1621,7 +1712,7 @@ document.addEventListener("click",e=>{
   if(EXPORT[a])return void EXPORT[a](id);
   switch(a){
     case "start-example":D=seedExample();runMigrations();S.view="uebersicht";render();break;
-    case "start-empty":D=seedEmpty();S.view="buero";render();openForm("firm");break;
+    case "start-empty":D=seedEmpty();runMigrations();S.view="buero";render();openForm("firm");break;
     case "nav":S.kid=null;S.tid=null;go(el.dataset.v);break;
     case "theme-set":setTheme(el.dataset.v);render();toast(L("Gespeichert","Saved"));break;
     case "nmore":case "pmore":{const r=el.getBoundingClientRect();S.pconfirm=null;S.pop={kind:a==="nmore"?"nav":"proj",key:a==="nmore"?el.dataset.v:id,rect:r,kb:e.detail===0};renderPop();return;}
@@ -1634,6 +1725,9 @@ document.addEventListener("click",e=>{
     case "nav-mode":setNavMode(el.dataset.v||(navMode()==="min"?"open":"min"));renderChrome();if(S.view==="einstellungen")render();break;
     case "lang-set":if(el.dataset.v!==S.lang)exampleSwap(el.dataset.v);S.lang=el.dataset.v;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
     case "lang":if(el.dataset.l!==S.lang)exampleSwap(el.dataset.l);S.lang=el.dataset.l;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
+    case "pfilter":S.pfilter=el.dataset.f;render();break;
+    case "open-m":S.mid=id;render();break;
+    case "back-m":S.mid=null;render();break;
     case "tfilter":S.tfilter=el.dataset.f;render();break;
     case "kfilter":S.kfilter=el.dataset.f;render();break;
     case "ffilter":S.ffilter=el.dataset.f;render();break;

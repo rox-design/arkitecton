@@ -803,3 +803,6 @@ select.needs{border-color:var(--warn)}
   .tabbar .tabscan .ni{width:24px;height:24px}
   body.at-end .tabbar .tabscan{opacity:0;pointer-events:none;transform:translate(-50%,8px)}
 }
+.invact{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:-6px 0 6px}
+.invact .scanbig{margin:0}
+@media (max-width:820px){.invact{display:none}}

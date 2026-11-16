@@ -821,3 +821,14 @@ select.needs{border-color:var(--warn)}
 .rail .firm{padding-left:16px}
 .nrow>button>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nrow:hover>button,.nrow:focus-within>button{padding-right:calc(8px + var(--na,0px))}
+/* collapsible sections (Home, Projekt) */
+section.foldable>.sh{align-items:center}
+section.foldable>.sh .fold{all:unset;cursor:pointer;margin-left:12px;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;color:var(--faint);font-size:1.15rem;line-height:1}
+section.foldable>.sh .right+.fold{margin-left:8px}
+section.foldable>.sh .fold:hover{background:var(--hover);color:var(--ink)}
+section.foldable>.sh .fold:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+section.foldable>.sh:not(:has(.right)) .fold{margin-left:auto}
+section.folded>:not(.sh){display:none!important}
+section.folded>.sh{border-bottom-color:var(--line)}
+section.foldable>.sh .fold svg{transition:transform .18s}
+section.folded>.sh .fold svg{transform:rotate(-90deg)}

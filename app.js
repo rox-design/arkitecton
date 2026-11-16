@@ -181,6 +181,7 @@ const dayWord=n=>n===1?L("Tag","day"):L("Tagen","days");
 const dueText=dd=>dd<0?L("seit "+(-dd)+" "+dayWord(-dd)+" überfällig","overdue by "+(-dd)+" "+(-dd===1?"day":"days")):dd===0?L("heute fällig","due today"):L("fällig in "+dd+" "+dayWord(dd),"due in "+dd+" "+(dd===1?"day":"days"));
 const dueTone=dd=>dd<0?"crit":dd<=7?"warn":"n";
 const subTitle=t=>`<h3 class="subh">${t}</h3>`;
+const foldRows=(title,html,n)=>n?`<details class="pdone hdone"><summary>${title} <span class="cnt">${n}</span></summary><div class="rows">${html}</div></details>`:"";
 const row=o=>`<button type="button" class="row" data-act="${o.act}"${o.id?` data-id="${o.id}"`:""}${o.v?` data-v="${o.v}"`:""}>${dot(o.c)}<span class="rt">${o.title}</span><span class="rm">${o.meta||""}</span><span class="ra">${o.amt||""}</span><span class="rl l-${o.lc||o.c}">${o.label||""}</span></button>`;
 
 function compare(w){
@@ -543,7 +544,9 @@ function viewFees(){
     paid:[L("Bezahlt","Paid"),chf(tot(G.paid),false),nInv(G.paid.length),""]};
   const tile=k=>{const [l,v,ss,c]=T[k],n=G[k].length,sel=S.ffilter===k,inner=`<span class="sl">${l}</span><span class="sv${c}">${v}</span><span class="ss">${ss}</span>`;
     return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="ffilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
-  const rows=shown.map(f=>{const st=feeState(f);return row({act:"open-fee",id:f.id,c:st.c,title:esc(f.title||L("Honorar","Fee")),meta:esc(f.no)+" · "+fdate(f.date),amt:chf(feeTotal(f),false),label:st.t,lc:st.c});}).join("");
+  const fRow=f=>{const st=feeState(f);return row({act:"open-fee",id:f.id,c:st.c,title:esc(f.title||L("Honorar","Fee")),meta:esc(f.no)+" · "+fdate(f.date),amt:chf(feeTotal(f),false),label:st.t,lc:st.c});};
+  const paidF=S.ffilter==="all"?shown.filter(f=>f.paid):[];
+  const rows=shown.filter(f=>!paidF.includes(f)).map(fRow).join("")+foldRows(L("Bezahlt","Paid"),paidF.map(fRow).join(""),paidF.length);
   const miss=firmMissing();
   const head=`<div class="sh"><h2>${S.ffilter==="all"?L("Alle Honorarrechnungen","All fee invoices"):T[S.ffilter][0]}</h2><span class="cnt">${shown.length}</span><span class="right">${S.ffilter==="all"||!list.length?"":`<button type="button" class="ghost" data-act="ffilter" data-f="all">${L("Alle anzeigen","Show all")} (${list.length})</button>`}</span></div>`;
   return `${miss.length?`<div class="notice"><span class="ic warn" aria-hidden="true">!</span><span>${L("Für Rechnungen mit QR-Code fehlen Büro-Angaben: ","Firm details missing for QR invoices: ")}${miss.join(", ")}. <button type="button" class="ghost link" data-act="form" data-f="firm">${L("Ergänzen","Add")}</button></span></div>`:""}
@@ -786,7 +789,9 @@ function viewInvoices(){
   const list=of(S.filter).slice().sort((a,b)=>toDate(b.date)-toDate(a.date));
   const pay=S.filter==="zahlen";
   const byDue=S.filter!=="all"&&S.filter!=="bezahlt";
-  const rows=list.map(i=>{const w=W(i.w),k=K(w.k),dd=daysTo(i.due);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:esc(k.name),meta:typeLabel(i)+" · "+esc(i.no),amt:chf(pay?payout(i):i.gross,false),label:byDue?dueText(dd):stLabel(i.status),lc:byDue?dueTone(dd):STATUS[i.status].c});}).join("");
+  const iRow=i=>{const w=W(i.w),k=K(w.k),dd=daysTo(i.due);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:esc(k.name),meta:typeLabel(i)+" · "+esc(i.no),amt:chf(pay?payout(i):i.gross,false),label:byDue?dueText(dd):stLabel(i.status),lc:byDue?dueTone(dd):STATUS[i.status].c});};
+  const paidI=S.filter==="all"?list.filter(i=>i.status==="bezahlt"):[];
+  const rows=list.filter(i=>!paidI.includes(i)).map(iRow).join("")+foldRows(L("Bezahlt","Paid"),paidI.map(iRow).join(""),paidI.length);
   const more=`<button type="button" class="ib" title="${L("Weitere Aktionen","More actions")}" aria-label="${L("Weitere Aktionen","More actions")}" data-act="sheet" data-k="rechnungen">${ico("more")}</button>`;
   const total=pay?toPay(list):list.reduce((a,i)=>a+i.gross,0);
   const sumLine=list.length?`<div class="fsum phoneonly"><span>${list.length} ${({zahlen:L("zu zahlen","to pay"),pruefen:L("zu prüfen","to check"),rueckfrage:L("mit Rückfrage","with query"),frei:L("freigegeben","approved"),bezahlt:L("bezahlt","paid")})[S.filter]||(list.length===1?L("Rechnung","invoice"):L("Rechnungen","invoices"))}</span><span>${chf(total,false)}</span></div>`:"";
@@ -973,6 +978,11 @@ function saveSetting(el){
 }
 function pageActs(){const s=new Set();document.querySelectorAll("#main [data-act]").forEach(e=>{s.add(e.dataset.act+"|"+(e.dataset.f||""));if(e.dataset.act==="sheet"&&e.dataset.k!=="projects"&&e.dataset.k!=="daten"){const d=sheetDef(e.dataset.k);(d&&d.groups||[]).forEach(g=>g[1].forEach(x=>s.add(x.imp?"imp:"+x.imp+"|":x.act+"|"+(x.f||""))));}});return s;}
 const itemKey=x=>x.imp?"imp:"+x.imp+"|":x.act+"|"+(((x.ex||"").match(/data-f="([^"]+)"/)||[])[1]||"");
+const FOLDK="arkitecton:fold",foldGet=()=>{try{return JSON.parse(localStorage.getItem(FOLDK)||"{}")}catch(e){return {}}};
+function foldSections(){if(S.view!=="buero"&&S.view!=="uebersicht")return;const st=foldGet();
+  document.querySelectorAll("#main section").forEach(sec=>{const sh=sec.querySelector(":scope>.sh"),h=sh&&sh.querySelector("h2");if(!h||sh.querySelector(".fold"))return;
+    const k=S.view+":"+h.textContent.trim(),closed=!!st[k];sec.classList.add("foldable");sec.classList.toggle("folded",closed);
+    const b=document.createElement("button");b.type="button";b.className="fold";b.dataset.act="fold";b.dataset.k=k;b.setAttribute("aria-expanded",String(!closed));b.setAttribute("aria-label",(closed?L("Aufklappen: ","Expand: "):L("Zuklappen: ","Collapse: "))+h.textContent.trim());b.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';sh.appendChild(b);});}
 function trimRail(){const b=document.querySelector('.rail .nrow>button[data-act="nav"][data-v="'+S.view+'"]');if(!b)return;const row=b.parentNode,on=pageActs();
   row.querySelectorAll(".nact .na").forEach(n=>{if(n.dataset.act==="nmore"){if(!popItems("nav",S.view).length)n.remove();}else if(on.has(n.dataset.act+"|"+(n.dataset.f||"")))n.remove();});}
 function popItems(kind,key){
@@ -1033,7 +1043,9 @@ function viewTenders(){
   if(!G[S.tfilter].length&&S.tfilter!=="open")S.tfilter="open";
   const next=active.filter(t=>fitOf(t).fit!=="no").sort((a,b)=>toDate(a.due)-toDate(b.due))[0];
   const list=G[S.tfilter].slice().sort((a,b)=>closedT(a)?toDate(b.due)-toDate(a.due):toDate(a.due)-toDate(b.due));
-  const rows=list.map(t=>{const f=fitOf(t).fit,c=closedT(t),dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:c?"n":FIT[f].c,title:esc(tx(t.title)),meta:(c?"":(dd<0?L("vorbei","closed"):L("in "+dd+" "+dayWord(dd),"in "+dd+" "+(dd===1?"day":"days")))+" · ")+esc(t.client),amt:c?tx(TST[t.status]):fdate(t.due),label:c?"":tx(FIT[f])});}).join("");
+  const tRow=t=>{const f=fitOf(t).fit,c=closedT(t),dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:c?"n":FIT[f].c,title:esc(tx(t.title)),meta:(c?"":(dd<0?L("vorbei","closed"):L("in "+dd+" "+dayWord(dd),"in "+dd+" "+(dd===1?"day":"days")))+" · ")+esc(t.client),amt:c?tx(TST[t.status]):fdate(t.due),label:c?"":tx(FIT[f])});};
+  const doneT=S.tfilter==="open"?closed.slice().sort((a,b)=>toDate(b.due)-toDate(a.due)):[];
+  const rows=list.map(tRow).join("")+foldRows(L("Abgeschlossen","Closed"),doneT.map(tRow).join(""),doneT.length);
   const nT=n=>n===1?L("1 Verfahren","1 procedure"):n+" "+L("Verfahren","procedures");
   const TL={open:[L("Offene Verfahren","Open procedures"),String(active.length),next?L("nächste Eingabe ","next deadline ")+fdate(next.due):L("keine Frist offen","no open deadline"),""],
     ok:[L("Eignung erfüllt","Eligible"),String(G.ok.length),nT(G.ok.length),G.ok.length?" ok":""],
@@ -1051,7 +1063,9 @@ function viewPerson(m,tsw){
   const cr=curRole(m),car=(m.career||[]).slice().sort((a,b)=>(b.to||9999)-(a.to||9999)||b.from-a.from);
   const st=(l,v,ss)=>`<div class="stat"><span class="sl">${l}</span><span class="sv">${v}</span><span class="ss">${ss}</span></div>`;
   const pl=roleYears(m,"pl"),bl=roleYears(m,"bl"),tot=roleYears(m);
-  const rows=car.map(c=>{const i=m.career.indexOf(c);return row({act:"form",id:m.id,c:c.to?"n":"ok",title:tx(ROLES[c.role]||{de:c.role,en:c.role}),meta:esc(c.firm||""),amt:c.from+" – "+(c.to||L("heute","today")),label:yrs(spanY(c)),lc:"n"}).replace('data-act="form"','data-act="form" data-f="career" data-w="'+i+'"');}).join("");
+  const cRow=c=>{const i=m.career.indexOf(c);return row({act:"form",id:m.id,c:c.to?"n":"ok",title:tx(ROLES[c.role]||{de:c.role,en:c.role}),meta:esc(c.firm||""),amt:c.from+" – "+(c.to||L("heute","today")),label:yrs(spanY(c)),lc:"n"}).replace('data-act="form"','data-act="form" data-f="career" data-w="'+i+'"');};
+  const nowC=car.filter(c=>!c.to),pastC=car.filter(c=>c.to);
+  const rows=(nowC.length?nowC:pastC.slice(0,1)).map(cRow).join("")+foldRows(L("Frühere Stationen","Earlier positions"),(nowC.length?pastC:pastC.slice(1)).map(cRow).join(""),(nowC.length?pastC:pastC.slice(1)).length);
   const xs=(m.extra||[]).filter(x=>XQ[x]);
   return `<div class="page">
     <button type="button" class="back" data-act="back-m">← ${L("Büroprofil","Office profile")}</button>
@@ -1101,7 +1115,7 @@ function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]
   app.style.display="";document.querySelector(".rail").style.display="";document.querySelector(".topbar").style.display="";document.getElementById("tabbar").style.display="";
   renderChrome();swipeHint();
   document.getElementById("main").innerHTML=({buero:viewFirm,uebersicht:viewOverview,rechnungen:viewInvoices,handwerker:viewContractors,budget:viewBudget,ausschreibungen:viewTenders,einstellungen:viewSettings})[S.view]();
-  trimRail();renderOverlay();
+  trimRail();foldSections();renderOverlay();
 }
 
 /* ---------- invoice drawer ---------- */
@@ -1759,6 +1773,7 @@ document.addEventListener("click",e=>{
     case "open-m":S.mid=id;render();break;
     case "back-m":S.mid=null;render();break;
     case "tfilter":S.tfilter=el.dataset.f;render();break;
+    case "fold":{const st=foldGet(),k=el.dataset.k;st[k]=!st[k];try{localStorage.setItem(FOLDK,JSON.stringify(st));}catch(e){}const sec=el.closest("section");sec.classList.toggle("folded",!!st[k]);el.setAttribute("aria-expanded",String(!st[k]));break;}
     case "kfilter":S.kfilter=el.dataset.f;render();break;
     case "ffilter":S.ffilter=el.dataset.f;render();break;
     case "filter":S.filter=el.dataset.f;render();break;

@@ -795,8 +795,8 @@ function viewContractors(){
   const shown=kf?all.filter(FL[kf]):all, shownLoose=kf==="missing"?loose.filter(k=>missingOf(k).length):kf?[]:loose;
   const missTxt=k=>{const m=missingOf(k);return m.length?`<span class="mwarn">${m.length===1?L(m[0]+" fehlt",m[0]+" missing"):L(m.length+" Angaben fehlen",m.length+" details missing")}</span>`:"";};
   const rows=shown.map(x=>{const sum=x.w.sum||0,pc=sum?Math.round(x.billed/sum*100):0,over=sum&&x.billed>sum;
-      return row({act:"open-k",id:x.k.id,c:over?"crit":x.billed?"ok":"n",title:esc(x.k.name),meta:"BKP "+x.w.bkp+" "+esc(bName(x.w.bkp)),amt:chf(x.billed,false),
-        label:`<span class="kprog${over?" over":""}"><span class="kbar"><i style="width:${Math.min(100,pc)}%"></i></span><span>${L("von","of")} ${nf0.format(sum)}${sum?" · "+pc+" %":""}</span>${missTxt(x.k)}</span>`,lc:over?"crit":"n"});}).join("")
+      return row({act:"open-k",id:x.k.id,c:over?"crit":x.billed?"ok":"n",title:esc(x.k.name),meta:"BKP "+x.w.bkp+" "+esc(bName(x.w.bkp)),amt:kf==="billed"?chf(x.billed,false):kf==="ret"?chf(x.ret,false):chf(sum,false),
+        label:`<span class="kprog${over?" over":""}"><span class="kbar"><i style="width:${Math.min(100,pc)}%"></i></span><span>${kf==="billed"?L("von","of")+" "+nf0.format(sum)+" · "+pc+" %":kf==="ret"?L("Rückbehalt","retention")+" "+retPct(x.w)+" %":pc+" % "+L("abgerechnet","billed")}</span>${missTxt(x.k)}</span>`,lc:over?"crit":"n"});}).join("")
     +shownLoose.map(k=>row({act:"open-k",id:k.id,c:"n",title:esc(k.name),meta:L("Noch kein Werkvertrag","No contract yet")+(missingOf(k).length?" · "+missTxt(k):""),amt:"",label:L("Werkvertrag erfassen","Add contract"),lc:"n"})).join("");
   const tile=(f,l,v,ss,n)=>{const sel=kf===f,inner=`<span class="sl">${l}</span><span class="sv">${v}</span><span class="ss">${ss}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="kfilter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   const nV=all.length;

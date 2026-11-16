@@ -832,3 +832,4 @@ section.folded>:not(.sh){display:none!important}
 section.folded>.sh{border-bottom-color:var(--line)}
 section.foldable>.sh .fold svg{transition:transform .18s}
 section.folded>.sh .fold svg{transform:rotate(-90deg)}
+section.foldable>.sh .fold svg{width:18px!important;height:18px!important;flex:none}

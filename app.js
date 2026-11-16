@@ -322,7 +322,7 @@ download:'<path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 1
 const ico=n=>`<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[n]}</svg>`;
 const ibl=(n,label,attrs,short)=>`<button type="button" class="ibl" title="${label}" ${attrs||""}>${ico(n)}<span>${short||label}</span></button>`;
 const ib=(n,label,attrs)=>`<button type="button" class="ib" title="${label}" aria-label="${label}" ${attrs||""}>${ico(n)}</button>`;
-const excelBtn=key=>`<button type="button" class="btn" data-act="sheet" data-k="${key}">Excel</button>`;
+const excelBtn=key=>`<button type="button" class="ib" title="${L("Weitere Aktionen","More actions")}" aria-label="${L("Weitere Aktionen","More actions")}" data-act="sheet" data-k="${key}">${ico("more")}</button>`;
 const noProject=()=>`<div class="page">${ph("",L("Noch kein Projekt","No project yet"),"")}<div class="empty"><span>${L("Legen Sie Ihr erstes Projekt an.","Create your first project.")}</span><button type="button" class="btn primary" data-act="form" data-f="project">${L("Projekt anlegen","Create project")}</button></div></div>`;
 
 /* ---------- views ---------- */
@@ -983,25 +983,30 @@ function closePop(){if(S.pop){S.pop=null;S.pconfirm=null;renderPop();}}
 function viewTenders(){
   if(S.tid&&T(S.tid)) return viewTender(T(S.tid));
   const O=D.office;
-  const tabs=`<div class="tabs" role="tablist"><button type="button" role="tab" data-act="ttab" data-t="verfahren" aria-selected="${S.ttab==="verfahren"}">${L("Verfahren","Procedures")}<span class="c">${D.tenders.filter(t=>!closedT(t)).length}</span></button><button type="button" role="tab" data-act="ttab" data-t="profil" aria-selected="${S.ttab==="profil"}">${L("Büroprofil","Office profile")}</button></div>`;
+  const tsw=`<div class="seg" role="tablist"><button type="button" role="tab" data-act="ttab" data-t="verfahren" aria-selected="${S.ttab!=="profil"}">${L("Verfahren","Procedures")}</button><button type="button" role="tab" data-act="ttab" data-t="profil" aria-selected="${S.ttab==="profil"}">${L("Büroprofil","Office profile")}</button></div>`;
   if(S.ttab==="profil"){
-    return `<div class="page">${ph(L("Büro · Beispieldaten","Office · example data"),L("Ausschreibungen","Tenders"),"",excelBtn("tender"))}${tabs}
+    return `<div class="page">${ph(L("Büro · Beispieldaten","Office · example data"),L("Ausschreibungen","Tenders"),"",tsw+excelBtn("tender"))}
       <section><div class="sh"><h2>${L("Referenzen","References")}</h2><span class="cnt">${O.refs.length}</span></div><div class="rows">${O.refs.map(r=>`<div class="row static">${dot(r.pub?"acc":"n")}<span class="rt">${esc(tx(r))}</span><span class="rm">${esc(r.client)}</span><span class="ra">${mio(r.cost)}</span><span class="rl l-n">${r.running?L("laufend","ongoing"):r.year}</span></div>`).join("")}</div></section>
       <section><div class="sh"><h2>Team</h2><span class="cnt">${O.team.length}</span></div><div class="rows">${O.team.map(m=>`<div class="row static">${dot("n")}<span class="rt">${tx(m.role)}<span class="q">${esc(m.qual)}</span></span><span class="rm"></span><span class="ra">${m.years} ${L("Jahre","yrs")}</span><span class="rl"></span></div>`).join("")}</div></section>
     </div>`;
   }
-  const active=D.tenders.filter(t=>!closedT(t)), fits=active.map(t=>fitOf(t).fit);
+  const active=D.tenders.filter(t=>!closedT(t)),closed=D.tenders.filter(closedT);
+  const G={open:active,ok:active.filter(t=>fitOf(t).fit==="ok"),partner:active.filter(t=>fitOf(t).fit==="partner"),done:closed};
+  if(!G[S.tfilter])S.tfilter="open";
+  if(!G[S.tfilter].length&&S.tfilter!=="open")S.tfilter="open";
   const next=active.filter(t=>fitOf(t).fit!=="no").sort((a,b)=>toDate(a.due)-toDate(b.due))[0];
-  const list=D.tenders.slice().sort((a,b)=>(closedT(a)-closedT(b))||(toDate(a.due)-toDate(b.due)));
+  const list=G[S.tfilter].slice().sort((a,b)=>closedT(a)?toDate(b.due)-toDate(a.due):toDate(a.due)-toDate(b.due));
   const rows=list.map(t=>{const f=fitOf(t).fit,c=closedT(t),dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:c?"n":FIT[f].c,title:esc(tx(t.title)),meta:(c?"":(dd<0?L("vorbei","closed"):L("in "+dd+" "+dayWord(dd),"in "+dd+" "+(dd===1?"day":"days")))+" · ")+esc(t.client),amt:c?tx(TST[t.status]):fdate(t.due),label:c?"":tx(FIT[f])});}).join("");
-  return `<div class="page">${ph(L("Büro · Beispieldaten","Office · example data"),L("Ausschreibungen","Tenders"),"",excelBtn("tender"))}
-    <div class="stats">
-      <div class="stat"><span class="sl">${L("Offene Verfahren","Open procedures")}</span><span class="sv">${active.length}</span><span class="ss">${L("Architektur, Kanton Zürich","Architecture, Canton of Zurich")}</span></div>
-      <div class="stat"><span class="sl">${L("Eignung erfüllt","Eligible")}</span><span class="sv ok">${fits.filter(f=>f==="ok").length}</span><span class="ss">${fits.filter(f=>f==="partner").length} ${L("nur mit Partner","only with partner")} · ${fits.filter(f=>f==="no").length} ${L("nicht","not")}</span></div>
-      <div class="stat"><span class="sl">${L("Nächste Eingabe","Next deadline")}</span><span class="sv">${next?fdate(next.due):"–"}</span><span class="ss">${next?esc(tx(next.title)):""}</span></div>
-    </div>
-    ${tabs}
-    <section><div class="rows">${rows}</div></section>
+  const nT=n=>n===1?L("1 Verfahren","1 procedure"):n+" "+L("Verfahren","procedures");
+  const TL={open:[L("Offene Verfahren","Open procedures"),String(active.length),next?L("nächste Eingabe ","next deadline ")+fdate(next.due):L("keine Frist offen","no open deadline"),""],
+    ok:[L("Eignung erfüllt","Eligible"),String(G.ok.length),nT(G.ok.length),G.ok.length?" ok":""],
+    partner:[L("Nur mit Partner","Only with partner"),String(G.partner.length),nT(G.partner.length),G.partner.length?" warn":""],
+    done:[L("Abgeschlossen","Closed"),String(closed.length),L("eingereicht oder verzichtet","submitted or skipped"),""]};
+  const tile=k=>{const [l,v,ss,c]=TL[k],n=G[k].length,sel=S.tfilter===k,inner=`<span class="sl">${l}</span><span class="sv${c}">${n?v:"–"}</span><span class="ss">${ss}</span>`;
+    return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="tfilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
+  return `<div class="page">${ph(L("Büro · Beispieldaten","Office · example data"),L("Ausschreibungen","Tenders"),"",tsw+excelBtn("tender"))}
+    <div class="stats s4">${["open","ok","partner","done"].map(tile).join("")}</div>
+    <section><div class="sh"><h2>${TL[S.tfilter][0]}</h2><span class="cnt">${list.length}</span><span class="right">${S.tfilter==="open"?"":`<button type="button" class="ghost" data-act="tfilter" data-f="open">${L("Alle offenen anzeigen","Show all open")} (${active.length})</button>`}</span></div><div class="rows">${rows||`<div class="empty"><span>${L("Keine Verfahren.","No procedures.")}</span></div>`}</div></section>
   </div>`;
 }
 
@@ -1426,11 +1431,11 @@ function sheetDef(key){
   if(key==="k-add"){const inP=new Set(PC().map(w=>w.k)),others=D.contractors.filter(k=>!inP.has(k.id)&&!(k.pid===D.pid&&!D.contracts.some(w=>w.k===k.id))).sort((a,b)=>a.name.localeCompare(b.name));
     return {title:L("Handwerker hinzufügen","Add contractor"),groups:[["",[Object.assign(bt(L("Neuen Handwerker erfassen","Add new contractor"),"form"),{f:"contractor"})]],...(others.length?[[L("Aus Ihrem Büro zuweisen","Assign from your office"),others.map(k=>Object.assign(bt(k.name,"form",k.id),{f:"contract"}))]]:[])]};}
   if(key==="handwerker") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Hochladen","Upload"),[im(L("Handwerkerliste importieren","Import contractor list"),"contractors")]],[L("Herunterladen","Download"),[ex(L("Handwerkerliste","Contractor list"),"x-contractors")]]]};
-  if(key==="budget") return {title:"Excel",groups:[[L("Herunterladen","Download"),[ex(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client"),"x-report"),ex(L("Budget nach BKP","Budget by BKP"),"x-budget")]]]};
-  if(key==="tender") return {title:"Excel",groups:[[L("Herunterladen","Download"),[ex(L("Verfahrensliste","Procedure list"),"x-tenders"),ex(L("Referenzliste","Reference list"),"x-refs")]]]};
-  if(key.startsWith("t:")) return {title:"Excel",groups:[[L("Herunterladen","Download"),[ex(L("Referenzen für diese Bewerbung","References for this bid"),"x-refs",key.slice(2))]]]};
+  if(key==="budget") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client"),"x-report"),ex(L("Budget nach BKP","Budget by BKP"),"x-budget")]]]};
+  if(key==="tender") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Verfahrensliste","Procedure list"),"x-tenders"),ex(L("Referenzliste","Reference list"),"x-refs")]]]};
+  if(key.startsWith("t:")) return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Referenzen für diese Bewerbung","References for this bid"),"x-refs",key.slice(2))]]]};
   if(key.startsWith("k:")){const id=key.slice(2),w=CW(id);
-    return {title:"Excel",groups:[[L("Hochladen","Upload"),w?[im(L("Offerte","Offer"),"offer",w.id),im(L("Schlussabrechnung","Final account"),"final",w.id)]:[]],[L("Herunterladen","Download"),[ex(L("Dossier für Sie","File for you"),"x-dossier",id),ex(L("Kontoauszug für den Handwerker","Statement for the contractor"),"x-statement",id),ex(L("Leere Offertvorlage","Blank offer template"),"x-template")]]]};}
+    return {title:L("Weitere Aktionen","More actions"),groups:[[L("Hochladen","Upload"),w?[im(L("Offerte","Offer"),"offer",w.id),im(L("Schlussabrechnung","Final account"),"final",w.id)]:[]],[L("Herunterladen","Download"),[ex(L("Dossier für Sie","File for you"),"x-dossier",id),ex(L("Kontoauszug für den Handwerker","Statement for the contractor"),"x-statement",id),ex(L("Leere Offertvorlage","Blank offer template"),"x-template")]]]};}
   return null;
 }
 function kvHTML(){
@@ -1629,6 +1634,7 @@ document.addEventListener("click",e=>{
     case "nav-mode":setNavMode(el.dataset.v||(navMode()==="min"?"open":"min"));renderChrome();if(S.view==="einstellungen")render();break;
     case "lang-set":if(el.dataset.v!==S.lang)exampleSwap(el.dataset.v);S.lang=el.dataset.v;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
     case "lang":if(el.dataset.l!==S.lang)exampleSwap(el.dataset.l);S.lang=el.dataset.l;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
+    case "tfilter":S.tfilter=el.dataset.f;render();break;
     case "kfilter":S.kfilter=el.dataset.f;render();break;
     case "ffilter":S.ffilter=el.dataset.f;render();break;
     case "filter":S.filter=el.dataset.f;render();break;

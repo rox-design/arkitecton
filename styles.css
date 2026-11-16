@@ -806,3 +806,8 @@ select.needs{border-color:var(--warn)}
 .invact{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:-6px 0 6px}
 .invact .scanbig{margin:0}
 @media (max-width:820px){.invact{display:none}}
+/* segmented switch in any page header (Rechnungen, Ausschreibungen) */
+.ph .tools{align-items:center}
+.ph .tools .seg{margin:0}
+.ph .tools .seg button{padding:6px 12px;font-size:.84rem}
+@media (max-width:820px){.ph:has(.tools .seg){grid-template-columns:1fr;gap:12px}.ph:has(.tools .seg) .tools{justify-content:space-between}}

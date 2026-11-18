@@ -867,7 +867,12 @@ function viewContractors(){
 
 function cmpBody(w){
   const c=compare(w);
-  if(!c) return `<section><div class="empty"><span>${L("Noch keine Offerte.","No offer yet.")}</span><div style="display:flex;gap:10px;flex-wrap:wrap"><label class="btn primary">${L("Offerte aus Excel","Offer from Excel")}<input type="file" accept=".xlsx,.xls,.csv" data-imp="offer" data-id="${w.id}"></label>${D.example&&w.id==="w6"?`<button type="button" class="btn" data-act="ex-offer">${L("Beispiel laden","Load example")}</button>`:""}<button type="button" class="btn" data-act="x-template">${L("Leere Vorlage","Blank template")}</button></div></div></section>`;
+  const op=w.offerPdf,opd=op&&DOCS().find(d=>d.id===op.doc);
+  const pdfIn=lbl=>`<label class="btn${lbl?"":" primary"}">${lbl||L("Offerte als PDF","Offer as PDF")}<input type="file" accept="application/pdf,.pdf" data-imp="offerpdf" data-id="${w.id}"></label>`;
+  if(!c&&op) return `<div class="stats"><div class="stat"><span class="sl">${L("Offerte","Offer")}</span><span class="sv">${chf(op.sum,false)}</span><span class="ss">${L("als PDF, ","as PDF, ")+fdate(op.date)}</span></div><div class="stat"><span class="sl">${L("Vertragssumme","Contract sum")}</span><span class="sv">${w.sum?chf(w.sum,false):"–"}</span><span class="ss">${w.sum&&r2(w.sum)!==r2(op.sum)?L("weicht von der Offerte ab","differs from the offer"):L("im Werkvertrag","in the contract")}</span></div></div>
+    <section class="docs"><div class="sh"><h2>${L("Offerte","Offer")}</h2></div>${opd?`<div class="dlist"><div class="drow"><button type="button" class="dopen" data-act="doc-open" data-id="${opd.id}"><span class="dk">PDF</span><span class="dn">${esc(opd.name)}</span><span class="dm">${fsize(opd.size||0)} · ${fdate(opd.date)}</span></button></div></div>`:""}
+    <div class="empty"><span>${L("Positionen mit der Schlussabrechnung vergleichen: Offerte zusätzlich aus Excel laden.","To compare items with the final account: also load the offer from Excel.")}</span><div style="display:flex;gap:10px;flex-wrap:wrap">${pdfIn(L("Anderes PDF","Other PDF"))}<label class="btn">${L("Positionen aus Excel","Items from Excel")}<input type="file" accept=".xlsx,.xls,.csv" data-imp="offer" data-id="${w.id}"></label></div></div></section>`;
+  if(!c) return `<section><div class="empty"><span>${L("Noch keine Offerte. Am einfachsten als PDF, so wie sie vom Handwerker kommt.","No offer yet. Easiest as PDF, as it comes from the contractor.")}</span><div style="display:flex;gap:10px;flex-wrap:wrap">${pdfIn()}<label class="btn">${L("Offerte aus Excel","Offer from Excel")}<input type="file" accept=".xlsx,.xls,.csv" data-imp="offer" data-id="${w.id}"></label>${D.example&&w.id==="w6"?`<button type="button" class="btn" data-act="ex-offer">${L("Beispiel laden","Load example")}</button>`:""}<button type="button" class="btn" data-act="x-template">${L("Leere Vorlage","Blank template")}</button></div></div></section>`;
   const list=c.rows.filter(r=>S.cmpAll||!c.hasFinal||r.kind!=="same");
   const q=r=>r.kind==="new"?L("nicht offeriert","not in offer"):r.kind==="missing"?L("nicht abgerechnet","not billed"):c.hasFinal?nfq.format(r.oq)+" → "+nfq.format(r.fq)+" "+esc(r.unit||""):nfq.format(r.oq)+" "+esc(r.unit||"");
   const rows=list.map(r=>`<div class="row static">${dot(r.kind==="new"?"crit":r.kind==="more"?"warn":r.kind==="less"?"ok":"n")}<span class="rt">${esc(r.text)}</span><span class="rm">Pos ${esc(r.pos)} · ${q(r)}</span><span class="ra">${c.hasFinal?`<span class="${r.diff>0?"up":r.diff<0?"down":""}">${r.diff?sgn(r.diff):"0.00"}</span>`:nf2.format(r.oa)}</span><span class="rl"></span></div>`).join("");
@@ -913,7 +918,7 @@ function viewContractor(k){
   } else {
     body=addHere+pids.map(pid=>{
       const ws=all.filter(w=>w.pid===pid);
-      const rows=ws.map(w=>{const c=compare(w);return row({act:"open-w",id:w.id,c:!c?"warn":c.hasFinal?(c.diff>0?"warn":"ok"):"n",title:"BKP "+w.bkp+" "+esc(bName(w.bkp)),meta:!c?L("Offerte fehlt","No offer yet"):L("Offerte ","Offer ")+chf(c.ot,false)+" · "+(c.hasFinal?L("Schluss ","Final ")+chf(c.ft,false):L("Schluss fehlt","Final missing")),amt:c&&c.hasFinal?sgn(c.diff):"",lc:"n",label:L("Öffnen →","Open →")});}).join("");
+      const rows=ws.map(w=>{const c=compare(w);return row({act:"open-w",id:w.id,c:!c?(w.offerPdf?"n":"warn"):c.hasFinal?(c.diff>0?"warn":"ok"):"n",title:"BKP "+w.bkp+" "+esc(bName(w.bkp)),meta:!c?(w.offerPdf?L("Offerte ","Offer ")+chf(w.offerPdf.sum,false)+" · PDF":L("Offerte fehlt","No offer yet")):L("Offerte ","Offer ")+chf(c.ot,false)+" · "+(c.hasFinal?L("Schluss ","Final ")+chf(c.ft,false):L("Schluss fehlt","Final missing")),amt:c&&c.hasFinal?sgn(c.diff):"",lc:"n",label:L("Öffnen →","Open →")});}).join("");
       return group(pid,`<div class="rows">${rows}</div>`,ws.length+" "+(ws.length===1?L("Vertrag","contract"):L("Verträge","contracts")));
     }).join("");
   }
@@ -1467,6 +1472,9 @@ function formDef(){
       body:`<div class="f wide"><label for="fCRole">${L("Rolle","Role")}</label><select id="fCRole">${Object.keys(ROLES).map(k=>`<option value="${k}"${c.role===k?" selected":""}>${tx(ROLES[k])}</option>`).join("")}</select></div>`
         +fld("fCFirm",L("Arbeitgeber","Employer"),c.firm||"",{wide:true})+fld("fCFrom",L("Von (Jahr)","From (year)"),c.from||"",{mode:"numeric",req:true})+fld("fCTo",L("Bis (Jahr)","To (year)"),c.to||"",{mode:"numeric",hint:L("Leer lassen, wenn die Rolle heute noch gilt.","Leave empty if the role is current.")}),
       del:i>=0};}
+  if(F.f==="offersum"){const w=W(F.id)||{},o=S.offerDraft||{};const k=K(w.k)||{};
+    return {title:L("Offerte · ","Offer · ")+esc(k.name||""),body:`<p class="hint wide">${esc(o.name||"")}</p>`+fld("fOfferSum",L("Offertsumme CHF","Offer total CHF"),o.sum!=null?nf2.format(o.sum):"",{mode:"decimal",wide:true,req:true,hint:o.sum!=null?L("Aus dem PDF gelesen. Bitte mit der Offerte vergleichen.","Read from the PDF. Please check against the offer."):L("Im PDF wurde keine Summe gefunden. Bitte eintragen.","No total found in the PDF. Please enter it.")})
+      +`<label class="chk wide"><input type="checkbox" id="fOfferAsSum"${!w.sum?" checked":""}> ${L("Als Vertragssumme übernehmen","Use as contract sum")}${w.sum?` <span class="hint">(${L("heute ","now ")+chf(w.sum,false)})</span>`:""}</label>`};}
   if(F.f==="docvalid"){const d=DOCS().find(x=>x.id===F.id)||{};return {title:esc(d.name||""),body:fld("fUntil",L("Gültig bis","Valid until"),d.until||"",{type:"date",wide:true,hint:L("Leer lassen, wenn das Dokument nicht abläuft. 30 Tage vor Ablauf erscheint eine Warnung.","Leave empty if it does not expire. A warning appears 30 days before.")})};}
   if(F.f==="project"){const x=F.id?D.projects.find(q=>q.id===F.id):{};return {title:F.id?L("Projekt bearbeiten","Edit project"):L("Projekt erfassen","Add project"),body:fld("fName",L("Projektname","Project name"),x.name,{wide:true,req:true,ph:L("z. B. EFH Bergstrasse 4","e.g. Bergstrasse 4 house")})+fld("fPlace",L("Ort","Place"),x.place,{ph:L("z. B. Horgen","e.g. Horgen")})+fld("fClient",L("Bauherrschaft","Client"),x.client)+fld("fCStreet",L("Adresse Bauherrschaft","Client address"),x.cstreet,{wide:true,ph:L("Strasse und Nr.","Street and no.")})+fld("fCZip",L("PLZ","Postcode"),x.czip,{mode:"numeric"})+fld("fCCity",L("Ort","Town"),x.ccity)+fld("fDesc",L("Beschreibung","Description"),x.desc,{wide:true,ph:L("z. B. Umbau Einfamilienhaus","e.g. house conversion")})+(F.id?`<div class="f wide"><label class="chk"><input type="checkbox" id="fClosed"${x.closed?" checked":""}> ${L("Projekt abgeschlossen","Project completed")}</label><span class="hint">${L("Abgeschlossene Projekte erscheinen in der Auswahl eingeklappt.","Completed projects are collapsed in the project switcher.")}</span></div>`:"")};}
   if(F.f==="contractor"){const x=F.id?K(F.id):{};return {title:F.id?L("Handwerker bearbeiten","Edit contractor"):L("Neuer Handwerker","New contractor"),body:fld("fName",L("Firma","Company"),x.name,{wide:true,req:true})+fld("fStreet",L("Strasse","Street"),x.street,{wide:true})+fld("fZip",L("PLZ","ZIP"),x.zip,{mode:"numeric"})+fld("fCity",L("Ort","City"),x.city)+fld("fIban","IBAN",x.iban,{wide:true})+fld("fEmail",L("E-Mail","Email"),x.email,{type:"email"})+fld("fPhone",L("Telefon","Phone"),x.phone,{type:"tel"}),del:F.id&&!D.contracts.some(w=>w.k===F.id)};}
@@ -1555,6 +1563,9 @@ function submitForm(){
     backTo();render();return toast(L("Gespeichert","Saved"));
   }
   if(F.f==="fee") return saveFee(F,fail);
+  if(F.f==="offersum"){const w=W(F.id),o=S.offerDraft||{};const v=num(val("fOfferSum"));if(!w)return;if(!(v>0))return toast(L("Bitte die Offertsumme eintragen.","Please enter the offer total."));
+    w.offerPdf={doc:o.doc,sum:r2(v),date:iso(TODAY),name:o.name};if(document.getElementById("fOfferAsSum")&&document.getElementById("fOfferAsSum").checked)w.sum=r2(v);
+    S.offerDraft=null;backTo();render();return toast(L("Offerte gespeichert · ","Offer saved · ")+chf(v,false));}
   if(F.f==="docvalid"){const d=DOCS().find(x=>x.id===F.id);if(d)d.until=val("fUntil")||null;backTo();render();return toast(L("Gespeichert","Saved"));}
   if(F.f==="answer"){const i=INV(F.id),note=(document.getElementById("fNote").value||"").trim();i.status="pruefen";logInv(i,L("Antwort erhalten","Reply received")+(note?": "+note:""));const id=i.id;closeAll();S.drawer=id;render();return toast(L("Wieder zu prüfen","Back to review"));}
   if(F.f==="ded"){const i=INV(F.id),amt=num(val("fDedAmt")),why=(document.getElementById("fDedWhy").value||"").trim();
@@ -1710,12 +1721,29 @@ function parseLines(rows){
   return out.length?out:null;
 }
 const K_SPEC={name:h=>/firma|name|unternehm|company|handwerker|contractor/.test(h),street:h=>/strasse|straße|street|adresse|address/.test(h),zip:h=>/plz|zip|postleit|postcode/.test(h),city:h=>/^ort|city|stadt|town/.test(h),iban:h=>/iban/.test(h),email:h=>/mail/.test(h),phone:h=>/tel|phone|mobil|natel/.test(h)};
+/* offer as PDF (stage 1): keep the PDF with the contract and suggest the total from its text; the architect confirms it.
+   Reading single positions from PDFs is left for later (AI on a server, see BACKLOG.md). */
+async function pdfText(file){const lib=await loadPdfJs();const doc=await lib.getDocument({data:await file.arrayBuffer()}).promise;let out=[];
+  for(let i=1;i<=Math.min(doc.numPages,30);i++){const tc=await (await doc.getPage(i)).getTextContent();const lines={};tc.items.forEach(it=>{const y=Math.round(it.transform[5]);(lines[i+":"+y]=lines[i+":"+y]||[]).push(it);});
+    Object.keys(lines).sort((a,b)=>Number(b.split(":")[1])-Number(a.split(":")[1])).forEach(k=>out.push(lines[k].sort((a,b)=>a.transform[4]-b.transform[4]).map(t=>t.str).join(" ")));}
+  return out;}
+function guessOfferSum(lines){
+  const amt=t=>[...String(t).matchAll(/(?:CHF|Fr\.?)?\s*(\d{1,3}(?:['’ ]\d{3})+|\d{4,})(?:[.,](\d{2}))?(?!\d)/g)].map(m=>Number(m[1].replace(/['’ ]/g,"")+"."+(m[2]||"00"))).filter(n=>n>=100&&n<1e8);
+  const key=/(gesamt|total|offertsumme|offertbetrag|endbetrag|nettobetrag|zu bezahlen|inkl\.? ?mwst)/i;
+  let best=null;lines.forEach(l=>{if(key.test(l)){const a=amt(l);if(a.length){const v=Math.max(...a);if(!best||v>=best)best=v;}}});
+  if(best)return best;const all=lines.flatMap(amt);return all.length?Math.max(...all):null;}
 async function handleImport(kind,file,id){
   if(!file)return;
   if(kind==="logo"){const url=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(file);});const im=new Image();im.src=url;await new Promise(r=>{im.onload=r;im.onerror=r;});
     const sc=Math.min(1,600/Math.max(im.naturalWidth||1,im.naturalHeight||1)),c=document.createElement("canvas");c.width=Math.round((im.naturalWidth||1)*sc);c.height=Math.round((im.naturalHeight||1)*sc);c.getContext("2d").drawImage(im,0,0,c.width,c.height);
     readFirmForm();D.firm.logo=c.toDataURL("image/png");renderOverlay();return;}
   S.sheet=null;S.confirm=null;
+  if(kind==="offerpdf"){const w=W(id);if(!w)return;
+    if(!isPdf(file))return toast(L("Bitte die Offerte als PDF wählen.","Please choose the offer as PDF."));
+    toast(L("Offerte wird gelesen …","Reading offer …"));
+    let sum=null;try{sum=guessOfferSum(await pdfText(file));}catch(e){sum=null;}
+    const did=newId("f");await FDB.put(did,file);DOCS().push({id:did,scope:"project",ref:w.pid,name:file.name,type:file.type||"application/pdf",size:file.size,date:iso(TODAY)});
+    S.offerDraft={w:w.id,doc:did,sum,name:file.name};saveData();openForm("offersum",w.id);return;}
   if(kind==="backup"){
     try{const o=JSON.parse(await file.text());if(!o||o.v!==1||!Array.isArray(o.projects))throw new Error("format");D=o;S.kid=null;S.tid=null;S.view="uebersicht";render();return toast(L("Sicherung geladen","Backup restored"));}
     catch(e){render();return toast(L("Keine gültige arkitecton-Sicherung","Not a valid arkitecton backup"));}

@@ -1255,7 +1255,7 @@ function scanLoop(ts){
   const r=jsQR(ctx.getImageData(0,0,out,out).data,out,out,{inversionAttempts:"dontInvert"});
   if(r&&qrText(r)){
     const d=parseSPC(qrText(r));
-    if(d){stopCam();try{navigator.vibrate&&navigator.vibrate(40);}catch(e){}d.no=guessNo(d);setDates(d);S.modal.data=d;S.modal.step=2;renderOverlay();}
+    if(d){D.realScan=true;saveData();stopCam();try{navigator.vibrate&&navigator.vibrate(40);}catch(e){}d.no=guessNo(d);setDates(d);S.modal.data=d;S.modal.step=2;renderOverlay();}
     else{const h=document.getElementById("camhint");if(h)h.textContent=L("QR-Code erkannt, aber keine Schweizer QR-Rechnung.","QR code found, but not a Swiss QR-bill.");}
   }
 }
@@ -1307,7 +1307,7 @@ async function onScanFile(file){
   if(!S.modal)return;S.modal.busy=false;
   const d=txt?parseSPC(txt):null;
   if(!d){S.modal.err=txt?L("Das ist keine Schweizer QR-Rechnung.","This is not a Swiss QR-bill."):(pdf?L("Im PDF wurde kein QR-Zahlteil gefunden.","No QR payment part found in the PDF."):L("Kein QR-Code erkannt. Zahlteil näher fotografieren.","No QR code found. Photograph the payment part closer."));return renderOverlay();}
-  d.no=guessNo(d);setDates(d);S.modal.data=d;S.modal.step=2;renderOverlay();
+  D.realScan=true;saveData();d.no=guessNo(d);setDates(d);S.modal.data=d;S.modal.step=2;renderOverlay();
 }
 function resolveCapture(d){
   const k=D.contractors.find(c=>(c.iban&&norm(c.iban)===norm(d.iban))||c.name.trim().toLowerCase()===d.name.trim().toLowerCase())||null;
@@ -1331,7 +1331,7 @@ function captureHTML(){
       ${M.fileFirst?`<span class="camhint">${M.busy?L("Rechnung wird gelesen …","Reading invoice …"):L("Wählen Sie die Rechnung als PDF oder Foto, oder ziehen Sie die Datei hierher. arkitecton liest den QR-Zahlteil.","Choose the invoice as PDF or photo, or drop the file here. arkitecton reads the QR payment part.")}</span>`:M.camErr?`<span class="err">${esc(M.camErr)}</span><button type="button" class="btn block" data-act="cam-retry">${L("Kamera erneut versuchen","Try camera again")}</button>`:`<div class="cam"><video id="camv" playsinline muted autoplay></video><div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div></div><span class="camhint" id="camhint">${M.busy?L("Foto wird gelesen …","Reading photo …"):L("QR-Code des Zahlteils in den Rahmen halten","Hold the payment part's QR code in the frame")}</span>`}
       ${M.err?`<span class="err">${esc(M.err)}</span>`:""}
       <label class="btn${M.camErr||M.fileFirst?" primary":""} block">${M.fileFirst?L("Rechnung wählen (PDF oder Foto)","Choose invoice (PDF or photo)"):L("PDF oder Foto wählen","Choose PDF or photo")}<input type="file" id="scanIn" accept="application/pdf,.pdf,image/*" aria-label="${L("Foto der QR-Rechnung","Photo of the QR-bill")}"></label>
-      <div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center">${M.fileFirst?`<button type="button" class="ghost" data-act="use-cam">${L("Kamera verwenden","Use camera")}</button>`:""}<button type="button" class="ghost" data-act="manual">${L("Ohne QR erfassen","Add without QR")}</button>${D.example&&!M.rep?`<button type="button" class="ghost" data-act="use-sample">${L("Beispielrechnung","Example invoice")}</button>`:""}</div></div>`;
+      ${(()=>{const lk=(M.fileFirst?`<button type="button" class="ghost" data-act="use-cam">${L("Kamera verwenden","Use camera")}</button>`:"")+(M.err?`<button type="button" class="ghost" data-act="manual">${L("Ohne QR erfassen","Add without QR")}</button>`:"")+(D.example&&!D.realScan&&!M.rep?`<button type="button" class="ghost" data-act="use-sample">${L("Beispielrechnung","Example invoice")}</button>`:"");return lk?`<div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center">${lk}</div>`:"";})()}</div>`;
   } else {
     if(!M.pid) M.pid=defaultPid(d);
     const R=withP(M.pid,()=>resolveCapture(d));

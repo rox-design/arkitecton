@@ -1921,7 +1921,7 @@ document.addEventListener("input",e=>{if(e.target.getAttribute&&e.target.getAttr
 /* ---------- swipe between the main areas on a phone (same order as the tab bar) ----------
    the page follows the finger 1:1, a short flick is enough, and the next page
    slides in from where the old one left: one continuous movement, no blank moment */
-const SWIPE=["uebersicht","rechnungen","handwerker","budget"];
+const SWIPE=["ausschreibungen","uebersicht","rechnungen","handwerker","budget"]; /* same order as the tab bar */
 (function(){
   const main=document.getElementById("main");let st=null,busy=false;
   const phone=()=>window.matchMedia("(max-width:820px)").matches;
@@ -2001,7 +2001,7 @@ const SWIPE=["uebersicht","rechnungen","handwerker","budget"];
   document.addEventListener("mousedown",hide,true);document.addEventListener("scroll",hide,true);
 })();
 /* one-time hint on the phone, until the person has swiped once */
-function swipeHint(){if(!D||D.swipeSeen||D.swipeHinted||!window.matchMedia("(max-width:820px)").matches||!SWIPE.includes(S.view))return;D.swipeHinted=1;saveData();setTimeout(()=>{if(document.querySelector("#overlay.on")){D.swipeHinted=0;return;}toast(L("Tipp: Seitlich wischen wechselt zwischen Projekt, Rechnungen, Handwerker und Budget.","Tip: swipe left or right to move between Project, Invoices, Contractors and Budget."),6000,true);},900);}
+function swipeHint(){if(!D||D.swipeSeen||D.swipeHinted||!window.matchMedia("(max-width:820px)").matches||!SWIPE.includes(S.view))return;D.swipeHinted=1;saveData();setTimeout(()=>{if(document.querySelector("#overlay.on")){D.swipeHinted=0;return;}toast(L("Tipp: Seitlich wischen wechselt zwischen den Bereichen der Leiste unten.","Tip: swipe left or right to move between the areas of the bar below."),6000,true);},900);}
 document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches('span[role="button"][data-act]')){e.preventDefault();e.target.click();return;}if(e.key==="Escape"&&S.pop){closePop();return;}if(e.key==="Escape"&&(S.drawer||S.fdrawer||S.modal||S.sheet||S.form||S.kvx)){closeAll();render();}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)stopCam();});
 window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(D&&v!==S.view&&VIEWS.includes(v))go(v);});

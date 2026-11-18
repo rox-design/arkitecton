@@ -1221,6 +1221,17 @@ function guessKind(d){const m=d.msg||"";let x=m.match(/akonto\s*(?:nr\.?|no\.?)?
 const BKP_KEYS=[["maler","285"],["elektr","230"],["sanitä","250"],["sanita","250"],["schrein","273"],["gipser","271"],["spengl","222"],["bedach","224"],["dach","224"],["heizung","240"],["lüftung","240"],["boden","281"],["küche","258"],["fenster","221"],["reinigung","287"],["baumeister","211"],["metallbau","272"],["holzbau","214"],["fassade","226"],["putz","226"]];
 function guessBkp(d){const t=((d.msg||"")+" "+(d.name||"")).toLowerCase();const h=BKP_KEYS.find(([k])=>t.includes(k));return h?h[1]:"";}
 let cam=null;
+function camErrText(e){
+  const nm=e&&e.name,msg=String(e&&e.message||""),ua=navigator.userAgent,mac=/Mac/.test(navigator.platform||ua);
+  const safari=/Safari/.test(ua)&&!/Chrome|Chromium|Edg|Firefox/.test(ua),ff=/Firefox/.test(ua);
+  if(nm==="NotFoundError"||nm==="OverconstrainedError")return L("Keine Kamera gefunden. Wählen Sie die Rechnung als PDF oder Foto.","No camera found. Choose the invoice as PDF or photo.");
+  if(nm==="NotReadableError")return L("Die Kamera wird von einem anderen Programm benutzt (z.B. Zoom, Teams). Schliessen Sie es und versuchen Sie es erneut.","The camera is used by another app (e.g. Zoom, Teams). Close it and try again.");
+  if(/system/i.test(msg)&&mac)return L("macOS erlaubt dem Browser die Kamera nicht. Systemeinstellungen › Datenschutz & Sicherheit › Kamera › Browser einschalten, dann den Browser neu starten.","macOS does not allow the browser to use the camera. System Settings › Privacy & Security › Camera › turn on the browser, then restart the browser.");
+  const how=safari?L("Safari › Einstellungen › Websites › Kamera › rox-design.github.io auf «Fragen» oder «Erlauben» stellen.","Safari › Settings › Websites › Camera › set rox-design.github.io to «Ask» or «Allow».")
+    :ff?L("Klicken Sie auf das Kamera-Symbol links in der Adresszeile und heben Sie die Sperre auf.","Click the camera icon on the left of the address bar and remove the block.")
+    :L("Klicken Sie auf das Symbol links in der Adresszeile › Kamera › «Zulassen».","Click the icon on the left of the address bar › Camera › «Allow».");
+  return L("Die Kamera ist für diese Seite gesperrt, darum fragt der Browser nicht mehr nach. ","Camera is blocked for this site, so the browser no longer asks. ")+how+(mac?L(" Falls es danach nicht geht: Systemeinstellungen › Datenschutz & Sicherheit › Kamera."," If it still fails: System Settings › Privacy & Security › Camera."):"");
+}
 async function startCam(){
   const M=S.modal; if(!M||M.step!==1||cam) return;
   if(typeof jsQR!=="function"){M.camErr=L("Der QR-Leser wurde nicht geladen. Bitte die Seite neu laden.","The QR reader did not load. Please reload the page.");return renderOverlay();}
@@ -1231,7 +1242,7 @@ async function startCam(){
     cam={stream,cv:document.createElement("canvas"),last:0,raf:0};
     attachCam();
     cam.raf=requestAnimationFrame(scanLoop);
-  }catch(e){if(S.modal){const nm=e&&e.name;S.modal.camErr=nm==="NotFoundError"||nm==="OverconstrainedError"?L("Keine Kamera gefunden. Wählen Sie die Rechnung als PDF oder Foto.","No camera found. Choose the invoice as PDF or photo."):nm==="NotReadableError"?L("Die Kamera wird von einem anderen Programm benutzt. Schliessen Sie es oder wählen Sie die Rechnung als PDF oder Foto.","The camera is used by another app. Close it or choose the invoice as PDF or photo."):L("Der Browser hat den Kamerazugriff blockiert. Erlauben Sie die Kamera für diese Seite (Safari: Einstellungen › Websites › Kamera) oder wählen Sie die Rechnung als PDF oder Foto.","The browser blocked camera access. Allow the camera for this site (Safari: Settings › Websites › Camera) or choose the invoice as PDF or photo.");renderOverlay();}}
+  }catch(e){if(S.modal){S.modal.camErr=camErrText(e);renderOverlay();}}
 }
 function attachCam(){const v=document.getElementById("camv");if(!cam||!v)return;if(v.srcObject!==cam.stream){v.srcObject=cam.stream;v.play().catch(()=>{});}}
 function scanLoop(ts){
@@ -1317,7 +1328,7 @@ function captureHTML(){
     body=`<div class="empty">${L("Bitte zuerst ein Projekt anlegen.","Please create a project first.")}<button type="button" class="btn primary" data-act="form" data-f="project">${L("Projekt anlegen","Create project")}</button></div>`;
   } else if(M.step===1){
     body=repNote+`<div class="scanbox">
-      ${M.fileFirst?`<span class="camhint">${M.busy?L("Rechnung wird gelesen …","Reading invoice …"):L("Wählen Sie die Rechnung als PDF oder Foto, oder ziehen Sie die Datei hierher. arkitecton liest den QR-Zahlteil.","Choose the invoice as PDF or photo, or drop the file here. arkitecton reads the QR payment part.")}</span>`:M.camErr?`<span class="err">${esc(M.camErr)}</span>`:`<div class="cam"><video id="camv" playsinline muted autoplay></video><div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div></div><span class="camhint" id="camhint">${M.busy?L("Foto wird gelesen …","Reading photo …"):L("QR-Code des Zahlteils in den Rahmen halten","Hold the payment part's QR code in the frame")}</span>`}
+      ${M.fileFirst?`<span class="camhint">${M.busy?L("Rechnung wird gelesen …","Reading invoice …"):L("Wählen Sie die Rechnung als PDF oder Foto, oder ziehen Sie die Datei hierher. arkitecton liest den QR-Zahlteil.","Choose the invoice as PDF or photo, or drop the file here. arkitecton reads the QR payment part.")}</span>`:M.camErr?`<span class="err">${esc(M.camErr)}</span><button type="button" class="btn block" data-act="cam-retry">${L("Kamera erneut versuchen","Try camera again")}</button>`:`<div class="cam"><video id="camv" playsinline muted autoplay></video><div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div></div><span class="camhint" id="camhint">${M.busy?L("Foto wird gelesen …","Reading photo …"):L("QR-Code des Zahlteils in den Rahmen halten","Hold the payment part's QR code in the frame")}</span>`}
       ${M.err?`<span class="err">${esc(M.err)}</span>`:""}
       <label class="btn${M.camErr||M.fileFirst?" primary":""} block">${M.fileFirst?L("Rechnung wählen (PDF oder Foto)","Choose invoice (PDF or photo)"):L("PDF oder Foto wählen","Choose PDF or photo")}<input type="file" id="scanIn" accept="application/pdf,.pdf,image/*" aria-label="${L("Foto der QR-Rechnung","Photo of the QR-bill")}"></label>
       <div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center">${M.fileFirst?`<button type="button" class="ghost" data-act="use-cam">${L("Kamera verwenden","Use camera")}</button>`:""}<button type="button" class="ghost" data-act="manual">${L("Ohne QR erfassen","Add without QR")}</button>${D.example&&!M.rep?`<button type="button" class="ghost" data-act="use-sample">${L("Beispielrechnung","Example invoice")}</button>`:""}</div></div>`;
@@ -1887,6 +1898,7 @@ document.addEventListener("click",e=>{
     case "mark-query":{const i=INV(id);i.status="rueckfrage";logInv(i,L("Rückfrage gesendet","Query sent"));S.queryOpen=false;render();toast(L("Rückfrage gesendet · wartet auf Antwort","Query sent · waiting for reply"));break;}
     case "answer":openForm("answer",id);break;
     case "capture":closeAll();S.modal={step:1,data:null,err:"",busy:false,fileFirst:window.matchMedia("(hover:hover) and (pointer:fine)").matches};renderOverlay();break;
+    case "cam-retry":if(S.modal){S.modal.camErr="";renderOverlay();}break;
     case "use-cam":if(S.modal){S.modal.fileFirst=false;renderOverlay();}break;
     case "manual":{const rep=S.modal&&S.modal.rep,ro=rep&&INV(rep);closeAll();openForm("invoice",ro?W(ro.w).k:null);S.form.rep=rep||null;break;}
     case "replace":{closeAll();S.modal={step:1,data:null,err:"",busy:false,rep:id};renderOverlay();break;}

@@ -602,7 +602,7 @@ details.site[open]>summary::after{content:"";transform:rotate(-135deg) translate
 .setnum input[aria-invalid="true"]{border-bottom-color:var(--crit)}
 .setrem{display:flex;gap:14px;align-items:baseline}
 #setErr:empty{display:none}#setErr{margin-top:10px}
-.setmenu{max-width:520px}
+.setmenu{max-width:none}
 @media (max-width:820px){.setrow{grid-template-columns:1fr;gap:10px}.setrow .sc{justify-content:flex-start}}
 .setrow .seg{margin:0}
 .word svg{flex:none}.word .wt{min-width:0}
@@ -899,3 +899,11 @@ label:has(input[type=file]){cursor:pointer}
   .tabbar .tabscan{padding:0!important;flex:none}
   .tabbar .tabscan::before{content:none!important}
 }
+/* one sign for folding everywhere: the same chevron as the section headers (right = closed, down = open) */
+summary:not(details.site>summary)::after,.hdone>summary::after{content:""!important;width:18px;height:18px;flex:none;margin-left:auto;margin-right:5px;background:currentColor;color:var(--faint);
+  -webkit-mask:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>') center/18px 18px no-repeat;
+  mask:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>') center/18px 18px no-repeat;
+  transform:rotate(-90deg);transition:transform .18s}
+details[open]:not(.site)>summary::after{transform:none}
+@media (max-width:820px){summary:not(details.site>summary)::after,.hdone>summary::after{margin-right:3px}}
+.setmenu .mi{padding-left:0;padding-right:0}

@@ -907,3 +907,8 @@ summary:not(details.site>summary)::after,.hdone>summary::after{content:""!import
 details[open]:not(.site)>summary::after{transform:none}
 @media (max-width:820px){summary:not(details.site>summary)::after,.hdone>summary::after{margin-right:3px}}
 .setmenu .mi{padding-left:0;padding-right:0}
+/* phone: the logo is the way Home, so it gets a full 44 px tap area (logo itself stays the same size) */
+@media (max-width:820px){
+  .topbar .word{display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin:0 -10px 0 -11px;border-radius:12px;flex:none}
+  .topbar .word:focus-visible{outline:2px solid var(--ink);outline-offset:0}
+}

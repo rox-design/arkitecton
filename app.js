@@ -126,13 +126,16 @@ function exampleSwap(to){
   const fix=o=>{if(!o||typeof o!=="object")return;Object.keys(o).forEach(k=>{const v=o[k];if(typeof v==="string"&&pairs.has(v))o[k]=pairs.get(v);else if(v&&typeof v==="object")fix(v);});};
   fix(D.firm);fix(D.projects);fix(D.fees);
 }
-function seedEmpty(){const tt=seedTenders();return {v:1,seq:100,events:[],pid:null,firm:{name:""},projects:[],contractors:[],contracts:[],invoices:[],fees:[],office:tt.office,tenders:tt.tenders,example:false};}
+/* a real start: no example tenders, references or team */
+function seedEmpty(){const tt=seedTenders();return {v:1,seq:100,events:[],pid:null,firm:{name:""},projects:[],contractors:[],contracts:[],invoices:[],fees:[],office:Object.assign({},tt.office,{team:[],refs:[]}),tenders:[],example:false};}
 const SAMPLE={name:"Meier Malerei GmbH",street:"Zürcherstrasse 88",zip:"8820",city:"Wädenswil",iban:"CH44 3199 9123 0008 8901 2",amount:12450,ref:"21 00000 00003 13947 14300 09017",no:"2026-417",msg:"Objekt: MFH Seestr. 12, Wädenswil – Malerarbeiten Treppenhaus"};
 const EX_OFFER=[{pos:"1",text:"Wände streichen, 2 Anstriche",unit:"m²",qty:1420,price:14},{pos:"2",text:"Decken streichen",unit:"m²",qty:610,price:12},{pos:"3",text:"Türzargen lackieren",unit:"Stk",qty:42,price:95},{pos:"4",text:"Abdeck- und Vorarbeiten",unit:"pauschal",qty:1,price:3410}];
 const EX_FINAL=[{pos:"1",text:"Wände streichen, 2 Anstriche",unit:"m²",qty:1465,price:14},{pos:"2",text:"Decken streichen",unit:"m²",qty:610,price:12},{pos:"3",text:"Türzargen lackieren",unit:"Stk",qty:44,price:95},{pos:"4",text:"Abdeck- und Vorarbeiten",unit:"pauschal",qty:1,price:3410},{pos:"5",text:"Ausbesserungen nach Elektriker",unit:"h",qty:6,price:98}];
 
 /* ---------- storage ---------- */
-const KEY="arkitecton:data:v1";
+/* ?raum=name opens a separate, empty data space in the same browser (e.g. a test person on the presenter's laptop) */
+const SPACE=(new URLSearchParams(location.search).get("raum")||"").replace(/[^a-z0-9-]/gi,"").slice(0,30).toLowerCase();
+const KEY="arkitecton:data:v1"+(SPACE?":"+SPACE:"");
 let D=null;
 function loadData(){try{const s=localStorage.getItem(KEY);if(s){const o=JSON.parse(s);if(o&&o.v===1){o.fees=o.fees||[];o.firm=o.firm||{name:""};return o;}}}catch(e){}return null;}
 function saveData(){if(!D)return;try{localStorage.setItem(KEY,JSON.stringify(D));}catch(e){}}
@@ -832,6 +835,7 @@ function viewInvoices(){
 
 function viewContractors(){
   if(S.kid&&K(S.kid)) return viewContractor(K(S.kid));
+  if(!P()) return noProject(); /* same empty state as Rechnungen and Budget */
   const p=P(),ws=PC().slice().sort((a,b)=>String(a.bkp).localeCompare(String(b.bkp),undefined,{numeric:true})||K(a.k).name.localeCompare(K(b.k).name));
   const loose=D.contractors.filter(k=>k.pid===D.pid&&!D.contracts.some(w=>w.k===k.id));
   const st=w=>{const li=D.invoices.filter(i=>i.w===w.id&&live(i)&&counted(i));const billed=r2(li.reduce((a,i)=>a+net(i),0)),ret=r2(li.reduce((a,i)=>a+retention(i),0));return {billed,ret};};
@@ -1127,7 +1131,7 @@ function viewTender(t){
 }
 
 (function(){const cur=(document.querySelector('script[src*="app.js"]')||{}).src||"";const v=(cur.match(/v=([^&]+)/)||[])[1];if(!v||location.hostname==="localhost")return;
-  const check=()=>fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(t=>{const nv=(t.match(/app\.js\?v=([^"&]+)/)||[])[1];if(nv&&nv!==v&&!sessionStorage.getItem("ark-up-"+nv)){sessionStorage.setItem("ark-up-"+nv,"1");location.replace(location.pathname+"?v="+nv+location.hash);}}).catch(()=>{});
+  const check=()=>fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(t=>{const nv=(t.match(/app\.js\?v=([^"&]+)/)||[])[1];if(nv&&nv!==v&&!sessionStorage.getItem("ark-up-"+nv)){sessionStorage.setItem("ark-up-"+nv,"1");location.replace(location.pathname+"?v="+nv+(SPACE?"&raum="+SPACE:"")+location.hash);}}).catch(()=>{});
   check();document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")check();});window.addEventListener("pageshow",check);setInterval(()=>{if(document.visibilityState==="visible")check();},120000);})();
 function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
   stampProjects();saveData();

@@ -759,13 +759,11 @@ function viewFirm(){
     ${dataNotice()}${startSteps()}
     <div class="stats">
       <div class="stat"><span class="sl">${L("Zu zahlen","To pay")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(ps.flatMap(x=>x.chk))}</span></div>
-      <div class="stat"><span class="sl">${L("Mehrkosten","Extra costs")}</span><span class="sv${nFl?" warn":""}">${chf(flc,false)}</span><span class="ss">${nFl?nFl+" "+(nFl===1?L("Hinweis","finding"):L("Hinweise","findings")):L("keine","none")}</span></div>
       <div class="stat"><span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung fällig","no reminder due")}</span></div>
       <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${(()=>{const o=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0),y=o.filter(x=>fitOf(x).fit==="ok").length,pa=o.filter(x=>fitOf(x).fit==="partner").length;return [y?y+" "+L("Eignung erfüllt","eligible"):"",pa?pa+" "+L("nur mit Partner","only with partner"):""].filter(Boolean).join(" · ")||L("keine passend","none suitable");})()}</span></button>
     </div>
     ${FEES().length?incomeSection():""}
     <section><div class="sh"><h2>${L("Projekte","Projects")}</h2><span class="cnt">${ps.filter(x=>!x.p.closed).length}</span><span class="right">${ib("plus",L("Neues Projekt","New project"),'data-act="form-project"')}</span></div><div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div>${(()=>{const dn=ps.filter(x=>x.p.closed);return dn.length?`<details class="pdone hdone"><summary>${L("Abgeschlossene Projekte","Completed projects")} <span class="cnt">${dn.length}</span></summary><div class="rows">${dn.map(x=>row({act:"open-project",id:x.p.id,c:"ok",title:esc(x.p.name),meta:x.p.place?esc(x.p.place):"",amt:"",label:""})).join("")}</div></details>`:"";})()}</section>
-    ${tSec}
     ${docsBlock("firm","firm",L("Unterlagen des Büros","Firm documents"),L("Handelsregister, Versicherung, AHV, Referenzen: einmal ablegen, für jede Bewerbung bereit. Mit Gültigkeit warnt arkitecton vor Ablauf.","Register extract, insurance, references: store once, ready for every bid."))}
   </div>`;
 }
@@ -794,8 +792,8 @@ function viewOverview(){
       <button type="button" class="stat" data-act="to-pay"><span class="sl">${L("Zu zahlen","To pay")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(upl)}</span></button>
       <button type="button" class="stat" data-act="jump-flags"><span class="sl">${L("Mehrkosten","Extra costs")}</span><span class="sv${fl.length?" warn":""}">${chf(flSum,false)}</span><span class="ss">${fl.length?fl.length+" "+(fl.length===1?L("Hinweis","finding"):L("Hinweise","findings"))+L(" · über Vertrag, Offerte oder Budget"," · above contract, offer or budget"):L("keine","none")}</span></button>
       <button type="button" class="stat" data-act="nav" data-v="budget"><span class="sl">${L("Kostenstand","Cost status")}</span><span class="sv">${t.kv?pct+"%":"–"}</span><span class="ss kst"><span class="mini"><i style="width:${Math.min(100,pct)}%"></i></span>${t.kv?`<span>${chf(used,false)+L(" von "," of ")+nfq.format(t.kv)+L(" freigegeben"," approved")}</span>${held>0?`<span title="${L("Zurückbehalten, wird später ausbezahlt","Withheld, paid out later")}">${L("davon ","incl. ")+chf(held,false)+L(" Rückbehalt"," retention")}</span>`:""}`:L("kein Budget","no budget")}</span></button>
+      ${PF().length?(()=>{const fo=PF().filter(f=>!f.paid),b=fo.reduce((a,f)=>a+feeTotal(f),0),rm=fo.filter(f=>remDue(f)).length;return `<button type="button" class="stat" data-act="to-fees"><span class="sl">${L("Honorar zu erhalten","Fees to receive")}</span><span class="sv">${chf(b,false)}</span><span class="ss${rm?" l-crit":""}">${rm?rm+" "+(rm===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):fo.length+" "+(fo.length===1?L("Rechnung offen","invoice open"):L("Rechnungen offen","invoices open"))}</span></button>`;})():""}
     </div>
-    ${PF().length?(()=>{const fs=PF(),b=fs.reduce((a,f)=>a+feeTotal(f),0),pd=fs.filter(f=>f.paid).reduce((a,f)=>a+feeTotal(f),0);return `<button type="button" class="feesum" data-act="to-fees"><span class="fh"><span class="sl">${L("Honorar","Fees")}</span><span class="go">→</span></span><span class="fv"><small>${L("Gestellt","Billed")}</small><b>CHF ${nfq.format(Math.round(b))}</b></span><span class="fv"><small>${L("Eingegangen","Received")}</small><b>CHF ${nfq.format(Math.round(pd))}</b></span><span class="fv"><small>${L("Zu erhalten","To receive")}</small><b>CHF ${nfq.format(Math.round(b-pd))}</b></span></button>`;})():""}
     <section><div class="sh"><h2>${L("Zu erledigen","To do")}</h2><span class="cnt">${nTodo}</span></div>${todo||`<div class="rows"><div class="empty">${L("Alles erledigt.","All done.")}</div></div>`}</section>
     <section id="flags"><div class="sh"><h2>${L("Mehrkosten","Extra costs")}</h2><span class="cnt">${fl.length}</span>${fl.length>1?`<span class="legend-s">${L("Total ","Total ")+chf(flSum,false)+L(", Überschneidungen einmal gezählt",", overlaps counted once")}</span>`:""}</div><div class="rows">${flagRows||`<div class="empty">${L("Keine Mehrkosten.","No extra costs.")}</div>`}</div>
       ${fl.length>3?`<button type="button" class="more" data-act="all-flags">${S.allFlags?L("Weniger anzeigen","Show less"):L("Alle anzeigen","Show all")}</button>`:""}</section>
@@ -1055,7 +1053,7 @@ function viewTenders(){
     const f=S.pfilter,list=G[f],rows=(f==="team"?list.map(mRow):f==="sugg"?list.map(sRow):list.map(refRow)).join("");
     const plus=f==="team"?ib("plus",L("Person erfassen","Add person"),'data-act="form" data-f="person"'):ib("plus",L("Referenz erfassen","Add reference"),'data-act="form" data-f="ref"');
     const empty=f==="team"?L("Noch niemand im Team erfasst. Mit + fügen Sie eine Person hinzu.","No team members yet. Use + to add one."):L("Noch keine Referenzen. Mit + erfassen Sie eine, oder übernehmen Sie ein abgeschlossenes Projekt.","No references yet. Use + to add one, or take over a completed project.");
-    return `<div class="page">${ph(L("Büro","Office"),L("Ausschreibungen","Tenders"),"",tsw+plus+excelBtn("tender"))}
+    return `<div class="page">${ph("",L("Ausschreibungen","Tenders"),"",tsw+plus+excelBtn("tender"))}
       ${!O.refs.length||!O.team.length?`<div class="notice"><span class="ic warn" aria-hidden="true">!</span><span>${L("Solange Referenzen und Team fehlen, kann arkitecton die Eignung bei Ausschreibungen nicht prüfen.","As long as references and team are missing, arkitecton cannot check tender eligibility.")}</span></div>`:""}
       <div class="stats s4">${["refs","pub","team","sugg"].map(tile).join("")}</div>
       <section><div class="sh"><h2>${TL[f][0]}</h2><span class="cnt">${list.length}</span></div><div class="rows">${rows||`<div class="empty"><span>${empty}</span></div>`}</div></section>
@@ -1077,7 +1075,7 @@ function viewTenders(){
     done:[L("Abgeschlossen","Closed"),String(closed.length),L("eingereicht oder verzichtet","submitted or skipped"),""]};
   const tile=k=>{const [l,v,ss,c]=TL[k],n=G[k].length,sel=S.tfilter===k,inner=`<span class="sl">${l}</span><span class="sv${c}">${n?v:"–"}</span><span class="ss">${ss}</span>`;
     return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="tfilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
-  return `<div class="page">${ph(L("Büro","Office"),L("Ausschreibungen","Tenders"),"",tsw+ib("plus",L("Ausschreibung erfassen","Add tender"),'data-act="form" data-f="tender"')+excelBtn("tender"))}
+  return `<div class="page">${ph("",L("Ausschreibungen","Tenders"),"",tsw+ib("plus",L("Ausschreibung erfassen","Add tender"),'data-act="form" data-f="tender"')+excelBtn("tender"))}
     <div class="stats s4">${["open","ok","partner","done"].map(tile).join("")}</div>
     <section><div class="sh"><h2>${TL[S.tfilter][0]}</h2><span class="cnt">${list.length}</span><span class="right">${S.tfilter==="open"?"":`<button type="button" class="ghost" data-act="tfilter" data-f="open">${L("Alle offenen anzeigen","Show all open")} (${active.length})</button>`}</span></div><div class="rows">${rows||`<div class="empty"><span>${L("Keine Verfahren.","No procedures.")}</span></div>`}</div></section>
   </div>`;
@@ -1979,6 +1977,18 @@ const SWIPE=["uebersicht","rechnungen","handwerker","budget"];
   main.addEventListener("scroll",upd,{passive:true});window.addEventListener("resize",upd);
   new MutationObserver(()=>requestAnimationFrame(upd)).observe(main,{childList:true});
   b.addEventListener("click",()=>{main.scrollTo({top:0,behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});b.classList.remove("on");});
+})();
+/* phone: the top bar name repeats the page title, so it only appears once the title has scrolled away (large-title pattern) */
+(function(){
+  const main=document.getElementById("main");
+  const upd=()=>{const tp=document.getElementById("topProj"),h=main.querySelector(".ph h1");if(!tp)return;
+    const norm=x=>(x||"").replace(/[⌄\s]+/g," ").trim();
+    const echo=!!h&&norm(h.textContent)===norm(tp.textContent);
+    tp.classList.toggle("echo",echo);
+    tp.classList.toggle("shown",!echo||h.getBoundingClientRect().bottom<document.querySelector(".topbar").getBoundingClientRect().bottom);};
+  main.addEventListener("scroll",upd,{passive:true});window.addEventListener("resize",upd);
+  new MutationObserver(()=>requestAnimationFrame(upd)).observe(main,{childList:true});
+  new MutationObserver(()=>requestAnimationFrame(upd)).observe(document.getElementById("topProj"),{childList:true,characterData:true,subtree:true});
 })();
 /* ---------- tooltips in the navigation (desktop) ---------- */
 (function(){let tm=null,cur=null;const tip=document.createElement("div");tip.id="tip";tip.setAttribute("role","tooltip");document.body.appendChild(tip);

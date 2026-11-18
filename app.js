@@ -1231,7 +1231,7 @@ async function startCam(){
     cam={stream,cv:document.createElement("canvas"),last:0,raf:0};
     attachCam();
     cam.raf=requestAnimationFrame(scanLoop);
-  }catch(e){if(S.modal){S.modal.camErr=L("Kein Kamerazugriff. Erlauben Sie die Kamera oder nehmen Sie ein Foto auf.","No camera access. Allow the camera or take a photo.");renderOverlay();}}
+  }catch(e){if(S.modal){const nm=e&&e.name;S.modal.camErr=nm==="NotFoundError"||nm==="OverconstrainedError"?L("Keine Kamera gefunden. Wählen Sie die Rechnung als PDF oder Foto.","No camera found. Choose the invoice as PDF or photo."):nm==="NotReadableError"?L("Die Kamera wird von einem anderen Programm benutzt. Schliessen Sie es oder wählen Sie die Rechnung als PDF oder Foto.","The camera is used by another app. Close it or choose the invoice as PDF or photo."):L("Der Browser hat den Kamerazugriff blockiert. Erlauben Sie die Kamera für diese Seite (Safari: Einstellungen › Websites › Kamera) oder wählen Sie die Rechnung als PDF oder Foto.","The browser blocked camera access. Allow the camera for this site (Safari: Settings › Websites › Camera) or choose the invoice as PDF or photo.");renderOverlay();}}
 }
 function attachCam(){const v=document.getElementById("camv");if(!cam||!v)return;if(v.srcObject!==cam.stream){v.srcObject=cam.stream;v.play().catch(()=>{});}}
 function scanLoop(ts){
@@ -1269,15 +1269,33 @@ async function decodeQR(file){
     return null;
   }finally{URL.revokeObjectURL(url);}
 }
+let pdfLib=null;
+function loadPdfJs(){if(pdfLib)return pdfLib;pdfLib=new Promise((res,rej)=>{if(window.pdfjsLib)return res(window.pdfjsLib);const sc=document.createElement("script");sc.src="vendor/pdf.min.js";sc.onload=()=>{try{window.pdfjsLib.GlobalWorkerOptions.workerSrc="vendor/pdf.worker.min.js";res(window.pdfjsLib);}catch(e){rej(e);}};sc.onerror=e=>{pdfLib=null;rej(e);};document.head.appendChild(sc);});return pdfLib;}
+const isPdf=f=>f&&(f.type==="application/pdf"||/\.pdf$/i.test(f.name||""));
+async function decodePdfQR(file){
+  const lib=await loadPdfJs();const doc=await lib.getDocument({data:await file.arrayBuffer()}).promise;
+  const n=doc.numPages,order=[n];for(let i=1;i<n&&order.length<4;i++)order.push(i);if(n>1&&!order.includes(n-1))order.push(n-1);
+  for(const pn of [...new Set(order)]){
+    const page=await doc.getPage(pn);
+    for(const scale of [2.5,4]){
+      const vp=page.getViewport({scale}),cv=document.createElement("canvas");cv.width=Math.round(vp.width);cv.height=Math.round(vp.height);
+      const ctx=cv.getContext("2d",{willReadFrequently:true});ctx.fillStyle="#fff";ctx.fillRect(0,0,cv.width,cv.height);
+      await page.render({canvasContext:ctx,viewport:vp}).promise;
+      const blob=await new Promise(r=>cv.toBlob(r,"image/png"));const t=await decodeQR(blob);if(t)return t;
+    }
+  }
+  return null;
+}
 async function onScanFile(file){
   if(!file||!S.modal) return;
   stopCam();
-  if(!/^image\//.test(file.type)){S.modal.err=L("Bitte ein Foto wählen (JPG, PNG).","Please choose a photo (JPG, PNG).");return renderOverlay();}
+  const pdf=isPdf(file);
+  if(!pdf&&!/^image\//.test(file.type)){S.modal.err=L("Bitte ein PDF oder Foto der Rechnung wählen.","Please choose a PDF or photo of the invoice.");return renderOverlay();}
   S.modal.busy=true;S.modal.err="";renderOverlay();
-  let txt=null;try{txt=await decodeQR(file);}catch(e){txt=null;}
+  let txt=null;try{txt=pdf?await decodePdfQR(file):await decodeQR(file);}catch(e){txt=null;}
   if(!S.modal)return;S.modal.busy=false;
   const d=txt?parseSPC(txt):null;
-  if(!d){S.modal.err=txt?L("Das ist keine Schweizer QR-Rechnung.","This is not a Swiss QR-bill."):L("Kein QR-Code erkannt. Zahlteil näher fotografieren.","No QR code found. Photograph the payment part closer.");return renderOverlay();}
+  if(!d){S.modal.err=txt?L("Das ist keine Schweizer QR-Rechnung.","This is not a Swiss QR-bill."):(pdf?L("Im PDF wurde kein QR-Zahlteil gefunden.","No QR payment part found in the PDF."):L("Kein QR-Code erkannt. Zahlteil näher fotografieren.","No QR code found. Photograph the payment part closer."));return renderOverlay();}
   d.no=guessNo(d);setDates(d);S.modal.data=d;S.modal.step=2;renderOverlay();
 }
 function resolveCapture(d){
@@ -1299,9 +1317,9 @@ function captureHTML(){
     body=`<div class="empty">${L("Bitte zuerst ein Projekt anlegen.","Please create a project first.")}<button type="button" class="btn primary" data-act="form" data-f="project">${L("Projekt anlegen","Create project")}</button></div>`;
   } else if(M.step===1){
     body=repNote+`<div class="scanbox">
-      ${M.fileFirst?`<span class="camhint">${M.busy?L("Bild wird gelesen …","Reading image …"):L("Wählen Sie ein Foto oder einen Scan der Rechnung. arkitecton liest den QR-Zahlteil.","Choose a photo or scan of the invoice. arkitecton reads the QR payment part.")}</span>`:M.camErr?`<span class="err">${esc(M.camErr)}</span>`:`<div class="cam"><video id="camv" playsinline muted autoplay></video><div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div></div><span class="camhint" id="camhint">${M.busy?L("Foto wird gelesen …","Reading photo …"):L("QR-Code des Zahlteils in den Rahmen halten","Hold the payment part's QR code in the frame")}</span>`}
+      ${M.fileFirst?`<span class="camhint">${M.busy?L("Rechnung wird gelesen …","Reading invoice …"):L("Wählen Sie die Rechnung als PDF oder Foto, oder ziehen Sie die Datei hierher. arkitecton liest den QR-Zahlteil.","Choose the invoice as PDF or photo, or drop the file here. arkitecton reads the QR payment part.")}</span>`:M.camErr?`<span class="err">${esc(M.camErr)}</span>`:`<div class="cam"><video id="camv" playsinline muted autoplay></video><div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div></div><span class="camhint" id="camhint">${M.busy?L("Foto wird gelesen …","Reading photo …"):L("QR-Code des Zahlteils in den Rahmen halten","Hold the payment part's QR code in the frame")}</span>`}
       ${M.err?`<span class="err">${esc(M.err)}</span>`:""}
-      <label class="btn${M.camErr||M.fileFirst?" primary":""} block">${M.fileFirst?L("Bild der Rechnung wählen","Choose invoice image"):L("Foto aufnehmen oder wählen","Take or choose a photo")}<input type="file" id="scanIn" accept="image/*" aria-label="${L("Foto der QR-Rechnung","Photo of the QR-bill")}"></label>
+      <label class="btn${M.camErr||M.fileFirst?" primary":""} block">${M.fileFirst?L("Rechnung wählen (PDF oder Foto)","Choose invoice (PDF or photo)"):L("PDF oder Foto wählen","Choose PDF or photo")}<input type="file" id="scanIn" accept="application/pdf,.pdf,image/*" aria-label="${L("Foto der QR-Rechnung","Photo of the QR-bill")}"></label>
       <div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center">${M.fileFirst?`<button type="button" class="ghost" data-act="use-cam">${L("Kamera verwenden","Use camera")}</button>`:""}<button type="button" class="ghost" data-act="manual">${L("Ohne QR erfassen","Add without QR")}</button>${D.example&&!M.rep?`<button type="button" class="ghost" data-act="use-sample">${L("Beispielrechnung","Example invoice")}</button>`:""}</div></div>`;
   } else {
     if(!M.pid) M.pid=defaultPid(d);
@@ -1772,6 +1790,10 @@ function go(v){if(!VIEWS.includes(v))v="uebersicht";closeAll();if(v!=="handwerke
 const openForm=(f,id,w)=>{const keepDrawer=S.drawer;closeAll();S.form={f,id:id||null,w:w||null,back:keepDrawer};renderOverlay();};
 
 document.addEventListener("toggle",e=>{const d=e.target;if(d&&d.classList&&d.classList.contains("site")&&S.kOpen)S.kOpen.ids[d.dataset.pid]=d.open;},true);
+document.addEventListener("click",e=>{const lb=e.target.closest&&e.target.closest("label");const fi=lb&&lb.querySelector('input[type=file]');if(fi&&e.target!==fi){e.preventDefault();fi.click();}},true);
+document.addEventListener("dragover",e=>{if(S.modal&&S.modal.step===1&&e.target.closest&&e.target.closest(".sheet")){e.preventDefault();e.target.closest(".sheet").classList.add("drop");}});
+document.addEventListener("dragleave",e=>{const sh=e.target.closest&&e.target.closest(".sheet");if(sh&&!sh.contains(e.relatedTarget))sh.classList.remove("drop");});
+document.addEventListener("drop",e=>{if(!(S.modal&&S.modal.step===1))return;const sh=e.target.closest&&e.target.closest(".sheet");if(!sh)return;e.preventDefault();sh.classList.remove("drop");const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)onScanFile(f);});
 document.addEventListener("click",e=>{
   if(S.pop&&!e.target.closest("#pop")&&!e.target.closest('[data-act="nmore"],[data-act="pmore"]'))closePop();
   const el=e.target.closest("[data-act]");if(!el)return;

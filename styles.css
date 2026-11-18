@@ -871,3 +871,6 @@ b,strong{font-weight:500}
   .stats.s5{grid-template-columns:repeat(2,minmax(0,1fr))}
   .stats.s5>.stat:first-child{grid-column:1/-1}
 }
+/* hidden file inputs: the label handles the click, so the browser shows no empty native tooltip */
+label input[type=file]{pointer-events:none}
+label:has(input[type=file]){cursor:pointer}

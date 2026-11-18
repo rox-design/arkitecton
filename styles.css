@@ -895,4 +895,7 @@ label:has(input[type=file]){cursor:pointer}
   .tabbar button::before{content:""!important;display:block;width:6px;height:6px;background:transparent}
   .tabbar button[aria-current="page"]{color:var(--ink)!important;font-weight:500}
   .tabbar button[aria-current="page"]::before{background:var(--mark)}
+  /* the round QR button is not a tab: no marker, no tab padding, centred on screen like the back-to-top button */
+  .tabbar .tabscan{padding:0!important;flex:none}
+  .tabbar .tabscan::before{content:none!important}
 }

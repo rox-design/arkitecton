@@ -294,10 +294,6 @@ function navRow(v,extra=""){const pl=NAV_PLUS()[v],mo=NAV_MORE()[v];
 const navIco=v=>`<svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICO[v]}</svg>`;
 const vName=v=>({buero:"Home",uebersicht:L("Projekt","Project"),rechnungen:L("Rechnungen","Invoices"),handwerker:L("Handwerker","Contractors"),budget:"Budget",ausschreibungen:L("Ausschreibungen","Tenders"),einstellungen:L("Einstellungen","Settings")})[v];
 const SCAN_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M8 8h3v3H8zM13 13h3v3h-3zM13 8h3M8 13v3"/></svg>';
-/* the round QR button sits exactly above the Rechnungen tab (tabs have different widths) */
-function posScan(){const tb=document.getElementById("tabbar"),sc=tb&&tb.querySelector(".tabscan"),rb=tb&&tb.querySelector('[data-v="rechnungen"]');if(!sc||!rb)return;
-  const a=tb.getBoundingClientRect(),r=rb.getBoundingClientRect();if(!a.width)return;sc.style.left=(r.left-a.left+r.width/2)+"px";}
-window.addEventListener("resize",()=>posScan());
 function renderChrome(){
   document.documentElement.lang=S.lang;
   const p=P();
@@ -323,7 +319,6 @@ function renderChrome(){
   /* one tab bar everywhere; Home is the logo and firm name at the top */
   document.getElementById("tabbar").innerHTML=tb("ausschreibungen",L("Ausschreibungen","Tenders"))+tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget")+(S.view==="rechnungen"&&S.rtab!=="deb"?`<button type="button" class="tabscan" data-act="capture" aria-label="${L("QR scannen","Scan QR")}" title="${L("QR scannen","Scan QR")}">${navIco("scan")}</button>`:"");
   document.querySelector(".topbar").classList.toggle("is-home",S.view==="buero");void firmTabs;
-  requestAnimationFrame(posScan);
   const ts=document.getElementById("topSet");if(ts){ts.innerHTML=navIco("einstellungen");ts.setAttribute("aria-label",L("Einstellungen","Settings"));ts.title=L("Einstellungen","Settings");ts.setAttribute("aria-current",S.view==="einstellungen"?"page":"false");}
 }
 const ph=(eyebrow,title,lead,tools)=>`<header class="ph">${P()&&eyebrow===esc(P().name)?`<button type="button" class="eyebrow pname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${eyebrow}<span class="cv" aria-hidden="true">⌄</span></button>`:`<span class="eyebrow">${eyebrow}</span>`}<h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;

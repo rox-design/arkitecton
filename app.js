@@ -444,7 +444,7 @@ function docsBlock(scope,ref,title,hint){
   const rk=d=>{const v=docValid(d);return v?{crit:0,warn:1,ok:2}[v.c]:3;};
   const list=docsFor(scope,ref).sort((a,b)=>scope==="firm"?rk(a)-rk(b):0);
   const rows=list.map(d=>{const v=docValid(d);return `<div class="drow"><button type="button" class="dopen" data-act="doc-open" data-id="${d.id}"><span class="dk">${esc(kindOf(d.name))}</span><span class="dn">${esc(d.name)}</span><span class="dm">${fsize(d.size||0)} · ${fdate(d.date)}${v?` · <span class="l-${v.c}">${v.t}</span>`:""}</span></button>${scope==="firm"?ib("edit",L("Gültigkeit","Validity"),`data-act="form" data-f="docvalid" data-id="${d.id}"`):""}${S.confirm==="ddel:"+d.id?`<button type="button" class="ghost danger" data-act="doc-del" data-id="${d.id}">${L("Löschen?","Delete?")}</button>`:ib("trash",L("Dokument löschen","Delete document"),`data-act="ask" data-c="ddel:${d.id}"`)}</div>`;}).join("");
-  return `<section class="docs"><div class="sh"><h2>${title}</h2><span class="cnt">${list.length}</span><span class="right"><label class="ib" title="${L("Dokument hinzufügen","Add document")}" aria-label="${L("Dokument hinzufügen","Add document")}">${ico("plus")}<input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png" data-imp="doc" data-id="${scope}|${ref}"></label></span></div>
+  return `<section class="docs"><div class="sh"><h2>${title}</h2><span class="cnt">${list.length}</span><span class="right"><label class="ib" data-tip="${L("Dokumente hinzufügen: PDF, Word, Excel oder Bild, auch mehrere auf einmal","Add documents: PDF, Word, Excel or image, several at once")}" aria-label="${L("Dokument hinzufügen","Add document")}">${ico("plus")}<input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png" data-imp="doc" data-id="${scope}|${ref}"></label></span></div>
     ${rows?`<div class="dlist">${rows}</div>`:`<div class="empty">${hint||L("Noch keine Dokumente. PDF, Word, Excel oder Bilder mit ＋ hinzufügen.","No documents yet. Add PDF, Word, Excel or images with ＋.")}</div>`}</section>`;
 }
 async function addDocs(files,key){
@@ -1949,9 +1949,9 @@ const SWIPE=["uebersicht","rechnungen","handwerker","budget"];
 /* ---------- tooltips in the navigation (desktop) ---------- */
 (function(){let tm=null,cur=null;const tip=document.createElement("div");tip.id="tip";tip.setAttribute("role","tooltip");document.body.appendChild(tip);
   const hide=()=>{clearTimeout(tm);tm=null;cur=null;tip.classList.remove("on");};
-  document.addEventListener("mouseover",e=>{const t=e.target.closest(".rail [data-tip]");if(t===cur)return;hide();if(!t||!window.matchMedia("(hover:hover)").matches)return;cur=t;
+  document.addEventListener("mouseover",e=>{let t=e.target.closest("[data-tip],.ib[title],button[title],label[title]");if(t&&!t.closest(".app"))t=null;if(t&&t.title){t.dataset.tip=t.title;t.removeAttribute("title");}if(t===cur)return;hide();if(!t||!window.matchMedia("(hover:hover)").matches)return;cur=t;
     tm=setTimeout(()=>{if(S.pop)return;tip.textContent=t.dataset.tip;tip.classList.add("on");const r=t.getBoundingClientRect(),w=tip.offsetWidth;
-      tip.style.left=Math.min(innerWidth-w-8,Math.max(8,r.left+r.width/2-w/2))+"px";tip.style.top=(r.bottom+6)+"px";},380);});
+      tip.style.left=Math.min(innerWidth-w-8,Math.max(8,r.left+r.width/2-w/2))+"px";const h=tip.offsetHeight;tip.style.top=(r.bottom+6+h>innerHeight-8?r.top-6-h:r.bottom+6)+"px";},380);});
   document.addEventListener("mousedown",hide,true);document.addEventListener("scroll",hide,true);
 })();
 /* one-time hint on the phone, until the person has swiped once */

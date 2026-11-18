@@ -694,7 +694,7 @@ main{overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
 #pop .popi.danger{color:var(--crit)}
 #pop label.popi input{position:absolute;inset:0;opacity:0;cursor:pointer}
 #pop .popfoot{border-top:1px solid var(--line);margin:6px 4px 0;padding:8px 6px 4px;font-size:.78rem;color:var(--muted)}
-#tip{position:fixed;z-index:210;pointer-events:none;background:#141414;color:#f4f4f1;font-size:.78rem;line-height:1.3;padding:5px 9px;border-radius:7px;white-space:nowrap;opacity:0;transform:translateY(-2px);transition:opacity .12s,transform .12s}
+#tip{position:fixed;max-width:260px;white-space:normal!important;z-index:210;pointer-events:none;background:#141414;color:#f4f4f1;font-size:.78rem;line-height:1.3;padding:5px 9px;border-radius:7px;white-space:nowrap;opacity:0;transform:translateY(-2px);transition:opacity .12s,transform .12s}
 #tip.on{opacity:1;transform:none}
 :root[data-theme="dark"] #tip{background:#ededea;color:#141414}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #tip{background:#ededea;color:#141414}}

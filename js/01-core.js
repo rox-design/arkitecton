@@ -136,6 +136,10 @@ function exampleSwap(to){
 /* a real start: no example tenders, references or team */
 function seedEmpty(){const tt=seedTenders();return {v:1,seq:100,events:[],pid:null,firm:{name:""},projects:[],contractors:[],contracts:[],invoices:[],fees:[],office:Object.assign({},tt.office,{team:[],refs:[]}),tenders:[],example:false};}
 const SAMPLE={name:"Meier Malerei GmbH",street:"Zürcherstrasse 88",zip:"8820",city:"Wädenswil",iban:"CH44 3199 9123 0008 8901 2",amount:12450,ref:"21 00000 00003 13947 14300 09017",no:"2026-417",msg:"Objekt: MFH Seestr. 12, Wädenswil – Malerarbeiten Treppenhaus"};
+/* three invoices at once: one new, one more progress payment, one already recorded */
+const SAMPLES=[SAMPLE,
+  {name:"Keller Bau AG",street:"Zugerstrasse 41",zip:"8810",city:"Horgen",iban:"CH93 0076 2011 6238 5295 7",amount:45000,ref:"21 00000 00001 10233 41100 00041",no:"AK-092",msg:"Akonto 4 · Objekt: MFH Seestrasse 12, Wädenswil"},
+  {name:"Sanitär Huber & Co.",street:"Bahnhofstrasse 3",zip:"8805",city:"Richterswil",iban:"CH38 0070 0110 0012 3456 1",amount:30000,ref:"21 00000 00009 31200 20260 09125",no:"2026/0912",msg:"Akonto 1 · Objekt: MFH Seestrasse 12"}];
 const EX_OFFER=[{pos:"1",text:"Wände streichen, 2 Anstriche",unit:"m²",qty:1420,price:14},{pos:"2",text:"Decken streichen",unit:"m²",qty:610,price:12},{pos:"3",text:"Türzargen lackieren",unit:"Stk",qty:42,price:95},{pos:"4",text:"Abdeck- und Vorarbeiten",unit:"pauschal",qty:1,price:3410}];
 const EX_FINAL=[{pos:"1",text:"Wände streichen, 2 Anstriche",unit:"m²",qty:1465,price:14},{pos:"2",text:"Decken streichen",unit:"m²",qty:610,price:12},{pos:"3",text:"Türzargen lackieren",unit:"Stk",qty:44,price:95},{pos:"4",text:"Abdeck- und Vorarbeiten",unit:"pauschal",qty:1,price:3410},{pos:"5",text:"Ausbesserungen nach Elektriker",unit:"h",qty:6,price:98}];
 

@@ -5,7 +5,7 @@
 function checksFor(i){
   const w=W(i.w),k=K(w.k),out=[],m=missingOf(k);
   const blocking=m.filter(x=>x!==L("E-Mail","Email"));
-  out.push(blocking.length?{s:"crit",t:L("Für die Zahlung fehlt: ","Missing for payment: ")+blocking.join(", "),fix:k.id,need:blocking.join(", ")}:m.length?{s:"warn",t:L("E-Mail für Rückfragen fehlt","Email for queries missing"),fix:k.id}:{s:"ok",t:L("Handwerkerdaten vollständig","Contractor details complete")});
+  out.push(blocking.length?{s:"crit",t:L("Für die Zahlung fehlt: ","Missing for payment: ")+blocking.join(", "),fix:k.id,need:blocking.join(", ")}:m.length?{s:"warn",soft:1,t:L("E-Mail für Rückfragen fehlt","Email for queries missing"),fix:k.id}:{s:"ok",t:L("Handwerkerdaten vollständig","Contractor details complete")});
   let over=0;if(w.sum>0){const after=billedOn(w.id,i.id)+net(i);out.push({s:"ok",t:"BKP "+w.bkp+" "+bName(w.bkp)});out.push(after<=w.sum?{s:"ok",t:L("Im Werkvertrag: ","Within contract: ")+chf(after,false)+" / "+chf(w.sum,false)}:{s:"warn",over:1,money:1,t:L("Über Werkvertrag: +","Above contract: +")+chf(after-w.sum)});if(after>w.sum)over=after-w.sum;}
   else out.push({s:"warn",t:"BKP "+w.bkp+L(": keine Werkvertragssumme",": no contract sum")});
   if(i.type==="regie") out.push({s:"warn",money:1,t:L("Regie ausserhalb Werkvertrag: Rapporte prüfen","Time & materials outside contract: check time sheets")});
@@ -14,7 +14,7 @@ function checksFor(i){
   const dup=i.ref&&live(i)&&D.invoices.some(x=>x.id!==i.id&&live(x)&&norm(x.ref)===norm(i.ref));
   if(i.fx)out.push({s:"warn",t:L("Rechnung in ","Invoice in ")+i.fx.cur+" "+nf2.format(i.fx.amount)+L(", in CHF erfasst",", entered in CHF")});
   out.push(dup?{s:"crit",t:L("Mögliche Doppelrechnung","Possible duplicate")}:i.ref?{s:"ok",t:L("Keine Doppelrechnung","No duplicate")}:{s:"warn",t:L("Ohne QR-Referenz","No QR reference")});
-  const dd=daysTo(i.due);if(dd<=7&&!counted(i))out.push({s:"warn",t:L("Zahlung ","Payment ")+dueText(dd)});
+  const dd=daysTo(i.due);if(dd<=7&&!counted(i))out.push({s:"warn",soft:1,t:L("Zahlung ","Payment ")+dueText(dd)});
   return out;
 }
 function queryText(i){
@@ -189,14 +189,15 @@ function captureHTML(){
   const M=S.modal,d=M.data;let body="",foot="",title=L("QR scannen","Scan QR");
   const RO=M.rep&&INV(M.rep),RK=RO&&K(W(RO.w).k);
   const repNote=RO?`<div class="notice"><span class="ic info" aria-hidden="true">i</span><span>${L("Ersetzt ","Replaces ")}${esc(RO.no)} · ${esc(RK.name)} · ${typeLabel(RO)}</span></div>`:"";
+  if(M.batch&&P())return batchHTML(M);
   if(!P()){
     body=`<div class="empty">${L("Bitte zuerst ein Projekt anlegen.","Please create a project first.")}<button type="button" class="btn primary" data-act="form" data-f="project">${L("Projekt anlegen","Create project")}</button></div>`;
   } else if(M.step===1){
     body=repNote+`<div class="scanbox">
-      ${M.fileFirst?`<span class="camhint">${M.busy?L("Rechnung wird gelesen …","Reading invoice …"):L("Wählen Sie die Rechnung als PDF oder Foto, oder ziehen Sie die Datei hierher. arkitecton liest den QR-Zahlteil.","Choose the invoice as PDF or photo, or drop the file here. arkitecton reads the QR payment part.")}</span>`:M.camErr?`<span class="err">${esc(M.camErr)}</span><button type="button" class="btn block" data-act="cam-retry">${L("Kamera erneut versuchen","Try camera again")}</button>`:`<div class="cam"><video id="camv" playsinline muted autoplay></video><div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div></div><span class="camhint" id="camhint">${M.busy?L("Foto wird gelesen …","Reading photo …"):L("QR-Code des Zahlteils in den Rahmen halten","Hold the payment part's QR code in the frame")}</span>`}
+      ${M.fileFirst?`<span class="camhint">${M.busy?L("Rechnung wird gelesen …","Reading invoice …"):L("Wählen Sie eine oder mehrere Rechnungen als PDF oder Foto, oder ziehen Sie die Dateien hierher. arkitecton liest den QR-Zahlteil.","Choose one or more invoices as PDF or photo, or drop the files here. arkitecton reads the QR payment part.")}</span>`:M.camErr?`<span class="err">${esc(M.camErr)}</span><button type="button" class="btn block" data-act="cam-retry">${L("Kamera erneut versuchen","Try camera again")}</button>`:`<div class="cam"><video id="camv" playsinline muted autoplay></video><div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div></div><span class="camhint" id="camhint">${M.busy?L("Foto wird gelesen …","Reading photo …"):L("QR-Code des Zahlteils in den Rahmen halten","Hold the payment part's QR code in the frame")}</span>`}
       ${M.err?`<span class="err">${esc(M.err)}</span>`:""}
-      <label class="btn${M.camErr||M.fileFirst?" primary":""} block">${M.fileFirst?L("Rechnung wählen (PDF oder Foto)","Choose invoice (PDF or photo)"):L("PDF oder Foto wählen","Choose PDF or photo")}<input type="file" id="scanIn" accept="application/pdf,.pdf,image/*" aria-label="${L("Foto der QR-Rechnung","Photo of the QR-bill")}"></label>
-      ${(()=>{const lk=(M.fileFirst?`<button type="button" class="ghost" data-act="use-cam">${L("Kamera verwenden","Use camera")}</button>`:"")+(M.err?`<button type="button" class="ghost" data-act="manual">${L("Ohne QR erfassen","Add without QR")}</button>`:"")+(D.example&&!D.realScan&&!M.rep?`<button type="button" class="ghost" data-act="use-sample">${L("Beispielrechnung","Example invoice")}</button>`:"");return lk?`<div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center">${lk}</div>`:"";})()}</div>`;
+      <label class="btn${M.camErr||M.fileFirst?" primary":""} block">${M.fileFirst?L("Rechnungen wählen (PDF oder Foto)","Choose invoices (PDF or photo)"):L("PDF oder Foto wählen","Choose PDF or photo")}<input type="file" id="scanIn" multiple accept="application/pdf,.pdf,image/*" aria-label="${L("Foto der QR-Rechnung","Photo of the QR-bill")}"></label>
+      ${(()=>{const lk=(M.fileFirst?`<button type="button" class="ghost" data-act="use-cam">${L("Kamera verwenden","Use camera")}</button>`:"")+(M.err?`<button type="button" class="ghost" data-act="manual">${L("Ohne QR erfassen","Add without QR")}</button>`:"")+(D.example&&!D.realScan&&!M.rep?`<button type="button" class="ghost" data-act="use-sample">${L("Beispielrechnung","Example invoice")}</button><button type="button" class="ghost" data-act="use-samples">${L("Beispiel: 3 Rechnungen","Example: 3 invoices")}</button>`:"");return lk?`<div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center">${lk}</div>`:"";})()}</div>`;
   } else {
     if(!M.pid) M.pid=defaultPid(d);
     const R=withP(M.pid,()=>resolveCapture(d));
@@ -248,8 +249,8 @@ function projectFromText(d){
   return best;
 }
 const pidHint=M=>({text:L("Erkannt aus der Rechnung","Taken from the invoice")+(M.pidTxt?`: «${esc(M.pidTxt)}»`:""),k:L("Erkannt am Werkvertrag mit diesem Handwerker","Matched by this contractor's contract"),none:L("Auf der Rechnung steht kein Objekt. Bitte Projekt prüfen.","The invoice names no site. Please check the project."),man:L("Von Hand gewählt","Chosen manually")})[M.pidSrc];
-function defaultPid(d){
-  const M=S.modal,RO=M&&M.rep&&INV(M.rep);if(RO){M.pidSrc="rep";return W(RO.w).pid;}
+function defaultPid(d,M=S.modal){
+  const RO=M&&M.rep&&INV(M.rep);if(RO){M.pidSrc="rep";return W(RO.w).pid;}
   const t=projectFromText(d);if(t){M.pidSrc="text";M.pidTxt=t.src;return t.pid;}
   const k=D.contractors.find(c=>(c.iban&&norm(c.iban)===norm(d.iban))||c.name.trim().toLowerCase()===d.name.trim().toLowerCase());
   if(k&&!D.contracts.some(w=>w.k===k.id&&w.pid===D.pid)){const ps=[...new Set(D.contracts.filter(w=>w.k===k.id).map(w=>w.pid))].filter(id=>{const p=PJ(id);return p&&!p.closed;});if(ps.length===1){M.pidSrc="k";return ps[0];}}
@@ -264,20 +265,101 @@ function confirmCapture(){
   if(!d.amount){S.modal.err=L("Betrag eingeben","Enter the amount");return renderOverlay();}
   S.modal.err="";
   const moved=S.modal.pid&&S.modal.pid!==D.pid;if(S.modal.pid)D.pid=S.modal.pid;
-  const R=resolveCapture(d);if(R.dup){S.modal.step=3;logDup();return renderOverlay();}
-  const items=[L("QR gelesen","QR read")],type=(document.getElementById("capType")||{}).value||"akonto";
+  const r=saveCapture(d,{type:(document.getElementById("capType")||{}).value||"akonto",bkp:(document.getElementById("capBkp")||{}).value,rep:S.modal.rep});
+  if(r.dup){S.modal.step=3;logDup();return renderOverlay();}
+  S.done={id:r.ni.id,items:r.items};S.modal=null;S.drawer=r.ni.id;S.queryOpen=false;render();
+  if(moved)toast(L("Im Projekt ","Filed in ")+P().name);
+}
+/* files one invoice in the current project (D.pid); shared by single and batch capture */
+function saveCapture(d,o){
+  const R=resolveCapture(d);if(R.dup)return {dup:R.dup};
+  const items=[L("QR gelesen","QR read")],type=o.type||"akonto";
   let k=R.k,w=R.w;
   if(!k){k={id:newId("k"),name:d.name,street:d.street,zip:d.zip,city:d.city,iban:d.iban,email:"",phone:""};D.contractors.push(k);items.push(L("Handwerker angelegt","Contractor added"));}
   else{const add=[];if(!k.street&&d.street){k.street=d.street;k.zip=d.zip;k.city=d.city;add.push(L("Adresse","address"));}if(!k.iban&&d.iban){k.iban=d.iban;add.push("IBAN");}if(add.length)items.push(add.join(L(" und "," and "))+L(" ergänzt"," added"));}
-  if(!w){const bkp=(document.getElementById("capBkp")||{}).value||"211";ensureBkp(bkp);w={id:newId("w"),pid:D.pid,k:k.id,bkp,sum:0,ret:SET().ret};D.contracts.push(w);}
+  if(!w){const bkp=o.bkp||"211";ensureBkp(bkp);w={id:newId("w"),pid:D.pid,k:k.id,bkp,sum:0,ret:SET().ret};D.contracts.push(w);}
   items.push("BKP "+w.bkp);
   const n=type==="akonto"?(d.akN||D.invoices.filter(x=>x.w===w.id&&x.type==="akonto").length+1):0;
   const ni={id:newId("i"),no:d.no||L("ohne Nr.","no number"),w:w.id,type,n,date:d.date||iso(TODAY),due:d.due||addDays(d.date||iso(TODAY),SET().term),gross:r2(d.amount),status:"pruefen",ref:d.ref||""};if(d.fx)ni.fx=d.fx;
   logInv(ni,L("Per QR erfasst","Captured via QR"));
-  D.invoices.push(ni);if(S.modal&&S.modal.rep)linkReplace(S.modal.rep,ni);
+  D.invoices.push(ni);if(o.rep)linkReplace(o.rep,ni);
   if(type==="akonto")items.push(L("Rückbehalt ","Retention ")+nf2.format(retention(ni)));
   if(d.ref)items.push(L("Keine Doppelrechnung","No duplicate"));
-  S.done={id:ni.id,items};S.modal=null;S.drawer=ni.id;S.queryOpen=false;render();
-  if(moved)toast(L("Im Projekt ","Filed in ")+P().name);
+  return {ni,items};
+}
+
+/* ---------- several invoices at once: read all, show one list to confirm ---------- */
+function batchItem(d,file){
+  const it={file:file||"",d,st:"ok"};
+  if(!d){it.st="err";return it;}
+  d.no=d.no||guessNo(d);if(!d.date)setDates(d);fxCheck(d);
+  it.pid=defaultPid(d,it);
+  const R=withP(it.pid,()=>resolveCapture(d));
+  if(R.dup){it.st="dup";it.dupNo=R.dup.no;return it;}
+  if(d.fx){it.st="fx";return it;}
+  if(!(d.amount>0)){it.st="amt";return it;}
+  const G=guessKind(d);it.type=G.type||"akonto";if(G.n)d.akN=G.n;
+  it.k=R.k;it.w=R.w;it.bkp=R.w?R.w.bkp:(guessBkp(d)||"211");
+  return it;
+}
+async function onScanFiles(files){
+  if(!S.modal)return;stopCam();
+  const M=S.modal;M.err="";M.batch={items:[],total:files.length,busy:true};renderOverlay();
+  for(const f of files){
+    if(!S.modal||S.modal!==M)return;
+    let d=null;
+    if(isPdf(f)||/^image\//.test(f.type)){let txt=null;try{txt=isPdf(f)?await decodePdfQR(f):await decodeQR(f);}catch(e){txt=null;}d=txt?parseSPC(txt):null;}
+    M.batch.items.push(batchItem(d,f.name));renderOverlay();
+  }
+  if(S.modal!==M)return;
+  if(M.batch.items.some(i=>i.d))D.realScan=true;
+  finishBatch(M);
+}
+function finishBatch(M){
+  /* the same invoice twice in one batch counts once */
+  const seen=new Set();M.batch.items.forEach(i=>{if(i.st!=="ok")return;const key=i.d.ref?norm(i.d.ref):i.d.name+"|"+i.d.no+"|"+i.d.amount;if(seen.has(key)){i.st="twice";}else seen.add(key);});
+  M.batch.busy=false;M.batch.sel=M.batch.items.map((x,n)=>x.st==="ok"?n:-1).filter(n=>n>=0);saveData();renderOverlay();
+}
+function batchHTML(M){
+  const B=M.batch,ok=B.items.filter(i=>i.st==="ok");
+  const ST={twice:L("Zweimal ausgewählt, zählt einmal","Chosen twice, counts once"),dup:L("Bereits erfasst","Already recorded"),err:L("Kein QR-Zahlteil gefunden","No QR payment part found"),fx:L("Fremdwährung: einzeln erfassen","Foreign currency: add on its own"),amt:L("Ohne Betrag: einzeln erfassen","No amount: add on its own")};
+  const rows=B.items.map((it,n)=>{
+    if(it.st!=="ok")return `<div class="bkrow off"><span class="cb no" aria-hidden="true">–</span><span class="bt"><span class="bn">${esc(it.d?it.d.name:it.file)}</span><span class="bm l-${it.st==="dup"?"crit":"warn"}">${ST[it.st]}${it.dupNo?" · "+esc(it.dupNo):""}</span></span><span class="ba">${it.d&&it.d.amount?chf(it.d.amount):""}</span></div>`;
+    const on=!B.busy&&(B.sel||[]).includes(n),p=PJ(it.pid),tl=it.type==="akonto"?L("Akonto","Progress payment")+(it.d.akN?" "+it.d.akN:""):it.type==="regie"?L("Regie","Time & materials"):L("Schlussrechnung","Final invoice");
+    const meta=[esc(p?p.name:""),tl,it.d.no?esc(it.d.no):"",it.k?"":L("neuer Handwerker","new contractor")].filter(Boolean).join(" · ");
+    return `<button type="button" class="bkrow" role="checkbox" aria-checked="${on}" data-act="batch-tog" data-id="${n}"><span class="cb" aria-hidden="true">${on?"✓":""}</span><span class="bt"><span class="bn">${esc(it.k?it.k.name:it.d.name)}</span><span class="bm">${meta}${it.pidSrc==="none"&&D.projects.filter(x=>!x.closed).length>1?` · <span class="l-warn">${L("Projekt prüfen","check project")}</span>`:""}</span></span><span class="ba">${chf(it.d.amount)}</span></button>`;}).join("");
+  const prog=B.busy?`<span class="camhint">${L("Rechnung ","Invoice ")+Math.min(B.items.length+1,B.total)+L(" von "," of ")+B.total+L(" wird gelesen …"," being read …")}</span>`:"";
+  const body=`${B.busy?"":`<div class="notice"><span class="ic info" aria-hidden="true">i</span><span>${L("arkitecton hat Handwerker, Projekt und Art erkannt. Nach dem Übernehmen liegen die Rechnungen in «Zu prüfen».","arkitecton matched contractor, project and type. After adding, the invoices are in «To check».")}</span></div>`}<div class="bklist">${rows}</div>${prog}`;
+  const sel=B.busy?[]:B.sel.map(n=>B.items[n]),sum=r2(sel.reduce((a,i)=>a+i.d.amount,0));
+  const foot=B.busy?"":ok.length?`<span class="bksum">${sel.length===1?L("1 Rechnung","1 invoice"):sel.length+" "+L("Rechnungen","invoices")} · ${chf(sum)}</span><button type="button" class="btn primary" data-act="batch-save"${sel.length?"":" disabled"}>${L("Übernehmen","Add invoices")}</button>`:`<button type="button" class="btn primary" data-act="close">OK</button>`;
+  return wrapCapture(B.busy?L("Rechnungen werden gelesen","Reading invoices"):B.items.length+" "+L("Rechnungen gelesen","invoices read"),body,foot);
+}
+function batchSave(){
+  const B=S.modal&&S.modal.batch;if(!B)return;
+  const cnt={},home=D.pid;let n=0;
+  B.sel.map(x=>B.items[x]).forEach(it=>{const r=withP(it.pid,()=>saveCapture(it.d,{type:it.type,bkp:it.bkp}));if(r.ni){n++;cnt[it.pid]=(cnt[it.pid]||0)+1;}});
+  const pids=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]);
+  closeAll();D.pid=pids[0]||home;S.view="rechnungen";S.rtab="kred";S.filter="pruefen";render();
+  toast((n===1?L("1 Rechnung erfasst","1 invoice added"):n+L(" Rechnungen erfasst"," invoices added"))+(pids.length>1?L(" in "," in ")+pids.length+L(" Projekten"," projects"):"")+L(" · jetzt prüfen"," · check now"));
 }
 function logDup(){const M=S.modal;if(!M||M.logged||!M.data)return;M.logged=true;D.events.unshift({pid:D.pid,c:"crit",t:M.data.name,m:L("Doppelrechnung verhindert","duplicate prevented"),chf:M.data.amount,act:"nav",v:"rechnungen"});}
+
+/* ---------- approve several at once: only invoices without remarks (contractor complete, within contract, no duplicate).
+   Soft notes (email missing, due soon) do not block. Anything else stays for a single check. ---------- */
+const cleanInv=i=>i.status==="pruefen"&&live(i)&&checksFor(i).every(c=>c.s==="ok"||c.s==="info"||c.soft);
+function bulkHTML(){
+  const B=S.bulk,list=B.ids.map(INV).filter(Boolean),sel=list.filter(i=>B.sel.includes(i.id)),sum=r2(sel.reduce((a,i)=>a+i.gross,0));
+  const rows=list.map(i=>{const w=W(i.w),k=K(w.k),on=B.sel.includes(i.id);
+    return `<button type="button" class="bkrow" role="checkbox" aria-checked="${on}" data-act="bulk-tog" data-id="${i.id}"><span class="cb" aria-hidden="true">${on?"✓":""}</span><span class="bt"><span class="bn">${esc(k.name)}</span><span class="bm">${typeLabel(i)} · ${esc(i.no)} · BKP ${esc(w.bkp)}</span></span><span class="ba">${chf(i.gross)}</span></button>`;}).join("");
+  const rest=B.rest?`<span class="fine bkfine">${B.rest===1?L("1 Rechnung mit Hinweis bleibt in «Zu prüfen». Diese prüfen Sie einzeln.","1 invoice with a remark stays in «To check». Check it on its own."):B.rest+L(" Rechnungen mit Hinweisen bleiben in «Zu prüfen». Diese prüfen Sie einzeln."," invoices with remarks stay in «To check». Check them one by one.")}</span>`:"";
+  const body=`<div class="notice"><span class="ic ok" aria-hidden="true">✓</span><span>${L("Ohne Hinweise: Handwerkerdaten vollständig, im Werkvertrag, keine Doppelrechnung.","No remarks: contractor details complete, within contract, no duplicate.")}</span></div><div class="bklist">${rows}</div>${rest}`;
+  const foot=`<span class="bksum">${sel.length===1?L("1 Rechnung","1 invoice"):sel.length+" "+L("Rechnungen","invoices")} · ${chf(sum)}</span><button type="button" class="btn primary" data-act="bulk-approve"${sel.length?"":" disabled"}>${L("Freigeben","Approve")}</button>`;
+  return wrapCapture(L("Gemeinsam freigeben","Approve together"),body,foot);
+}
+function bulkApprove(){
+  const list=S.bulk.sel.map(INV).filter(i=>i&&cleanInv(i));if(!list.length)return;
+  list.forEach(i=>{i.status="frei";logInv(i,L("Freigegeben (gemeinsam)","Approved (together)"));});
+  const sum=r2(list.reduce((a,i)=>a+payout(i),0));
+  closeAll();S.filter="frei";render();
+  toast((list.length===1?L("1 Rechnung freigegeben","1 invoice approved"):list.length+L(" Rechnungen freigegeben"," invoices approved"))+" · "+chf(sum));
+}

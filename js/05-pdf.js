@@ -64,6 +64,40 @@ async function payPDFAll(list){
   y=Math.max(y+22,235);font(9);T(L("Geprüft und freigegeben","Checked and released"),20,y);T(L("Bauherrschaft","Client"),118,y);doc.line(20,y+16,90,y+16);doc.line(118,y+16,190,y+16);font(8);T(F.name||"",20,y+20);T(L("Datum, Unterschrift","Date, signature"),118,y+20);
   doc.save(L("Zahlungsfreigabe","Payment-release")+"_"+String(p.name||"").replace(/[^\w]+/g,"-")+"_"+iso(TODAY)+".pdf");
 }
+/* cost status for the client: estimate, awarded, billed, forecast and reserve per BKP, grouped by main group */
+async function costPDF(){
+  const p=P();if(!p)return;const rows=budgetRows().filter(r=>r.b.kv||r.awarded||r.billed||r.open);if(!rows.length){toast(L("Noch kein Kostenvoranschlag.","No cost estimate yet."));return;}
+  await libsPDF();
+  const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"mm",format:"a4"}),F=D.firm,t=totals(rows),fc=r2(rows.reduce((a,r)=>a+r.forecast,0)),closed=!!p.closed;
+  const fit=(x,w)=>{if(doc.getTextWidth(x)<=w)return x;while(x.length>3&&doc.getTextWidth(x+"…")>w)x=x.slice(0,-1);return x.trimEnd()+"…";};
+  const T=(x,X,Y,o)=>doc.text(String(x),X,Y,o||{}),font=(sz,b)=>{doc.setFont("helvetica",b?"bold":"normal");doc.setFontSize(sz);},n0=v=>v?nf0.format(Math.round(v)):"–",gray=on=>doc.setTextColor(on?110:20);
+  let y=20;font(10,true);T(F.name||"",20,y);font(9);[F.street,[F.zip,F.city].filter(Boolean).join(" "),F.phone,F.email].filter(Boolean).forEach((l,n)=>T(l,20,y+5+n*4.5));
+  font(10);[p.client,p.cstreet,[p.czip,p.ccity].filter(Boolean).join(" ")].filter(Boolean).forEach((l,n)=>T(l,118,52+n*5));
+  font(9);T((F.city?F.city+", ":"")+fdate(iso(TODAY)),118,80);
+  font(14,true);T(L("Kostenstand","Cost status"),20,95);font(9);T(L("Projekt: ","Project: ")+[p.name,p.place].filter(Boolean).join(", ")+L(" · Stand "," · as of ")+fdate(iso(TODAY)),20,102);
+  /* summary */
+  y=114;const fcL=closed?L("Endkosten","Final cost"):L("Prognose Endkosten","Forecast final cost");
+  const sum=[[L("Kostenvoranschlag","Cost estimate"),t.kv],[L("Vergeben","Awarded"),t.awarded],[L("Abgerechnet (geprüft)","Billed (checked)"),t.billed],[L("davon bezahlt","of which paid"),t.paid],[fcL,fc],[L("Reserve","Reserve"),t.rest]];
+  sum.forEach(([l,v],n)=>{const X=20+(n%3)*57,Y=y+Math.floor(n/3)*14;font(8);gray(1);T(l,X,Y);gray(0);font(11,n===5);if(n===5&&v<0)doc.setTextColor(180,40,30);T("CHF "+nf0.format(Math.round(v)),X,Y+5.5);gray(0);});
+  y+=34;
+  const C=[106,127,148,169,190],head=[L("Kostenvor.","Estimate"),L("Vergeben","Awarded"),L("Abgerechnet","Billed"),closed?L("Endkosten","Final cost"):L("Prognose","Forecast"),L("Reserve","Reserve")];
+  const th=()=>{font(7.5,true);T("BKP",20,y);T(L("Arbeitsgattung","Trade"),33,y);head.forEach((h,n)=>T(h,C[n],y,{align:"right"}));y+=2;doc.setLineWidth(.2);doc.line(20,y,190,y);y+=4.5;};
+  th();
+  const nums=(vals,b)=>{font(8,b);vals.forEach((v,n)=>{if(n===4&&v<0)doc.setTextColor(180,40,30);T(v===null?"–":n0(v)+(n===4&&v>0?"":""),C[n],y,{align:"right"});gray(0);});};
+  const grp=[...new Set(rows.map(r=>bkpMain(r.b.bkp)))].sort();
+  grp.forEach(g=>{const rs=rows.filter(r=>bkpMain(r.b.bkp)===g);
+    if(y>262){doc.addPage();y=20;th();}
+    font(8,true);T(g,20,y);T(fit(String(bkpMainName(g)),58),33,y);
+    nums([rs.reduce((a,r)=>a+r.b.kv,0),rs.reduce((a,r)=>a+r.awarded,0),rs.reduce((a,r)=>a+r.billed,0),rs.reduce((a,r)=>a+r.forecast,0),rs.every(r=>r.none)?null:rs.reduce((a,r)=>a+(r.b.kv?r.rest:0),0)],true);y+=5;
+    rs.forEach(r=>{if(y>270){doc.addPage();y=20;th();}
+      font(8);T(r.b.bkp,20,y);T(fit(String(tx(r.b))+(r.none?L(" (nicht vergeben)"," (not awarded)"):""),58),33,y);
+      nums([r.b.kv,r.awarded,r.billed,r.forecast,r.none||!r.b.kv?null:r.rest]);y+=4.6;});
+    y+=1.5;});
+  doc.line(20,y-2,190,y-2);y+=3;font(9,true);T("Total",20,y);nums([t.kv,t.awarded,t.billed,fc,t.rest],true);y+=10;
+  if(y>255){doc.addPage();y=20;}
+  font(7.5);gray(1);doc.splitTextToSize(closed?L("Endkosten: abgerechnete Beträge gemäss Schlussrechnungen, Regie eingeschlossen. Reserve: Kostenvoranschlag minus Endkosten.","Final cost: billed amounts per final invoices, time & materials included. Reserve: estimate minus final cost."):L("Prognose: pro Werkvertrag die Vertragssumme oder der bisher abgerechnete Betrag, je nachdem was höher ist; nach der Schlussrechnung der abgerechnete Betrag. Regie kommt dazu. Nicht vergebene Positionen mit dem Kostenvoranschlag. Reserve: Kostenvoranschlag minus Prognose. Abgerechnet: geprüfte und freigegebene Rechnungen, Beträge in CHF inkl. MWST.","Forecast: per contract, the contract sum or the amount billed so far, whichever is higher; after the final invoice, the billed amount. Time & materials on top. Items not awarded at their estimate. Reserve: estimate minus forecast. Billed: checked and approved invoices, CHF incl. VAT."),170).forEach((l,n)=>T(l,20,y+n*3.6));gray(0);
+  doc.save(L("Kostenstand","Cost-status")+"_"+String(p.name||"").replace(/[^\w]+/g,"-")+"_"+iso(TODAY)+".pdf");
+}
 async function feePDF(f,level){
   await libsPDF();
   const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), F=D.firm, p=PJ(f.pid)||{};

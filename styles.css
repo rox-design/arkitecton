@@ -931,3 +931,26 @@ details[open]:not(.site)>summary::after{transform:none}
 .brow .nums.mute,.brow .rest.mute{color:var(--muted)}
 .kvwhy{display:block;font-size:.78rem;color:var(--muted);font-weight:400;margin-top:2px}
 .bgroup .rest.mute{color:var(--muted)}
+
+/* ---------- approve together ---------- */
+.bklist{display:flex;flex-direction:column;border-top:1px solid var(--line);margin-top:14px}
+.bkrow{display:grid;grid-template-columns:24px 1fr auto;gap:12px;align-items:center;padding:12px 2px;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;font:inherit;color:inherit;cursor:pointer;min-height:56px}
+.bkrow .cb{width:20px;height:20px;border:1.5px solid var(--muted);border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;line-height:1}
+.bkrow[aria-checked="true"] .cb{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.bkrow[aria-checked="false"] .bn,.bkrow[aria-checked="false"] .ba{color:var(--muted)}
+.bkrow .bt{display:flex;flex-direction:column;min-width:0}
+.bkrow .bn{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bkrow .bm{font-size:.8rem;color:var(--muted)}
+.bkrow .ba{font-variant-numeric:tabular-nums;white-space:nowrap}
+.bkfine{display:block;margin-top:12px;color:var(--muted);font-size:.8rem}
+.bksum{margin-right:auto;align-self:center;color:var(--muted);font-size:.875rem;font-variant-numeric:tabular-nums}
+@media (max-width:720px){.bksum{flex-basis:100%;margin:0 0 4px}}
+.bkrow.off{cursor:default}
+.bkrow .cb.no{border-color:var(--line);color:var(--faint)}
+.bkrow.off .bn{color:var(--muted)}
+.bm .l-warn,.bm.l-warn{color:var(--warn)} .bm.l-crit{color:var(--crit)}
+.bulkbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px;margin:4px 0 8px;background:var(--hover);border-radius:10px;font-size:.875rem;color:var(--muted)}
+.bulkbar b{font-weight:500;color:var(--ink)}
+.bulkbar .btn{min-height:40px}
+@media (max-width:720px){.bulkbar .btn{width:100%}}
+.sh .right>button+button{margin-left:16px}

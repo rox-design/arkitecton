@@ -5,7 +5,7 @@
 let toastT;
 function toast(msg,ms,hint){const t=document.getElementById("toast");if(hint)t.dataset.hint="1";else delete t.dataset.hint;t.classList.toggle("top",!!document.querySelector("#overlay.on"));t.textContent=msg;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),ms||3000);}
 async function copy(text,ok){try{await navigator.clipboard.writeText(text);toast(ok);}catch(e){toast(L("Kopieren nicht möglich","Copy failed"));}}
-function closeAll(){stopCam();S.kvx=null;S.fdrawer=null;S.drawer=null;S.modal=null;S.sheet=null;S.form=null;S.formErr="";S.confirm=null;S.queryOpen=false;S.done=null;}
+function closeAll(){stopCam();S.bulk=null;S.kvx=null;S.fdrawer=null;S.drawer=null;S.modal=null;S.sheet=null;S.form=null;S.formErr="";S.confirm=null;S.queryOpen=false;S.done=null;}
 const startView=v=>{S.from=null;S.kid=null;S.wid=null;S.tid=null;S.mid=null;S.cmpBack=null;
   if(v==="rechnungen"){S.rtab="kred";S.filter="pruefen";S.ffilter="open";}
   if(v==="handwerker")S.kfilter="";if(v==="budget")S.bfilter="";if(v==="ausschreibungen"){S.ttab="verfahren";S.tfilter="open";S.pfilter="refs";}};
@@ -16,9 +16,9 @@ const openForm=(f,id,w)=>{const keepDrawer=S.drawer;closeAll();S.form={f,id:id||
 
 document.addEventListener("toggle",e=>{const d=e.target;if(d&&d.classList&&d.classList.contains("site")&&S.kOpen)S.kOpen.ids[d.dataset.pid]=d.open;},true);
 document.addEventListener("click",e=>{const lb=e.target.closest&&e.target.closest("label");const fi=lb&&lb.querySelector('input[type=file]');if(fi&&e.target!==fi){e.preventDefault();fi.click();}},true);
-document.addEventListener("dragover",e=>{if(S.modal&&S.modal.step===1&&e.target.closest&&e.target.closest(".sheet")){e.preventDefault();e.target.closest(".sheet").classList.add("drop");}});
+document.addEventListener("dragover",e=>{if(S.modal&&S.modal.step===1&&!S.modal.batch&&e.target.closest&&e.target.closest(".sheet")){e.preventDefault();e.target.closest(".sheet").classList.add("drop");}});
 document.addEventListener("dragleave",e=>{const sh=e.target.closest&&e.target.closest(".sheet");if(sh&&!sh.contains(e.relatedTarget))sh.classList.remove("drop");});
-document.addEventListener("drop",e=>{if(!(S.modal&&S.modal.step===1))return;const sh=e.target.closest&&e.target.closest(".sheet");if(!sh)return;e.preventDefault();sh.classList.remove("drop");const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)onScanFile(f);});
+document.addEventListener("drop",e=>{if(!(S.modal&&S.modal.step===1&&!S.modal.batch))return;const sh=e.target.closest&&e.target.closest(".sheet");if(!sh)return;e.preventDefault();sh.classList.remove("drop");const fs=[...((e.dataTransfer&&e.dataTransfer.files)||[])];if(fs.length>1)onScanFiles(fs);else if(fs[0])onScanFile(fs[0]);});
 document.addEventListener("click",e=>{
   if(S.pop&&!e.target.closest("#pop")&&!e.target.closest('[data-act="nmore"],[data-act="pmore"]'))closePop();
   const el=e.target.closest("[data-act]");if(!el)return;
@@ -50,6 +50,7 @@ document.addEventListener("click",e=>{
     case "ffilter":S.ffilter=el.dataset.f;render();break;
     case "filter":S.filter=el.dataset.f;render();break;
     case "bkp-reset":delete D.bkpList;delete D.bkpListInfo;saveData();render();toast(L("Standardliste aktiv","Standard list active"));break;
+    case "cost-pdf":closeAll();renderOverlay();costPDF().then(()=>toast(L("Kostenstand als PDF gespeichert","Cost status saved as PDF"))).catch(()=>toast(L("PDF nicht möglich.","PDF failed.")));break;
     case "pay-pdf-all":payPDFAll(PIx().filter(i=>i.status==="frei")).catch(()=>toast(L("PDF nicht möglich.","PDF failed.")));break;
     case "to-pay":startView("rechnungen");S.filter="zahlen";go("rechnungen");break;
     case "to-fees":S.rtab="deb";go("rechnungen");break;
@@ -101,6 +102,9 @@ document.addEventListener("click",e=>{
     case "reset-ex":closeAll();clearFiles().then(()=>{D=seedExample();runMigrations();S.view="uebersicht";S.kid=null;S.tid=null;render();toast(L("Beispieldaten geladen","Example data loaded"));});break;
     case "reset-all":closeAll();clearFiles().then(()=>{try{localStorage.removeItem(KEY);}catch(err){}D=null;render();});break;
     case "close":{const back=S.form&&S.form.back;closeAll();if(back&&INV(back))S.drawer=back;render();break;}
+    case "bulk-open":{const all=PIx().filter(i=>i.status==="pruefen"&&live(i)),ok=all.filter(cleanInv);closeAll();S.bulk={ids:ok.map(i=>i.id),sel:ok.map(i=>i.id),rest:all.length-ok.length};renderOverlay();break;}
+    case "bulk-tog":{const B=S.bulk;if(!B)break;B.sel=B.sel.includes(id)?B.sel.filter(x=>x!==id):B.sel.concat(id);renderOverlay();break;}
+    case "bulk-approve":bulkApprove();break;
     case "approve":{const i=INV(id);i.status="frei";logInv(i,L("Freigegeben","Approved"));S.done=null;S.queryOpen=false;render();toast(L("Freigegeben · ","Approved · ")+chf(payout(i)));break;}
     case "unapprove":{const i=INV(id);i.status="pruefen";logInv(i,L("Freigabe zurückgenommen","Approval undone"));render();break;}
     case "paid":{const i=INV(id);i.status="bezahlt";logInv(i,L("Bezahlt","Paid"));render();toast(L("Bezahlt","Paid"));break;}
@@ -118,6 +122,9 @@ document.addEventListener("click",e=>{
     case "use-cam":if(S.modal){S.modal.fileFirst=false;renderOverlay();}break;
     case "manual":{const rep=S.modal&&S.modal.rep,ro=rep&&INV(rep);closeAll();openForm("invoice",ro?W(ro.w).k:null);S.form.rep=rep||null;break;}
     case "replace":{closeAll();S.modal={step:1,data:null,err:"",busy:false,rep:id};renderOverlay();break;}
+    case "use-samples":{const M=S.modal;if(!M)break;stopCam();M.err="";M.batch={items:SAMPLES.map(x=>batchItem(Object.assign({},x),"")),total:SAMPLES.length};finishBatch(M);break;}
+    case "batch-tog":{const B=S.modal&&S.modal.batch;if(!B)break;const n=+id;B.sel=B.sel.includes(n)?B.sel.filter(x=>x!==n):B.sel.concat(n).sort((a,b)=>a-b);renderOverlay();break;}
+    case "batch-save":batchSave();break;
     case "use-sample":stopCam();S.modal.data=Object.assign({},SAMPLE);setDates(S.modal.data);S.modal.err="";S.modal.step=2;renderOverlay();break;
     case "to-step3":{const amt=num(document.getElementById("capAmt").value);if(!amt||amt<=0){S.modal.err=L("Betrag eingeben","Enter the amount");return renderOverlay();}
       S.modal.data.amount=r2(amt);S.modal.data.no=document.getElementById("capNo").value.trim();S.modal.err="";S.modal.step=3;if(resolveCapture(S.modal.data).dup)logDup();renderOverlay();break;}
@@ -131,7 +138,7 @@ document.addEventListener("change",e=>{
   if(t.id==="pSearch")return;
   if(t.dataset.imp==="doc"){const fs=[...(t.files||[])];t.value="";if(fs.length)addDocs(fs,t.dataset.id).catch(()=>toast(L("Speichern nicht möglich.","Could not save.")));return;}
   const f=t.files&&t.files[0];if(!f)return;
-  if(t.id==="scanIn")onScanFile(f);else if(t.dataset.imp){closePop();handleImport(t.dataset.imp,f,t.dataset.id);t.value="";}
+  if(t.id==="scanIn"){const fs=[...t.files];t.value="";if(fs.length>1)onScanFiles(fs);else onScanFile(f);}else if(t.dataset.imp){closePop();handleImport(t.dataset.imp,f,t.dataset.id);t.value="";}
 });
 document.addEventListener("input",e=>{if(e.target.getAttribute&&e.target.getAttribute("aria-invalid")){e.target.removeAttribute("aria-invalid");const fe=e.target.closest(".f")&&e.target.closest(".f").querySelector(".ferr");if(fe)fe.remove();}if(e.target.id==="pSearch"){const fold=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(),q=fold(e.target.value.trim()),sh=document.querySelector(".psw");let n=0;sh.querySelectorAll(".pitem").forEach(b=>{const on=!q||fold(b.dataset.q).includes(q);b.hidden=!on;if(on)n++;});sh.querySelectorAll(".plist").forEach(l=>{l.hidden=![...l.querySelectorAll(".pitem")].some(b=>!b.hidden);});const dd=sh.querySelector(".pdone");if(dd&&q)dd.open=true;sh.querySelector(".pnone").hidden=n>0;return;}if(S.form&&S.form.f==="fee"&&e.target.closest&&e.target.closest("#frm"))feeCalcUpdate();});
 /* ---------- swipe between the main areas on a phone (same order as the tab bar) ----------

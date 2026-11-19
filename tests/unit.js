@@ -79,6 +79,22 @@ test("QR-Rechnung lesen",()=>{
 
 test("Daten",()=>{eq(addDays("2026-03-28",2),"2026-03-30","über die Sommerzeit");eq(addDays("2026-12-31",1),"2027-01-01","Jahreswechsel");});
 
+test("Gemeinsam freigeben: nur ohne Hinweise",()=>{
+  D=base();D.contracts=[{id:"w1",pid:"p1",k:"k1",bkp:"211",sum:100000,ret:0}];
+  D.invoices=[inv("c1","w1","akonto",30000,"pruefen",{ref:"RF18 5390 0754 7034",due:"2099-01-01"}),inv("c2","w1","akonto",120000,"pruefen",{n:2,ref:"RF45 5390 0754 7102",due:"2099-01-01"}),inv("c3","w1","regie",500,"pruefen",{ref:"RF71 1",due:"2099-01-01"})];
+  yes(cleanInv(D.invoices[0]),"im Vertrag, vollständig: ohne Hinweis");
+  yes(!cleanInv(D.invoices[1]),"über Werkvertrag: einzeln prüfen");
+  yes(!cleanInv(D.invoices[2]),"Regie: einzeln prüfen");
+  D.contractors[0].email="";yes(cleanInv(D.invoices[0]),"fehlende E-Mail blockiert nicht");
+  D.contractors[0].iban="";yes(!cleanInv(D.invoices[0]),"fehlende IBAN blockiert");});
+test("Mehrere Rechnungen erfassen",()=>{
+  D=base();D.contracts=[{id:"w1",pid:"p1",k:"k1",bkp:"211",sum:100000,ret:0}];D.invoices=[inv("a1","w1","akonto",10000,"frei",{ref:"RF18 5390 0754 7034"})];
+  const q=(ref,amt,cur)=>({name:"Bau AG",street:"Str 1",zip:"8000",city:"Zürich",iban:"CH9300762011623852957",amount:amt,cur:cur||"CHF",ref,msg:"Akonto 2",bill:"",no:"X"+amt});
+  const M={batch:{items:[batchItem(q("RF02 1",5000)),batchItem(q("RF18 5390 0754 7034",10000)),batchItem(q("RF03 1",7000,"EUR")),batchItem(null),batchItem(q("RF02 1",5000))]}};
+  finishBatch(M);
+  eq(M.batch.items.map(i=>i.st),["ok","dup","fx","err","twice"],"neu, bereits erfasst, Fremdwährung, kein QR, zweimal");
+  eq(M.batch.sel,[0],"nur die neue ist ausgewählt");
+  const r=saveCapture(M.batch.items[0].d,{type:M.batch.items[0].type});eq(r.ni.n,2,"Akonto 2 aus dem Text");eq(r.ni.status,"pruefen","liegt in Zu prüfen");});
 D=keep;
 window.__unit=results;
 })();

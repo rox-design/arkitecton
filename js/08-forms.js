@@ -207,7 +207,7 @@ function sheetDef(key){
   if(key==="k-add"){const inP=new Set(PC().map(w=>w.k)),others=D.contractors.filter(k=>!inP.has(k.id)&&!(k.pid===D.pid&&!D.contracts.some(w=>w.k===k.id))).sort((a,b)=>a.name.localeCompare(b.name));
     return {title:L("Handwerker erfassen","Add contractor"),groups:[["",[Object.assign(bt(L("Neuen Handwerker erfassen","Add new contractor"),"form"),{f:"contractor"})]],...(others.length?[[L("Aus Ihrem Büro zuweisen","Assign from your office"),others.map(k=>Object.assign(bt(k.name,"form",k.id),{f:"contract"}))]]:[])]};}
   if(key==="handwerker") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Hochladen","Upload"),[im(L("Handwerkerliste importieren","Import contractor list"),"contractors")]],[L("Herunterladen","Download"),[ex(L("Handwerkerliste","Contractor list"),"x-contractors")]]]};
-  if(key==="budget") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client"),"x-report"),ex(L("Budget nach BKP","Budget by BKP"),"x-budget")]]]};
+  if(key==="budget") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Kostenstand für die Bauherrschaft (PDF)","Cost status for the client (PDF)"),"cost-pdf"),ex(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client"),"x-report"),ex(L("Budget nach BKP","Budget by BKP"),"x-budget")]]]};
   if(key==="tender") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Verfahrensliste","Procedure list"),"x-tenders"),ex(L("Referenzliste","Reference list"),"x-refs")]]]};
   if(key.startsWith("t:")) return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Referenzen für diese Bewerbung","References for this bid"),"x-refs",key.slice(2))]]]};
   if(key.startsWith("k:")){const id=key.slice(2),w=CW(id);
@@ -265,9 +265,9 @@ function sheetWrap(d,items){
 
 function renderOverlay(){queueMicrotask(()=>{if(S.form&&S.form.f==="fee")feeCalcUpdate();});queueMicrotask(()=>{const q=document.getElementById("qtext");if(q&&!q.dataset.top){q.scrollTop=0;q.dataset.top="1";}});queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
   const o=document.getElementById("overlay");let h="";
-  if(S.form) h=formHTML(); else if(S.modal) h=captureHTML(); else if(S.sheet) h=sheetHTML(); else if(S.kvx) h=kvHTML(); else if(S.drawer&&INV(S.drawer)) h=drawerHTML(INV(S.drawer)); else if(S.fdrawer&&FE(S.fdrawer)) h=feeDrawerHTML(FE(S.fdrawer));
+  if(S.form) h=formHTML(); else if(S.bulk) h=bulkHTML(); else if(S.modal) h=captureHTML(); else if(S.sheet) h=sheetHTML(); else if(S.kvx) h=kvHTML(); else if(S.drawer&&INV(S.drawer)) h=drawerHTML(INV(S.drawer)); else if(S.fdrawer&&FE(S.fdrawer)) h=feeDrawerHTML(FE(S.fdrawer));
   o.innerHTML=h;o.classList.toggle("on",!!h);{const t=document.getElementById("toast");if(t){t.classList.toggle("top",!!h);if(h&&t.dataset.hint)t.classList.remove("on");}}
-  if(S.modal&&S.modal.step===1&&P()&&!S.modal.camErr&&!S.modal.fileFirst){if(cam)attachCam();else startCam();}
+  if(S.modal&&S.modal.step===1&&P()&&!S.modal.batch&&!S.modal.camErr&&!S.modal.fileFirst){if(cam)attachCam();else startCam();}
   const f=document.getElementById("frm");if(f)f.addEventListener("submit",e=>{e.preventDefault();submitForm();});
 }
 
@@ -386,8 +386,8 @@ const EXPORT={
   async "backup"(){S.sheet=null;renderOverlay();const files={};
     for(const d of DOCS()){try{const b=await FDB.get(d.id);if(b)files[d.id]=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.onerror=()=>r(null);fr.readAsDataURL(b);});}catch(e){}}
     saveBlob("arkitecton-sicherung-"+iso(TODAY)+".json",new Blob([JSON.stringify(Object.assign({},D,{files}))],{type:"application/json"}));},
-  "x-report"(){const rows=budgetRows(),t=totals(rows),body=rows.map(r=>[r.b.bkp,tx(r.b),r.b.kv,r.awarded,r.billed,r.rest]);body.push(["","Total",t.kv,t.awarded,t.billed,t.rest]);
-    wbSave("Kostenuebersicht-"+pslug()+".xlsx",[{name:L("Kostenübersicht","Cost overview"),widths:[8,30,18,16,16,16],rows:headRows(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client")).concat([["BKP",L("Arbeitsgattung","Trade"),L("Kostenvoranschlag CHF","Estimate CHF"),L("Vergeben CHF","Awarded CHF"),L("Abgerechnet CHF","Billed CHF"),L("Rest CHF","Remaining CHF")]],body)}]);},
+  "x-report"(){const rows=budgetRows(),t=totals(rows),fc=r2(rows.reduce((a,r)=>a+r.forecast,0)),fcL=(P()||{}).closed?L("Endkosten CHF","Final cost CHF"):L("Prognose CHF","Forecast CHF"),body=rows.map(r=>[r.b.bkp,tx(r.b),r.b.kv,r.awarded,r.billed,r.forecast,r.rest]);body.push(["","Total",t.kv,t.awarded,t.billed,fc,t.rest]);
+    wbSave("Kostenuebersicht-"+pslug()+".xlsx",[{name:L("Kostenübersicht","Cost overview"),widths:[8,30,18,16,16,16,16],rows:headRows(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client")).concat([["BKP",L("Arbeitsgattung","Trade"),L("Kostenvoranschlag CHF","Estimate CHF"),L("Vergeben CHF","Awarded CHF"),L("Abgerechnet CHF","Billed CHF"),fcL,L("Reserve CHF","Reserve CHF")]],body)}]);},
   "x-budget"(){const rows=budgetRows(),t=totals(rows),body=rows.map(r=>[r.b.bkp,tx(r.b),r.b.kv,r.awarded,r.billed,r.paid,r.ret,r.open,r.rest]);body.push(["","Total",t.kv,t.awarded,t.billed,t.paid,t.ret,t.open,t.rest]);
     wbSave("Budget-BKP-"+pslug()+".xlsx",[{name:"Budget BKP",widths:[8,30,18,14,14,14,14,14,14],rows:headRows(L("Budget nach BKP","Budget by BKP")).concat([["BKP",L("Arbeitsgattung","Trade"),L("Kostenvoranschlag","Estimate"),L("Vergeben","Awarded"),L("Abgerechnet","Billed"),L("Ausbezahlt","Paid out"),L("Rückbehalt","Retention"),L("Zu prüfen","To check"),L("Rest","Remaining")]],body)}]);},
   "x-invoices"(){wbSave("Rechnungen-"+pslug()+".xlsx",[{name:L("Rechnungen","Invoices"),widths:[16,26,7,18,12,12,14,14,14,14,34],rows:headRows(L("Rechnungsliste","Invoice list")).concat(invRows(PI().slice().sort((a,b)=>toDate(a.date)-toDate(b.date)),true))}]);},

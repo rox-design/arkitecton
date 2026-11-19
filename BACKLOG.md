@@ -19,3 +19,9 @@ Ideas decided for later. Each entry says why it waits.
 
 - The app ships the classic BKP up to 3 digits in `bkp.js` (list from tender-service.ch). Sub-items like 211.5 come from the office's own list (Settings › BKP list, Excel import), so the office holds the rights to it.
 - The BKP belongs to CRB. Before selling arkitecton, clarify with CRB whether the full catalogue may be shipped, or license it.
+
+## Architecture before launch (from the code review, 19.11.2026)
+
+- Unit tests for the money logic: forecast/end cost, retention and its release, payout, fee totals, QR payload and references. Today only the layout is tested automatically.
+- Split `app.js` (one file, ~270 KB, global state) into modules: data, money logic, QR/PDF, views.
+- Server sync with a schema version, replacing per-browser storage (see the sync decision).

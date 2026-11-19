@@ -21,12 +21,15 @@ const nf0=new Intl.NumberFormat("de-CH",{maximumFractionDigits:0});
 const nfq=new Intl.NumberFormat("de-CH",{maximumFractionDigits:2});
 const chf=(n,dec)=>"CHF\u00a0"+(dec===false?nf0:nf2).format(n);
 const sgn=n=>(n>0?"+":"")+nf2.format(n);
-const r2=n=>Math.round(n*100)/100;
+const r2=n=>{const x=Math.round(Math.abs(n)*100+1e-7)/100;return n<0?-x:x;};
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const norm=s=>String(s||"").replace(/\s+/g,"").toUpperCase();
 const fmtIban=s=>norm(s).replace(/(.{4})/g,"$1 ").trim();
 const fmtRef=s=>{const n=norm(s);return /^\d{27}$/.test(n)?n.slice(0,2)+" "+n.slice(2).replace(/(.{5})/g,"$1 ").trim():n.replace(/(.{4})/g,"$1 ").trim();};
-const num=v=>{if(typeof v==="number")return v;let s=String(v==null?"":v).replace(/[\s'’`]|chf/gi,"");if(s.includes(",")&&!s.includes("."))s=s.replace(",",".");else s=s.replace(/,/g,"");const n=parseFloat(s);return isNaN(n)?null:n;};
+/* amounts as people type them: 1'000.50, 1000,50, 1.000,50 or 1,000.50; the last separator is the decimal point */
+const num=v=>{if(typeof v==="number")return v;let s=String(v==null?"":v).replace(/[\s'’`]|chf|fr\.?/gi,"");const c=s.lastIndexOf(","),d=s.lastIndexOf(".");
+  if(c>-1&&d>-1){s=c>d?s.replace(/\./g,"").replace(",","."):s.replace(/,/g,"");}else if(c>-1){s=(s.match(/,/g).length>1?s.replace(/,/g,""):s.replace(",","."));}else if((s.match(/\./g)||[]).length>1){s=s.replace(/\./g,"");}
+  const n=parseFloat(s);return isNaN(n)?null:n;};
 const tx=o=>o?(S.lang==="de"?o.de:(o.en||o.de)):"";
 
 /* ---------- reference lists ---------- */
@@ -140,7 +143,8 @@ const SPACE=(new URLSearchParams(location.search).get("raum")||"").replace(/[^a-
 const KEY="arkitecton:data:v1"+(SPACE?":"+SPACE:"");
 let D=null;
 function loadData(){try{const s=localStorage.getItem(KEY);if(s){const o=JSON.parse(s);if(o&&o.v===1){o.fees=o.fees||[];o.firm=o.firm||{name:""};return o;}}}catch(e){}return null;}
-function saveData(){if(!D)return;try{localStorage.setItem(KEY,JSON.stringify(D));}catch(e){}}
+let saveWarned=false;
+function saveData(){if(!D)return;try{localStorage.setItem(KEY,JSON.stringify(D));saveWarned=false;}catch(e){if(!saveWarned){saveWarned=true;setTimeout(()=>{try{toast(L("Speichern nicht möglich: Der Browser-Speicher ist voll. Bitte sofort unter Einstellungen › Daten und Sicherung eine Sicherung herunterladen.","Cannot save: browser storage is full. Please download a backup now under Settings › Data and backup."),12000);}catch(x){}},0);}}}
 const newId=p=>p+(++D.seq);
 
 /* ---------- accessors ---------- */
@@ -176,12 +180,18 @@ const SET=()=>{const s=(D&&D.settings)||{};return {ret:typeof s.ret==="number"?s
 const retPct=w=>w&&typeof w.ret==="number"?w.ret:SET().ret;
 const net=i=>r2(i.gross-(i.ded&&i.ded.amt?i.ded.amt:0));
 const live=i=>i.status!=="ersetzt";
+/* retention is frozen per invoice once it is approved: later changes to the contract's % do not rewrite paid invoices.
+   A final invoice releases the retention of the akontos approved before it; an akonto approved after the final invoice has none. */
+const invPct=i=>typeof i.retPct==="number"?i.retPct:retPct(W(i.w));
+const akRet=x=>r2(net(x)*invPct(x)/100);
 function retention(i){
-  const w=W(i.w);
-  if(i.type==="akonto") return r2(net(i)*retPct(w)/100);
-  if(i.type==="schluss") return -r2(D.invoices.filter(x=>x.w===i.w&&x.type==="akonto"&&counted(x)).reduce((a,x)=>a+r2(net(x)*retPct(w)/100),0));
+  if(i.type==="akonto"){const fin=D.invoices.find(x=>x.w===i.w&&x.type==="schluss"&&counted(x)&&Array.isArray(x.relIds));if(fin&&!fin.relIds.includes(i.id))return 0;return akRet(i);}
+  if(i.type==="schluss"){if(counted(i)&&typeof i.retRel==="number")return -i.retRel;return -r2(D.invoices.filter(x=>x.w===i.w&&x.type==="akonto"&&counted(x)).reduce((a,x)=>a+akRet(x),0));}
   return 0;
 }
+function stampRet(){if(!D||!D.invoices)return;
+  D.invoices.forEach(i=>{if(i.type==="akonto"){if(counted(i)){if(typeof i.retPct!=="number")i.retPct=retPct(W(i.w));}else delete i.retPct;}});
+  D.invoices.forEach(i=>{if(i.type!=="schluss")return;if(counted(i)){if(typeof i.retRel!=="number"){const ak=D.invoices.filter(x=>x.w===i.w&&x.type==="akonto"&&counted(x));i.relIds=ak.map(x=>x.id);i.retRel=r2(ak.reduce((a,x)=>a+akRet(x),0));}}else{delete i.retRel;delete i.relIds;}});}
 const payout=i=>r2(net(i)-retention(i));
 const missingOf=k=>{const m=[];if(!k.street||!k.zip||!k.city)m.push(L("Adresse","Address"));if(!k.iban)m.push("IBAN");if(!k.email)m.push(L("E-Mail","Email"));return m;};
 const typeLabel=i=>i.type==="akonto"?L("Akonto ","Progress payment ")+i.n:i.type==="regie"?L("Regie","Time & materials"):L("Schlussrechnung","Final invoice");
@@ -309,7 +319,6 @@ function navRow(v,extra=""){const pl=NAV_PLUS()[v],mo=NAV_MORE()[v];
   return `<div class="nrow" style="--na:${(pl?24:0)+(mo?24:0)}px"><button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span>${extra}</button><span class="nact">${pl?`<button type="button" class="na" data-act="${pl[0]}"${pl[1]?` data-f="${pl[1]}"`:""} data-tip="${pl[2]}" aria-label="${pl[2]}">+</button>`:""}${mo?`<button type="button" class="na" data-act="nmore" data-v="${v}" data-tip="${mo}" aria-label="${L("Weitere Aktionen","More actions")}">···</button>`:""}</span></div>`;}
 const navIco=v=>`<svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICO[v]}</svg>`;
 const vName=v=>({buero:"Home",uebersicht:L("Projekt","Project"),rechnungen:L("Rechnungen","Invoices"),handwerker:L("Handwerker","Contractors"),budget:"Budget",ausschreibungen:L("Ausschreibungen","Tenders"),einstellungen:L("Einstellungen","Settings")})[v];
-const SCAN_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M8 8h3v3H8zM13 13h3v3h-3zM13 8h3M8 13v3"/></svg>';
 function renderChrome(){
   document.documentElement.lang=S.lang;
   const p=P();
@@ -324,7 +333,6 @@ function renderChrome(){
   const min=navMode()==="min";document.getElementById("app").classList.toggle("rail-min",min);
   document.getElementById("footNav").innerHTML=`<button type="button" data-act="nav" data-v="einstellungen"${S.view==="einstellungen"?' aria-current="page"':""}>${navIco("einstellungen")}<span>${vName("einstellungen")}</span></button><button type="button" class="pinb" data-act="nav-mode" data-v="${min?"open":"min"}" title="${min?L("Leiste fest offen lassen","Keep the bar open"):L("Leiste einklappen","Collapse the bar")}">${navIco("pin")}<span>${min?L("Leiste fixieren","Keep open"):L("Einklappen","Collapse")}</span></button>`;
   document.querySelectorAll(".lang button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.l===S.lang)));
-  const nb=v=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span></button>`;
   const cp=P(),open=!!S.projOpen;
   const plist=open?activeProjects().map(x=>`<div class="nrow prow${x.id===D.pid?" cur":""}"><button type="button" data-act="pick-project" data-id="${x.id}"><span class="pi" aria-hidden="true">${x.fav?"★":"·"}</span><span>${esc(x.name)}</span></button><span class="nact"><button type="button" class="na" data-act="pmore" data-id="${x.id}" data-tip="${L("Favorit, umbenennen, Papierkorb","Favourite, rename, bin")}" aria-label="${L("Weitere Aktionen","More actions")}">···</button></span></div>`).join("")+`<div class="nrow prow"><button type="button" data-act="form-project"><span class="pi" aria-hidden="true">+</span><span>${L("Projekt erfassen","Add project")}</span></button></div>`:"";
   const tog=(cp||D.projects.length)?`<span class="chev" role="button" tabindex="0" data-act="ptoggle" aria-expanded="${open}" aria-label="${open?L("Projektliste schliessen","Close project list"):L("Alle Projekte anzeigen","Show all projects")}" data-tip="${open?L("Projektliste schliessen","Close project list"):L("Alle Projekte anzeigen","Show all projects")}">›</span>`:"";
@@ -408,7 +416,7 @@ function addDemoFees(){const pidKeep=D.pid;if(!D.projects.some(p=>p.id===D.pid)&
 
       const F=D.firm;if(!F.street){Object.assign(F,{street:"Zugerstrasse 18",zip:"8820",city:"Wädenswil"});}if(!ibanValid(F.iban||"")){F.iban="CH6700700110004357712";}if(!F.email)F.email="info@beispiel-architekten.example";if(!F.phone)F.phone="044 780 12 34";if(F.vat===undefined){F.vat=true;F.vatNo="CHE-123.456.788 MWST";}
       const p=P();if(p&&!p.ccity){Object.assign(p,{cstreet:p.cstreet||"Rebhalde 5",czip:"8820",ccity:p.place||"Wädenswil",client:p.client||"Familie Graf"});}
-      const ad=n=>iso(new Date(TODAY.getTime()+n*864e5));
+      const ad=n=>addDays(iso(TODAY),n);
       const mk=(no,days,title,lines,paid)=>{const r=makeRef(no),f={id:newId("h"),pid:D.pid,no,date:ad(days),title,lines,vat:!!F.vat,refType:r.type,ref:r.ref,rem:[],paid:paid?ad(paid):null,log:[{d:ad(days),t:L("Erstellt","Created")}]};if(paid)f.log.push({d:ad(paid),t:L("Zahlung eingegangen","Payment received")});FEES().push(f);};
       mk("2026-011",-150,L("Honorar Akonto 1, Vorprojekt","Fee progress payment 1"),[{t:L("Akonto 1, Phase Vorprojekt","Progress payment 1"),q:1,u:L("pauschal","lump sum"),p:24000}],-122);
       mk("2026-014",-66,L("Honorar Akonto 2, Bauprojekt","Fee progress payment 2"),[{t:L("Akonto 2, Phase Bauprojekt","Progress payment 2"),q:1,u:L("pauschal","lump sum"),p:31000}],0);
@@ -416,7 +424,7 @@ function addDemoFees(){const pidKeep=D.pid;if(!D.projects.some(p=>p.id===D.pid)&
       D.pid=pidKeep;}
 /* ---------- example invoices for an empty project ---------- */
 function seedProjectDemo(p){
-  const ad=n=>iso(new Date(TODAY.getTime()+n*864e5));
+  const ad=n=>addDays(iso(TODAY),n);
   const KS=[["Holzbau Ammann AG","Seestrasse 55","8805","Richterswil","CH47 0070 0110 0055 6677 8"],["Dachtechnik Wyss GmbH","Gewerbestrasse 12","8804","Au ZH","CH12 0900 0000 8044 1122 3"],["Elektro Brunner AG"],["Sanitär Huber & Co."],["Meier Malerei GmbH"]];
   const kid=([n,st,z,c,iban])=>{let k=D.contractors.find(x=>x.name===n);if(!k){k={id:newId("k"),name:n,street:st||"",zip:z||"",city:c||"",iban:iban||"",email:"",phone:""};D.contractors.push(k);}return k.id;};
   const plan=[["214",kid(KS[0]),186000],["224",kid(KS[1]),64500],["230",kid(KS[2]),52800],["250",kid(KS[3]),71400],["285",kid(KS[4]),23900]];
@@ -441,7 +449,7 @@ function seedProjectDemo(p){
 }
 /* example: a finished public project (municipality), everything billed and paid; the municipality holds 10 % retention, released with each final invoice */
 function seedClosedDemo(p){
-  const ad=n=>iso(new Date(TODAY.getTime()+n*864e5));
+  const ad=n=>addDays(iso(TODAY),n);
   const kid=(n,st,z,c,iban,em,ph)=>{let k=D.contractors.find(x=>x.name===n);if(!k){k={id:newId("k"),name:n,street:st||"",zip:z||"",city:c||"",iban:iban||"",email:em||"",phone:ph||""};D.contractors.push(k);}return k.id;};
   const cat=c=>{const s=STD_BKP.find(x=>x[0]===c);return s?[s[1],s[2]]:[bkpCat(c)||"BKP "+c,bkpCat(c)||"BKP "+c];};
   Object.assign(p,{client:p.client||"Gemeinde Wädenswil",cstreet:p.cstreet||"Florhofstrasse 3",czip:p.czip||"8820",ccity:p.ccity||"Wädenswil"});
@@ -473,16 +481,16 @@ function seedClosedDemo(p){
 }
 /* closed example: permit fees and construction insurance were paid too, by invoice from the municipality and the insurer */
 function seedClosedFees(p){
-  const ad=n=>iso(new Date(TODAY.getTime()+n*864e5));
-  const mk=(bkp,name,st,z,c,iban,sum,day,no)=>{let k=D.contractors.find(x=>x.name===name);if(!k){k={id:newId("k"),name,street:st,zip:z,city:c,iban,email:"",phone:""};D.contractors.push(k);}
+  const ad=n=>addDays(iso(TODAY),n);
+  const mk=(bkp,name,st,z,c,iban,sum,day,no,em)=>{let k=D.contractors.find(x=>x.name===name);if(!k){k={id:newId("k"),name,street:st,zip:z,city:c,iban,email:em||"",phone:""};D.contractors.push(k);}
     const w={id:newId("w"),pid:p.id,k:k.id,bkp,sum,ret:0};D.contracts.push(w);D.invoices.push({id:newId("i"),no,w:w.id,type:"schluss",n:0,date:ad(day),due:ad(day+30),gross:sum,status:"bezahlt",ref:""});};
-  mk("511","Gemeinde Wädenswil, Bauamt","Florhofstrasse 3","8820","Wädenswil","CH09 0070 0110 0001 2345 6",13860,-600,"BA-2025-0412");
-  mk("531","Bauversicherung Zürichsee AG","Seestrasse 101","8810","Horgen","CH27 0900 0000 8765 4321 0",7050,-590,"POL-77310");
+  mk("511","Gemeinde Wädenswil, Bauamt","Florhofstrasse 3","8820","Wädenswil","CH09 0070 0110 0001 2345 6",13860,-600,"BA-2025-0412","bauamt@waedenswil.example");
+  mk("531","Bauversicherung Zürichsee AG","Seestrasse 101","8810","Horgen","CH27 0900 0000 8765 4321 0",7050,-590,"POL-77310","schaden@bauversicherung-zs.example");
 }
 /* ---------- income picture ---------- */
 function addIncomeHistory(){
   const ps=D.projects.slice(0,2);if(!ps.length)return;
-  const ad=n=>iso(new Date(TODAY.getTime()+n*864e5));
+  const ad=n=>addDays(iso(TODAY),n);
   const plan=[[-340,14500,28],[-312,9800,35],[-280,21000,24],[-255,6400,41],[-226,18200,30],[-198,12600,27],[-170,24500,33],[-140,8900,45],[-110,16700,29],[-84,11200,38],[-48,19400,26],[-36,7300,0]];
   plan.forEach(([d,amt,pay],k)=>{const p=ps[k%ps.length],no="2026-H"+String(k+1).padStart(2,"0");if(FEES().some(f=>f.no===no))return;const r=makeRef(no);
     const f={id:newId("h"),pid:p.id,no,date:ad(d),title:k%3===2?L("Honorar Bauleitung","Site supervision"):L("Honorar Akonto","Fee progress payment"),lines:[{t:k%3===2?L("Bauleitung","Site supervision"):L("Akonto, Teilleistung","Progress payment"),q:1,u:L("pauschal","lump sum"),p:amt}],vat:!!D.firm.vat,refType:r.type,ref:r.ref,rem:[],paid:pay?ad(d+pay):null,log:[{d:ad(d),t:L("Erstellt","Created")}]};
@@ -490,9 +498,13 @@ function addIncomeHistory(){
 }
 /* ---------- document storage (IndexedDB, this device) ---------- */
 const FDB={db:null,open(){return this.db?Promise.resolve(this.db):new Promise((ok,no)=>{const r=indexedDB.open("arkitecton-files",1);r.onupgradeneeded=()=>r.result.createObjectStore("files");r.onsuccess=()=>{this.db=r.result;ok(r.result);};r.onerror=()=>no(r.error);});},
-  async put(id,blob){const db=await this.open();return new Promise((ok,no)=>{const t=db.transaction("files","readwrite");t.objectStore("files").put(blob,id);t.oncomplete=ok;t.onerror=()=>no(t.error);});},
-  async get(id){const db=await this.open();return new Promise((ok,no)=>{const r=db.transaction("files").objectStore("files").get(id);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});},
-  async del(id){const db=await this.open();return new Promise(ok=>{const t=db.transaction("files","readwrite");t.objectStore("files").delete(id);t.oncomplete=ok;t.onerror=ok;});}};
+  /* every data space (?raum=…) keeps its files under its own prefix, so ids like f101 never collide; the default space stays unprefixed */
+  key(id){return SPACE?SPACE+"::"+id:id;},
+  mine(k){return SPACE?String(k).startsWith(SPACE+"::"):!String(k).includes("::");},
+  async keys(){const db=await this.open();return new Promise(ok=>{const r=db.transaction("files").objectStore("files").getAllKeys();r.onsuccess=()=>ok((r.result||[]).filter(k=>this.mine(k)));r.onerror=()=>ok([]);});},
+  async put(id,blob){const db=await this.open();return new Promise((ok,no)=>{const t=db.transaction("files","readwrite");t.objectStore("files").put(blob,this.key(id));t.oncomplete=ok;t.onerror=()=>no(t.error);});},
+  async get(id){const db=await this.open();return new Promise((ok,no)=>{const r=db.transaction("files").objectStore("files").get(this.key(id));r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});},
+  async del(id){const db=await this.open();return new Promise(ok=>{const t=db.transaction("files","readwrite");t.objectStore("files").delete(this.key(id));t.oncomplete=ok;t.onerror=ok;});}};
 const DOCS=()=>D.docs||(D.docs=[]);
 const docsFor=(scope,ref)=>DOCS().filter(d=>d.scope===scope&&d.ref===ref).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
 const kindOf=n=>{const e=(String(n).split(".").pop()||"").toLowerCase();return e==="pdf"?"PDF":["doc","docx"].includes(e)?"Word":["xls","xlsx","csv"].includes(e)?"Excel":["jpg","jpeg","png","heic"].includes(e)?L("Bild","Image"):e.toUpperCase();};
@@ -517,7 +529,6 @@ async function openDoc(id){
   if(/pdf|image/.test(d.type||"")){const w=window.open(url,"_blank");if(!w)saveBlob(d.name,b);}else saveBlob(d.name,b);
   setTimeout(()=>URL.revokeObjectURL(url),60000);
 }
-const firmDocAlerts=()=>docsFor("firm","firm").map(d=>({d,v:docValid(d)})).filter(x=>x.v&&x.v.c!=="ok");
 /* tiny one-page PDF for example documents */
 function samplePdf(lines){
   const esc_=s=>String(s).replace(/[\\()]/g,m=>"\\"+m).replace(/[^\x20-\x7e]/g,c=>({"ä":"a","ö":"o","ü":"u","Ä":"A","Ö":"O","Ü":"U","é":"e","è":"e","à":"a","·":"-","’":"'"}[c]||"?"));
@@ -528,7 +539,7 @@ function samplePdf(lines){
   return new Blob([out],{type:"application/pdf"});
 }
 async function addDemoDocs(){
-  const ad=n=>iso(new Date(TODAY.getTime()+n*864e5)),F=D.firm.name||"Beispiel Architekten GmbH";
+  const ad=n=>addDays(iso(TODAY),n),F=D.firm.name||"Beispiel Architekten GmbH";
   const mk=async(scope,ref,name,lines,date,until)=>{const b=samplePdf(lines.concat(["","Beispieldokument, fiktive Daten."]));const id=newId("f");await FDB.put(id,b);DOCS().push({id,scope,ref,name,type:"application/pdf",size:b.size,date:ad(date),until:until===undefined?null:ad(until)});};
   await mk("firm","firm","Handelsregisterauszug.pdf",["Handelsregisterauszug",F],-95,-5);
   await mk("firm","firm","Versicherungsnachweis Berufshaftpflicht.pdf",["Versicherungsnachweis",F],-160,205);
@@ -558,6 +569,7 @@ function runMigrations(){
   if(!D.mig.projs){D.mig.projs=1;[["Umbau Villa Seeblick","Küsnacht","Bauherrschaft Keller","Sanierung Gebäudehülle"],["Anbau Schulhaus Au","Wädenswil","Gemeinde Wädenswil","Erweiterung um 2 Klassenzimmer"]].forEach(([n,pl,cl,de])=>{if(!D.projects.some(p=>p.name===n))D.projects.push({id:newId("p"),name:n,place:pl,client:cl,desc:de,closed:true,budget:[]});});}
   if(!D.mig.closedDemo){D.mig.closedDemo=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&!D.contracts.some(w=>w.pid===pa.id))seedClosedDemo(pa);}
   if(!D.mig.closedFees){D.mig.closedFees=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&D.contracts.some(w=>w.pid===pa.id)&&!D.contracts.some(w=>w.pid===pa.id&&w.bkp==="511"))seedClosedFees(pa);}
+  if(!D.mig.closedMail){D.mig.closedMail=1;if(D.example)[["Gemeinde Wädenswil, Bauamt","bauamt@waedenswil.example"],["Bauversicherung Zürichsee AG","schaden@bauversicherung-zs.example"]].forEach(([n,e])=>{const k=D.contractors.find(x=>x.name===n);if(k&&!k.email)k.email=e;});}
   if(!D.mig.feeno){D.mig.feeno=1;const by={};FEES().slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).forEach(f=>{const y=String(f.date).slice(0,4);by[y]=(by[y]||0)+1;f.no=y+"-"+String(by[y]).padStart(3,"0");const r=makeRef(f.no);if(f.refType===r.type)f.ref=r.ref;});}
 }
 function incomeData(){
@@ -686,12 +698,14 @@ function feeDrawerHTML(f){
 const loadScript=src=>new Promise((ok,no)=>{if(document.querySelector('script[src="'+src+'"]'))return ok();const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s);});
 async function libsPDF(){await loadScript("vendor/jspdf.umd.min.js");await loadScript("vendor/qrcode-gen.js");}
 function qrPayload(f){
+  /* the reference type must match the account: QR-IBAN needs a QR reference, a normal IBAN a creditor reference. If the office changed its IBAN since, renew it. */
+  {const want=isQrIban(D.firm.iban)?"QRR":"SCOR";if(f.refType!==want){const r=makeRef(f.no);f.refType=r.type;f.ref=r.ref;saveData();}}
   const F=D.firm,p=PJ(f.pid)||{},[cs,cb]=splitStreet(F.street),[ds,db]=splitStreet(p.cstreet);
   const hasD=!!(p.client&&p.czip&&p.ccity);
   const d=f.date.replace(/-/g,"").slice(2);
   let bill="//S1/10/"+String(f.no).replace(/\//g,"\\/")+"/11/"+d;
   if(f.vat&&F.vatNo) bill+="/30/"+String(F.vatNo).replace(/\D/g,"")+"/32/"+vrate(f);
-  bill+="/40/0:30";
+  bill+="/40/0:"+(+f.term||SET().feeTerm||30);
   const cut=(s,n)=>String(s||"").slice(0,n);
   return ["SPC","0200","1",norm(F.iban),"S",cut(F.name,70),cut(cs,70),cut(cb,16),cut(F.zip,16),cut(F.city,35),"CH",
     "","","","","","","",
@@ -717,7 +731,7 @@ async function payPDF(i){
   const ln=(a,b,bold)=>{font(bold?10:9,bold);T(a,20,y);T(b,190,y,{align:"right"});y+=bold?7:5.5;};
   const ret=retention(i);ln(L("Rechnungsbetrag","Invoice amount"),nf2.format(i.gross));
   if(i.ded&&i.ded.amt)ln(L("Abzug: ","Deduction: ")+i.ded.why,"- "+nf2.format(i.ded.amt));
-  if(ret>0)ln(L("Rückbehalt ","Retention ")+retPct(w)+" %","- "+nf2.format(ret));if(ret<0)ln(L("Freigabe Rückbehalt","Retention released"),"+ "+nf2.format(-ret));
+  if(ret>0)ln(L("Rückbehalt ","Retention ")+invPct(i)+" %","- "+nf2.format(ret));if(ret<0)ln(L("Freigabe Rückbehalt","Retention released"),"+ "+nf2.format(-ret));
   doc.line(120,y-1,190,y-1);y+=4;ln(L("Zur Zahlung empfohlen CHF","Recommended for payment CHF"),nf2.format(payout(i)),true);
   y+=4;kv(L("Zahlbar bis","Payable by"),fdate(i.due));kv("IBAN",k.iban||L("fehlt","missing"));if(i.ref)kv(L("Referenz","Reference"),i.ref);
   const iss=checksFor(i).filter(c=>c.s==="warn");if(iss.length){y+=4;font(9,true);T(L("Hinweise aus der Prüfung","Notes from the check"),20,y);y+=5.5;font(9);iss.forEach(c=>{doc.splitTextToSize("– "+c.t,170).forEach(l=>{T(l,20,y);y+=4.8;});});}
@@ -806,7 +820,10 @@ async function feePDF(f,level){
 }
 
 const withP=(pid,fn)=>{const o=D.pid;D.pid=pid;try{return fn();}finally{D.pid=o;}};
-function clearFiles(){try{FDB.open().then(db=>{const t=db.transaction("files","readwrite");t.objectStore("files").clear();}).catch(()=>{});}catch(e){}}
+/* clears only this data space's files; returns a promise so new files are written after the old ones are gone */
+function clearFiles(){return FDB.keys().then(ks=>FDB.open().then(db=>new Promise(ok=>{const t=db.transaction("files","readwrite"),st=t.objectStore("files");ks.forEach(k=>st.delete(k));t.oncomplete=ok;t.onerror=ok;}))).catch(()=>{});}
+/* removes stored files no document points to any more (deleted documents, purged projects) */
+function sweepFiles(){FDB.keys().then(ks=>{const used=new Set(DOCS().map(d=>FDB.key(d.id)));ks.filter(k=>!used.has(k)).forEach(k=>FDB.open().then(db=>{db.transaction("files","readwrite").objectStore("files").delete(k);}));}).catch(()=>{});}
 const standalone=()=>window.navigator.standalone===true||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches);
 function dataNotice(){
   if(D.noticeOk)return "";
@@ -827,14 +844,11 @@ function startSteps(){
 function viewFirm(){
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
   const ps=D.projects.map(p=>withP(p.id,()=>{const chk=unpaid(PI()),fo=PF().filter(f=>!f.paid);return {p,chk,n:chk.length,sum:toPay(PI()),fl:flags().length,flc:flagSum(flags()),fees:fo.reduce((a,f)=>a+feeTotal(f),0),rem:fo.filter(f=>remDue(f)).length};}));
-  const feeOpen=ps.reduce((a,x)=>a+x.fees,0),remN=ps.reduce((a,x)=>a+x.rem,0),tot=ps.reduce((a,x)=>a+x.sum,0),nChk=ps.reduce((a,x)=>a+x.n,0),nFl=ps.reduce((a,x)=>a+x.fl,0),flc=ps.reduce((a,x)=>a+x.flc,0);
-  const tOpen=D.tenders.filter(x=>!closedT(x)&&fitOf(x).fit!=="no"&&daysTo(x.due)>=0).length;
+  const feeOpen=ps.reduce((a,x)=>a+x.fees,0),remN=ps.reduce((a,x)=>a+x.rem,0),tot=ps.reduce((a,x)=>a+x.sum,0);
   const parts=x=>[x.n?x.n+" "+(x.n===1?L("Rechnung offen","invoice open"):L("Rechnungen offen","invoices open")):"",x.fl?x.fl+" "+L("mit Mehrkosten","with extra costs"):"",x.rem?x.rem+" "+(x.rem===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):""].filter(Boolean).join(" · ")||L("nichts offen","nothing open");
   const rows=ps.filter(x=>!x.p.closed).map(x=>row({act:"open-project",id:x.p.id,c:x.rem?"crit":x.fl?"warn":x.n?"n":"ok",title:esc(x.p.name),meta:(x.p.place?esc(x.p.place)+" · ":"")+parts(x),amt:x.sum?chf(x.sum,false):"",label:""})).join("");
   const name=(D.firm&&D.firm.name)||L("Ihr Büro","Your firm");
   const tl=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0).sort((a,b)=>toDate(a.due)-toDate(b.due));
-  const tRows=tl.slice(0,4).map(t=>{const f=fitOf(t).fit,dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:FIT[f].c,title:esc(tx(t.title)),meta:tx(FIT[f])+" · "+esc(t.client),amt:"",label:L("Eingabe in "+dd+" "+dayWord(dd),"due in "+dd+" "+(dd===1?"day":"days")),lc:dd<=14?"warn":"n"});}).join("");
-  const tSec=`<section><div class="sh"><h2>${L("Ausschreibungen","Tenders")}</h2><span class="cnt">${tl.length}${D.example?"":" · "+L("Beispiele","examples")}</span><span class="right">${tl.length>4?`<button type="button" class="ghost" data-act="nav" data-v="ausschreibungen">${L("Alle anzeigen","Show all")}</button>`:""}</span></div><div class="rows">${tRows||`<div class="empty">${L("Keine offenen Ausschreibungen.","No open tenders.")}</div>`}</div></section>`;
   return `<div class="page">
     ${ph(esc(today),esc(name),"","")}
     ${dataNotice()}${startSteps()}
@@ -856,7 +870,6 @@ function viewOverview(){
   const mt=missingTasks(),fl=flags(), flSum=flagSum(fl);
   /* cost status = approved and paid invoices incl. retention: retention is construction cost, only paid out later */
   const used=t.billed, pct=t.kv?Math.round(used/t.kv*100):0, held=r2(t.ret);
-  const invRows=toCheck.map(i=>{const k=K(W(i.w).k),dd=daysTo(i.due),q=i.status==="rueckfrage",tone=q?"crit":dueTone(dd);return row({act:"open-inv",id:i.id,c:tone,title:esc(k.name),meta:typeLabel(i)+(q?" · "+L("Rückfrage offen","query open"):""),amt:chf(i.gross,false),label:dueText(dd),lc:tone});}).join("");
   const feeRows=PF().filter(f=>remDue(f)).map(f=>row({act:"open-fee",id:f.id,c:"crit",title:esc(L("Honorar ","Fee ")+f.no),meta:remName(remDue(f))+L(" senden"," to send"),amt:chf(feeTotal(f),false),label:L("seit "+feeAge(f)+" Tagen offen","open for "+feeAge(f)+" days"),lc:"crit"})).join("");
   const mtRows=mt.map(x=>row({act:"open-k",id:x.k.id,c:"crit",title:esc(x.k.name),meta:L("Fehlt: ","Missing: ")+x.m.join(", "),amt:"",label:L("Angaben fehlen","details missing"),lc:"crit"})).join("");
   const nTodo=toCheck.length+mt.length+PF().filter(f=>remDue(f)).length;
@@ -901,7 +914,6 @@ function viewInvoices(){
   const paidI=S.filter==="all"?list.filter(i=>i.status==="bezahlt"):[];
   const rows=list.filter(i=>!paidI.includes(i)).map(iRow).join("")+foldRows(L("Bezahlt","Paid"),paidI.map(iRow).join(""),paidI.length);
   const more=`<button type="button" class="ib" title="${L("Weitere Aktionen","More actions")}" aria-label="${L("Weitere Aktionen","More actions")}" data-act="sheet" data-k="rechnungen">${ico("more")}</button>`;
-  const total=pay?toPay(list):list.reduce((a,i)=>a+i.gross,0);
   return `<div class="page invp">
     ${ph(esc(p.name),L("Rechnungen","Invoices"),"",sw+`<span class="deskonly">${ib("plus",L("Rechnung erfassen: QR-Rechnung als PDF oder Foto","Add invoice: QR-bill as PDF or photo"),'data-act="capture"')}</span>`+more)}
     <div class="stats s4">${["pruefen","rueckfrage","frei","bezahlt"].map(f=>{const li=of(f),n=li.length,sum=f==="zahlen"?toPay(li):li.reduce((a,i)=>a+i.gross,0),sel=S.filter===f;const inner=`<span class="sl">${fLabel(f)}</span><span class="sv">${n?chf(sum,false):"–"}</span><span class="ss">${n===1?L("1 Rechnung","1 invoice"):n?n+" "+L("Rechnungen","invoices"):L("keine","none")}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="filter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;}).join("")}</div>
@@ -1049,7 +1061,7 @@ function trashProject(id){const p=D.projects.find(x=>x.id===id);if(!p)return;con
 function restoreTrash(tid){const e=(D.trash||[]).find(x=>x.id===tid);if(!e)return;D.projects.push(e.p);D.contracts.push(...e.contracts);D.invoices.push(...e.invoices);D.fees=(D.fees||[]).concat(e.fees);D.trash=D.trash.filter(x=>x.id!==tid);if(!D.pid)D.pid=e.p.id;}
 function setNavMode(m){try{localStorage.setItem("arkitecton:nav",m);}catch(e){}document.getElementById("app").classList.toggle("rail-min",m==="min");}
 function viewSettings(){
-  const st=SET(),f=D.firm||{},nm=navMode();
+  const st=SET(),f=D.firm||{};
   const seg=(name,cur,opts)=>`<div class="seg" role="group">${opts.map(([v,l])=>`<button type="button" data-act="${name}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`).join("")}</div>`;
   const num=(id,v,unit,lbl)=>`<label class="setnum"><input id="${id}" data-set="${id}" inputmode="numeric" value="${v}" aria-label="${esc(lbl)}"><span>${unit}</span></label>`;
   const row=(t,hint,ctrl)=>`<div class="setrow"><div><div class="st">${t}</div>${hint?`<div class="sh2">${hint}</div>`:""}</div><div class="sc">${ctrl}</div></div>`;
@@ -1223,10 +1235,14 @@ function viewTender(t){
 }
 
 (function(){const cur=(document.querySelector('script[src*="app.js"]')||{}).src||"";const v=(cur.match(/v=([^&]+)/)||[])[1];if(!v||location.hostname==="localhost")return;
-  const check=()=>fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(t=>{const nv=(t.match(/app\.js\?v=([^"&]+)/)||[])[1];if(nv&&nv!==v&&!sessionStorage.getItem("ark-up-"+nv)){sessionStorage.setItem("ark-up-"+nv,"1");location.replace(location.pathname+"?v="+nv+(SPACE?"&raum="+SPACE:"")+location.hash);}}).catch(()=>{});
+  /* never reload while someone is entering something: a form, a scan, a panel, or a focused field. The check repeats, so the update follows once the user is idle. */
+  const busy=()=>!!(S.form||S.modal||S.sheet||S.drawer||S.fdrawer||S.kvx||S.queryOpen||(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)));
+  const check=()=>{if(busy())return;fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(t=>{const nv=(t.match(/app\.js\?v=([^"&]+)/)||[])[1];if(nv&&nv!==v&&!busy()&&!sessionStorage.getItem("ark-up-"+nv)){sessionStorage.setItem("ark-up-"+nv,"1");location.replace(location.pathname+"?v="+nv+(SPACE?"&raum="+SPACE:"")+location.hash);}}).catch(()=>{});};
   check();document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")check();});window.addEventListener("pageshow",check);setInterval(()=>{if(document.visibilityState==="visible")check();},120000);})();
+/* the app computes due dates from «today» at load: after midnight, reload once nothing is being entered */
+setInterval(()=>{const n=new Date();n.setHours(0,0,0,0);if(n.getTime()!==TODAY.getTime()&&document.visibilityState==="visible"&&!(S.form||S.modal||S.sheet||S.drawer||S.fdrawer||(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))))location.reload();},60000);
 function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
-  stampProjects();saveData();
+  stampProjects();stampRet();saveData();
   const app=document.getElementById("app");
   if(!D){
     app.style.display="block";
@@ -1251,6 +1267,7 @@ function checksFor(i){
   if(i.type==="schluss"){const c=compare(w);if(c&&c.hasFinal&&c.diff>0&&over&&Math.abs(over-c.diff)<0.01){const k=out.findIndex(x=>x.over);out.splice(k,1);out.push({s:"warn",money:1,t:L("Über Werkvertrag und Offerte: ","Above contract and offer: ")+sgn(c.diff),link:w.id});}else out.push(c&&c.hasFinal?{s:c.diff>0?"warn":"ok",money:c.diff>0?1:0,t:L("Gegenüber Offerte: ","Against offer: ")+sgn(c.diff),link:w.id}:{s:"info",t:L("Offertvergleich: Schlussabrechnung laden","Offer comparison: load final account"),link:w.id});}
   if(i.type==="akonto"&&i.n>1){const have=new Set(D.invoices.filter(x=>x.w===w.id&&x.type==="akonto"&&x.id!==i.id).map(x=>x.n));const miss=[];for(let n=1;n<i.n;n++)if(!have.has(n))miss.push(n);if(miss.length)out.push({s:"warn",t:L("Akonto ","Progress payment ")+miss.join(", ")+L(" nicht erfasst"," not recorded")});}
   const dup=i.ref&&live(i)&&D.invoices.some(x=>x.id!==i.id&&live(x)&&norm(x.ref)===norm(i.ref));
+  if(i.fx)out.push({s:"warn",t:L("Rechnung in ","Invoice in ")+i.fx.cur+" "+nf2.format(i.fx.amount)+L(", in CHF erfasst",", entered in CHF")});
   out.push(dup?{s:"crit",t:L("Mögliche Doppelrechnung","Possible duplicate")}:i.ref?{s:"ok",t:L("Keine Doppelrechnung","No duplicate")}:{s:"warn",t:L("Ohne QR-Referenz","No QR reference")});
   const dd=daysTo(i.due);if(dd<=7&&!counted(i))out.push({s:"warn",t:L("Zahlung ","Payment ")+dueText(dd)});
   return out;
@@ -1265,7 +1282,7 @@ function drawerHTML(i){
   const issues=cs.filter(c=>c.s!=="ok"), oks=cs.filter(c=>c.s==="ok");
   const ICON={ok:"✓",warn:"!",crit:"✕",info:"i"}, ret=retention(i);
   const li=c=>`<li><span class="ic ${c.s}" aria-hidden="true">${ICON[c.s]}</span><span>${esc(c.t)}${c.link?` <button type="button" class="ghost" style="padding:0;margin-left:6px;text-decoration:underline" data-act="open-cmp" data-id="${c.link}">${L("Vergleich","Comparison")}</button>`:""}${c.fix?` <button type="button" class="ghost" style="padding:0;margin-left:6px;text-decoration:underline" data-act="query">${L("Anfragen","Request")}</button> <button type="button" class="ghost" style="padding:0;margin-left:10px;text-decoration:underline" data-act="form" data-f="contractor" data-id="${c.fix}">${L("Selbst ergänzen","Add yourself")}</button>`:""}</span></li>`;
-  const retLine=i.type==="akonto"?[L("Rückbehalt ","Retention ")+retPct(w)+"%","− "+nf2.format(ret)]:i.type==="schluss"?[L("Freigabe Rückbehalt","Retention released"),"+ "+nf2.format(-ret)]:[L("Rückbehalt","Retention"),"0.00"];
+  const retLine=i.type==="akonto"?[L("Rückbehalt ","Retention ")+invPct(i)+"%","− "+nf2.format(ret)]:i.type==="schluss"?[L("Freigabe Rückbehalt","Retention released"),"+ "+nf2.format(-ret)]:[L("Rückbehalt","Retention"),"0.00"];
   const cr=cs.find(c=>c.s==="crit"),why=cr?`<span class="act-hint">${cr.need?L("Erst ergänzen: ","First add: ")+esc(cr.need):L("Erst Doppelrechnung klären","Resolve the duplicate first")}</span>`:"";
   const money=cs.some(c=>c.money&&c.s==="warn"),apLbl=money?L("Trotzdem freigeben","Approve anyway"):L("Freigeben","Approve");
   let actions="";
@@ -1308,11 +1325,13 @@ function parseSPC(txt){
   let street,zip,city;
   if(l[4]==="K"){const m=(l[7]||"").match(/^(\d{4,6})\s+(.*)$/);street=l[6]||"";zip=m?m[1]:"";city=m?m[2]:(l[7]||"");}
   else{street=[l[6],l[7]].filter(Boolean).join(" ");zip=l[8]||"";city=l[9]||"";}
-  return {name:(l[5]||"").trim(),street:street.trim(),zip:zip.trim(),city:city.trim(),iban:fmtIban(l[3]||""),amount:parseFloat(l[18])||0,ref:fmtRef(l[28]||""),msg:(l[29]||"").trim(),bill:(l.slice(30).find(x=>/^\/\/S1\//.test(x||""))||"").trim(),no:""};
+  return {name:(l[5]||"").trim(),street:street.trim(),zip:zip.trim(),city:city.trim(),iban:fmtIban(l[3]||""),amount:parseFloat(l[18])||0,cur:(l[19]||"CHF").trim().toUpperCase()||"CHF",ref:fmtRef(l[28]||""),msg:(l[29]||"").trim(),bill:(l.slice(30).find(x=>/^\/\/S1\//.test(x||""))||"").trim(),no:""};
 }
 function swicoNo(b){if(!b)return "";const parts=b.slice(4).replace(/\\\//g,"\u0000").split("/").map(x=>x.replace(/\u0000/g,"/"));for(let i=0;i<parts.length-1;i++)if(parts[i]==="10")return parts[i+1].trim();return "";}
 function swicoField(b,tag){if(!b)return "";const parts=b.slice(4).replace(/\\\//g,"\u0000").split("/").map(x=>x.replace(/\u0000/g,"/"));for(let i=0;i<parts.length-1;i++)if(parts[i]===tag)return parts[i+1].trim();return "";}
 function swicoDates(d){const r={date:"",due:""};const t=swicoField(d.bill,"11").slice(0,6);if(/^\d{6}$/.test(t))r.date="20"+t.slice(0,2)+"-"+t.slice(2,4)+"-"+t.slice(4,6);const c=swicoField(d.bill,"40");if(c){const net=c.split(";").map(x=>x.split(":")).find(x=>+x[0]===0);if(net&&/^\d+$/.test(net[1]||""))r.due=addDays(r.date||iso(TODAY),+net[1]);}return r;}
+/* arkitecton books in CHF: a QR bill in EUR keeps its original amount for reference, the CHF amount is entered by hand */
+function fxCheck(d){if(d&&d.cur&&d.cur!=="CHF"&&!d.fx){d.fx={cur:d.cur,amount:d.amount};d.amount=0;}return d;}
 function setDates(d){const x=swicoDates(d);d.dateSrc=!!x.date;d.dueSrc=!!x.due;d.date=x.date||iso(TODAY);d.due=x.due||addDays(d.date,SET().term);}
 function guessNo(d){const sw=swicoNo(d.bill);if(sw)return sw;const m=(d.msg||"").match(/(?:rechnungs?(?:nummer|nr\.?)?|rg\.?|re\.?|invoice(?:\s*no\.?)?|nr\.?)\s*(?:nr\.?|no\.?)?\s*[:#]?\s*(\d[A-Za-z0-9\-\/\.]{2,}|[A-Za-z]{1,4}[\-\.]?\d[A-Za-z0-9\-\/\.]*)/i);return m?m[1]:"";}
 function guessKind(d){const m=d.msg||"";let x=m.match(/akonto\s*(?:nr\.?|no\.?)?\s*(\d{1,2})/i);if(x)return {type:"akonto",n:+x[1]};if(/schluss/i.test(m))return {type:"schluss",n:0};if(/regie/i.test(m))return {type:"regie",n:0};if(/akonto/i.test(m))return {type:"akonto",n:0};return {type:"",n:0};}
@@ -1353,7 +1372,7 @@ function scanLoop(ts){
   const r=jsQR(ctx.getImageData(0,0,out,out).data,out,out,{inversionAttempts:"dontInvert"});
   if(r&&qrText(r)){
     const d=parseSPC(qrText(r));
-    if(d){D.realScan=true;saveData();stopCam();try{navigator.vibrate&&navigator.vibrate(40);}catch(e){}d.no=guessNo(d);setDates(d);S.modal.data=d;S.modal.step=2;renderOverlay();}
+    if(d){D.realScan=true;saveData();stopCam();try{navigator.vibrate&&navigator.vibrate(40);}catch(e){}d.no=guessNo(d);setDates(d);fxCheck(d);S.modal.data=d;S.modal.step=2;renderOverlay();}
     else{const h=document.getElementById("camhint");if(h)h.textContent=L("QR-Code erkannt, aber keine Schweizer QR-Rechnung.","QR code found, but not a Swiss QR-bill.");}
   }
 }
@@ -1405,7 +1424,7 @@ async function onScanFile(file){
   if(!S.modal)return;S.modal.busy=false;
   const d=txt?parseSPC(txt):null;
   if(!d){S.modal.err=txt?L("Das ist keine Schweizer QR-Rechnung.","This is not a Swiss QR-bill."):(pdf?L("Im PDF wurde kein QR-Zahlteil gefunden.","No QR payment part found in the PDF."):L("Kein QR-Code erkannt. Zahlteil näher fotografieren.","No QR code found. Photograph the payment part closer."));return renderOverlay();}
-  D.realScan=true;saveData();d.no=guessNo(d);setDates(d);S.modal.data=d;S.modal.step=2;renderOverlay();
+  D.realScan=true;saveData();d.no=guessNo(d);setDates(d);fxCheck(d);S.modal.data=d;S.modal.step=2;renderOverlay();
 }
 function resolveCapture(d){
   const k=D.contractors.find(c=>(c.iban&&norm(c.iban)===norm(d.iban))||c.name.trim().toLowerCase()===d.name.trim().toLowerCase())||null;
@@ -1460,7 +1479,7 @@ function captureHTML(){
         ${R.w?`<div class="f wide"><span class="l">${L("Werkvertrag","Contract")}</span><span class="v">BKP ${R.w.bkp} ${esc(bName(R.w.bkp))}${R.w.sum?" · "+chf(R.w.sum,false):""}</span></div>`
           :`<div class="f wide"><label for="capBkp">BKP</label><select id="capBkp">${bkpOptions(d.bkpSel||guessBkp(d))}</select><span class="hint">${L("Noch kein Werkvertrag in diesem Projekt. Die Summe können Sie später ergänzen.","No contract in this project yet. You can add the sum later.")}</span></div>`}
         <div class="f"><label for="capType">${L("Art","Type")}</label><select id="capType"><option value="akonto"${so("akonto")}>${L("Akonto ","Progress payment ")+nAk}</option><option value="schluss"${so("schluss")}>${L("Schlussrechnung","Final invoice")}</option><option value="regie"${so("regie")}>${L("Regie","Time & materials")}</option></select></div>
-        <div class="f"><label for="capAmt">${L("Betrag CHF","Amount CHF")}</label><input id="capAmt" class="amt" inputmode="decimal" value="${d.amount?nf2.format(d.amount):""}"></div>
+        <div class="f"><label for="capAmt">${L("Betrag CHF","Amount CHF")}</label><input id="capAmt" class="amt" inputmode="decimal" value="${d.amount?nf2.format(d.amount):""}">${d.fx?`<span class="hint l-warn">${L("Rechnung in ","Invoice in ")+esc(d.fx.cur)+" "+nf2.format(d.fx.amount)+L(". arkitecton rechnet in CHF: Betrag in CHF eintragen.",". arkitecton works in CHF: enter the amount in CHF.")}</span>`:""}</div>
         <div class="f wide"><label for="capNo">${L("Rechnungsnummer","Invoice number")}</label><input id="capNo" value="${esc(d.no||"")}" placeholder="${L("Von der Rechnung abtippen","Type from the invoice")}">${d.no?"":`<span class="hint">${L("Diese Rechnung hat keine Nummer im QR-Code.","This invoice has no number in its QR code.")}</span>`}</div>
         <div class="f"><span class="l">${L("Rechnungsdatum","Invoice date")}</span><span class="v">${fdate(d.date)}</span>${d.dateSrc?"":`<span class="hint">${L("Heute, nicht im QR-Code","Today, not in QR code")}</span>`}</div>
         <div class="f"><span class="l">${L("Zahlbar bis","Due")}</span><span class="v">${fdate(d.due)}</span>${d.dueSrc?"":`<span class="hint">${L(SET().term+" Tage angenommen",SET().term+" days assumed")}</span>`}</div>
@@ -1508,7 +1527,7 @@ function confirmCapture(){
   if(!w){const bkp=(document.getElementById("capBkp")||{}).value||"211";ensureBkp(bkp);w={id:newId("w"),pid:D.pid,k:k.id,bkp,sum:0,ret:SET().ret};D.contracts.push(w);}
   items.push("BKP "+w.bkp);
   const n=type==="akonto"?(d.akN||D.invoices.filter(x=>x.w===w.id&&x.type==="akonto").length+1):0;
-  const ni={id:newId("i"),no:d.no||L("ohne Nr.","no number"),w:w.id,type,n,date:d.date||iso(TODAY),due:d.due||addDays(d.date||iso(TODAY),SET().term),gross:r2(d.amount),status:"pruefen",ref:d.ref||""};
+  const ni={id:newId("i"),no:d.no||L("ohne Nr.","no number"),w:w.id,type,n,date:d.date||iso(TODAY),due:d.due||addDays(d.date||iso(TODAY),SET().term),gross:r2(d.amount),status:"pruefen",ref:d.ref||""};if(d.fx)ni.fx=d.fx;
   logInv(ni,L("Per QR erfasst","Captured via QR"));
   D.invoices.push(ni);if(S.modal&&S.modal.rep)linkReplace(S.modal.rep,ni);
   if(type==="akonto")items.push(L("Rückbehalt ","Retention ")+nf2.format(retention(ni)));
@@ -1576,7 +1595,7 @@ function formDef(){
       +fld("fNo",L("Rechnungsnummer","Invoice number"),"")+fld("fAmt",L("Betrag CHF","Amount CHF"),"",{mode:"decimal",req:true})+fld("fDate",L("Datum","Date"),iso(TODAY),{type:"date"})+fld("fDue",L("Fällig am","Due"),addDays(iso(TODAY),SET().term),{type:"date"})+fld("fRef",L("Referenz (optional)","Reference (optional)"),"",{wide:true}):`<div class="f wide nok"><p>${L("In diesem Projekt gibt es noch keinen Handwerker mit Werkvertrag.","This project has no contractor with a contract yet.")}</p><p class="sp">${L("Am schnellsten: QR-Rechnung scannen. arkitecton legt Handwerker und Werkvertrag dabei selbst an.","Fastest: scan the QR-bill. arkitecton adds the contractor and contract for you.")}</p><div class="nokb"><button type="button" class="btn primary" data-act="capture">${L("QR scannen","Scan QR")}</button><button type="button" class="btn" data-act="form" data-f="contractor">${L("Handwerker erfassen","Add contractor")}</button></div></div>`),noSubmit:!ks.length};}
   if(F.f==="bkp"){const used=new Set(p.budget.map(b=>b.bkp));return {title:L("BKP-Position erfassen","Add BKP item"),body:`<div class="f wide"><label for="fBkpQ">${L("BKP-Position","BKP item")}</label><input id="fBkpQ" list="bkpList" autocomplete="off" placeholder="${L("Nummer oder Bezeichnung, z.B. 421 oder Gärtner","Number or name, e.g. 421 or garden")}"><datalist id="bkpList">${BKPCAT().filter(e=>e[0].length>=2&&!used.has(e[0])).map(e=>`<option value="${e[0]} ${esc(e[1])}"></option>`).join("")}</datalist><span class="hint">${L("Alle Hauptgruppen 0 bis 9. Unterpositionen wie 211.5 frei eintippen oder unter Einstellungen › BKP-Liste Ihre eigene Liste laden.","All main groups 0 to 9. Type sub-items like 211.5 freely, or load your own list under Settings › BKP list.")}</span></div>`+fld("fKv",L("Kostenvoranschlag CHF","Cost estimate CHF"),"",{mode:"decimal",wide:true})};}
   if(F.f==="kv"){const b=B(F.id);return {title:"BKP "+b.bkp+" "+tx(b),body:fld("fLabel",L("Bezeichnung","Name"),tx(b),{wide:true})+fld("fKv",L("Kostenvoranschlag CHF","Cost estimate CHF"),b.kv||"",{mode:"decimal",wide:true}),del:!PC().some(w=>w.bkp===b.bkp)};}
-  if(F.f==="answer"){const i=INV(F.id);return {title:L("Antwort erhalten","Reply received"),body:`<div class="f wide"><label for="fNote">${L("Was war die Antwort?","What was the reply?")}</label><textarea id="fNote" rows="3" placeholder="${L("z. B. Rapporte erhalten, 6 h bestätigt","e.g. time sheets received, 6 h confirmed")}"></textarea><span class="hint">${L("Wird im Verlauf gespeichert. Die Rechnung ist danach wieder zu prüfen.","Saved in the history. The invoice goes back to review.")}</span></div>`};}
+  if(F.f==="answer"){return {title:L("Antwort erhalten","Reply received"),body:`<div class="f wide"><label for="fNote">${L("Was war die Antwort?","What was the reply?")}</label><textarea id="fNote" rows="3" placeholder="${L("z. B. Rapporte erhalten, 6 h bestätigt","e.g. time sheets received, 6 h confirmed")}"></textarea><span class="hint">${L("Wird im Verlauf gespeichert. Die Rechnung ist danach wieder zu prüfen.","Saved in the history. The invoice goes back to review.")}</span></div>`};}
   if(F.f==="ded"){const i=INV(F.id),d=i.ded||{};return {title:L("Abzug · ","Deduction · ")+i.no,body:fld("fDedAmt",L("Abzug CHF","Deduction CHF"),d.amt||"",{mode:"decimal",req:true})+`<div class="f wide"><label for="fDedWhy">${L("Begründung","Reason")}</label><textarea id="fDedWhy" rows="2" placeholder="${L("z. B. 2 h Regie nicht belegt","e.g. 2 h not supported by time sheets")}">${esc(d.why||"")}</textarea><span class="hint">${L("Rechnung ","Invoice ")}${nf2.format(i.gross)} · ${L("0 eingeben, um den Abzug zu entfernen.","Enter 0 to remove the deduction.")}</span></div>`};}
   if(F.f==="firm"){const t=F.tmp,B=t?Object.assign({},D.firm,{name:t.fName,street:t.fStreet,zip:t.fZip,city:t.fCity,iban:t.fIban,email:t.fEmail,phone:t.fPhone,vatNo:t.fVatNo,vat:t.fVat}):D.firm;return {title:L("Büro","Office"),body:fld("fName",L("Firmenname","Company name"),B.name,{wide:true,req:true})
     +fld("fStreet",L("Strasse und Nr.","Street and no."),B.street,{wide:true,ph:L("z. B. Seestrasse 40","e.g. Seestrasse 40")})+fld("fZip",L("PLZ","Postcode"),B.zip,{mode:"numeric"})+fld("fCity",L("Ort","Town"),B.city)
@@ -1694,6 +1713,7 @@ function submitForm(){
     const vat=document.getElementById("fVat").checked,vno=val("fVatNo");
     if(vat&&!/^CHE-?\d{3}\.?\d{3}\.?\d{3}/i.test(vno)) return fail(L("MWST-Nummer im Format CHE-123.456.789 MWST eingeben.","Enter the VAT number as CHE-123.456.789 MWST."),"fVatNo");
     Object.assign(D.firm,{name:val("fName"),street:val("fStreet"),zip:val("fZip"),city:val("fCity"),iban:ib_,email:val("fEmail"),phone:val("fPhone"),vat,vatNo:vno});
+    {const want=isQrIban(ib_)?"QRR":"SCOR";FEES().filter(f=>!f.paid&&f.refType!==want).forEach(f=>{const r=makeRef(f.no);f.refType=r.type;f.ref=r.ref;});} /* open fee invoices get a reference that fits the new account */
     backTo();render();return toast(L("Gespeichert","Saved"));}
 }
 function formDelete(){
@@ -1732,7 +1752,7 @@ function sheetDef(key){
 }
 function kvHTML(){
   const r=budgetRows().find(x=>x.b.bkp===S.kvx),p=P()||{};if(!r)return "";
-  const ws=PC().filter(w=>w.bkp===r.b.bkp),kv=r.b.kv,sg=v=>v>0?"+"+nf2.format(v).replace(/\.00$/,""):v<0?"−"+nf2.format(-v).replace(/\.00$/,""):"0";
+  const ws=PC().filter(w=>w.bkp===r.b.bkp),kv=r.b.kv;
   const line=(a,b,c,cls)=>`<span${cls?` class="${cls}"`:""}>${a}</span><span class="r${cls?" "+cls:""}">${b}</span><span class="r d${cls?" "+cls:""}">${c||""}</span>`;
   /* one base for every line: the cost estimate; the line that counts is named and explained */
   let rows=line(L("Kostenvoranschlag","Cost estimate"),nfq.format(kv),"");
@@ -1842,7 +1862,11 @@ async function handleImport(kind,file,id){
     const did=newId("f");await FDB.put(did,file);DOCS().push({id:did,scope:"project",ref:w.pid,name:file.name,type:file.type||"application/pdf",size:file.size,date:iso(TODAY)});
     S.offerDraft={w:w.id,doc:did,sum,name:file.name};saveData();openForm("offersum",w.id);return;}
   if(kind==="backup"){
-    try{const o=JSON.parse(await file.text());if(!o||o.v!==1||!Array.isArray(o.projects))throw new Error("format");D=o;S.kid=null;S.tid=null;S.view="uebersicht";render();return toast(L("Sicherung geladen","Backup restored"));}
+    try{const o=JSON.parse(await file.text());if(!o||o.v!==1||!Array.isArray(o.projects))throw new Error("format");
+      ["contractors","contracts","invoices","fees","docs","tenders","events"].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[];});o.firm=o.firm||{name:""};o.seq=Math.max(+o.seq||0,100);
+      const files=o.files||{};delete o.files;await clearFiles();let nf=0;
+      for(const id of Object.keys(files)){try{const b=await (await fetch(files[id])).blob();await FDB.put(id,b);nf++;}catch(e){}}
+      D=o;runMigrations();S.kid=null;S.tid=null;S.view="uebersicht";render();return toast(L("Sicherung geladen","Backup restored")+(nf?" · "+nf+L(" Dokumente"," documents"):""));}
     catch(e){render();return toast(L("Keine gültige arkitecton-Sicherung","Not a valid arkitecton backup"));}
   }
   let rows;try{rows=await readRows(file);}catch(e){render();return toast(L("Datei nicht lesbar","File could not be read"));}
@@ -1894,7 +1918,10 @@ function cmpRows(c){
 }
 const pslug=()=>slug(P()?P().name:"Projekt");
 const EXPORT={
-  "backup"(){S.sheet=null;renderOverlay();saveBlob("arkitecton-sicherung-"+iso(TODAY)+".json",new Blob([JSON.stringify(D,null,1)],{type:"application/json"}));},
+  /* the backup carries the documents too (as data URLs), so a restore on another device is complete */
+  async "backup"(){S.sheet=null;renderOverlay();const files={};
+    for(const d of DOCS()){try{const b=await FDB.get(d.id);if(b)files[d.id]=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.onerror=()=>r(null);fr.readAsDataURL(b);});}catch(e){}}
+    saveBlob("arkitecton-sicherung-"+iso(TODAY)+".json",new Blob([JSON.stringify(Object.assign({},D,{files}))],{type:"application/json"}));},
   "x-report"(){const rows=budgetRows(),t=totals(rows),body=rows.map(r=>[r.b.bkp,tx(r.b),r.b.kv,r.awarded,r.billed,r.rest]);body.push(["","Total",t.kv,t.awarded,t.billed,t.rest]);
     wbSave("Kostenuebersicht-"+pslug()+".xlsx",[{name:L("Kostenübersicht","Cost overview"),widths:[8,30,18,16,16,16],rows:headRows(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client")).concat([["BKP",L("Arbeitsgattung","Trade"),L("Kostenvoranschlag CHF","Estimate CHF"),L("Vergeben CHF","Awarded CHF"),L("Abgerechnet CHF","Billed CHF"),L("Rest CHF","Remaining CHF")]],body)}]);},
   "x-budget"(){const rows=budgetRows(),t=totals(rows),body=rows.map(r=>[r.b.bkp,tx(r.b),r.b.kv,r.awarded,r.billed,r.paid,r.ret,r.open,r.rest]);body.push(["","Total",t.kv,t.awarded,t.billed,t.paid,t.ret,t.open,t.rest]);
@@ -1953,7 +1980,7 @@ document.addEventListener("click",e=>{
     case "pask":S.pconfirm=id;renderPop();return;
     case "ptrash":{const p=D.projects.find(x=>x.id===id);trashProject(id);closePop();if(!D.pid)S.view="buero";render();toast((p?p.name:"")+L(" ist im Papierkorb. Wiederherstellen unter Einstellungen."," moved to the bin. Restore it under Settings."),6000);break;}
     case "trash-restore":{restoreTrash(id);S.confirm=null;render();toast(L("Wiederhergestellt","Restored"));break;}
-    case "trash-purge":{D.trash=(D.trash||[]).filter(x=>x.id!==id);S.confirm=null;render();toast(L("Endgültig gelöscht","Deleted permanently"));break;}
+    case "trash-purge":{const tp=(D.trash||[]).find(x=>x.id===id);if(tp){const ids=new Set([tp.p.id]),wk=new Set(tp.contracts.map(w=>w.id));D.docs=DOCS().filter(d=>!(d.scope==="project"&&ids.has(d.ref))&&!(d.scope==="contract"&&wk.has(d.ref)));setTimeout(sweepFiles,0);}D.trash=(D.trash||[]).filter(x=>x.id!==id);S.confirm=null;render();toast(L("Endgültig gelöscht","Deleted permanently"));break;}
     case "nav-mode":setNavMode(el.dataset.v||(navMode()==="min"?"open":"min"));renderChrome();if(S.view==="einstellungen")render();break;
     case "lang-set":if(el.dataset.v!==S.lang)exampleSwap(el.dataset.v);S.lang=el.dataset.v;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
     case "lang":if(el.dataset.l!==S.lang)exampleSwap(el.dataset.l);S.lang=el.dataset.l;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
@@ -2015,8 +2042,8 @@ document.addEventListener("click",e=>{
     case "notice-ok":D.noticeOk=1;render();break;
     case "doc-open":openDoc(el.dataset.id);break;
     case "doc-del":{const id=el.dataset.id;D.docs=DOCS().filter(d=>d.id!==id);S.confirm=null;FDB.del(id);render();toast(L("Dokument gelöscht","Document deleted"));break;}
-    case "reset-ex":clearFiles();D=seedExample();runMigrations();closeAll();S.view="uebersicht";S.kid=null;S.tid=null;render();toast(L("Beispieldaten geladen","Example data loaded"));break;
-    case "reset-all":clearFiles();try{localStorage.removeItem(KEY);}catch(err){}D=null;closeAll();render();break;
+    case "reset-ex":closeAll();clearFiles().then(()=>{D=seedExample();runMigrations();S.view="uebersicht";S.kid=null;S.tid=null;render();toast(L("Beispieldaten geladen","Example data loaded"));});break;
+    case "reset-all":closeAll();clearFiles().then(()=>{try{localStorage.removeItem(KEY);}catch(err){}D=null;render();});break;
     case "close":{const back=S.form&&S.form.back;closeAll();if(back&&INV(back))S.drawer=back;render();break;}
     case "approve":{const i=INV(id);i.status="frei";logInv(i,L("Freigegeben","Approved"));S.done=null;S.queryOpen=false;render();toast(L("Freigegeben · ","Approved · ")+chf(payout(i)));break;}
     case "unapprove":{const i=INV(id);i.status="pruefen";logInv(i,L("Freigabe zurückgenommen","Approval undone"));render();break;}
@@ -2140,7 +2167,7 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden)stopCam();}
 window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(D&&v!==S.view&&VIEWS.includes(v))go(v);});
 
 try{const l=localStorage.getItem("arkitecton:lang");if(l==="de"||l==="en")S.lang=l;}catch(e){}themeMeta();
-D=loadData();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
+D=loadData();{const had=!!D;setTimeout(()=>{if(had&&D)sweepFiles();},15000);}try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
 runMigrations();
 const h0=location.hash.slice(1);if(VIEWS.includes(h0))S.view=h0;
 render();

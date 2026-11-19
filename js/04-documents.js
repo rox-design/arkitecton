@@ -74,7 +74,10 @@ function runMigrations(){
   if(!D.mig.closedDemo){D.mig.closedDemo=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&!D.contracts.some(w=>w.pid===pa.id))seedClosedDemo(pa);}
   if(!D.mig.closedFees){D.mig.closedFees=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&D.contracts.some(w=>w.pid===pa.id)&&!D.contracts.some(w=>w.pid===pa.id&&w.bkp==="511"))seedClosedFees(pa);}
   if(!D.mig.closedMail){D.mig.closedMail=1;if(D.example)[["Gemeinde Wädenswil, Bauamt","bauamt@waedenswil.example"],["Bauversicherung Zürichsee AG","schaden@bauversicherung-zs.example"]].forEach(([n,e])=>{const k=D.contractors.find(x=>x.name===n);if(k&&!k.email)k.email=e;});}
-  if(!D.mig.sigs){D.mig.sigs=1;if(D.example&&D.firm&&!D.firm.sig1&&!D.firm.sig2&&/Beispiel Architekten|Example Architects/.test(D.firm.name||"")){D.firm.sig1="Marco Keller, Projektleiter";D.firm.sig2="Anna Frei, Inhaberin";}}
+  if(!D.mig.signers){D.mig.signers=1;const F=D.firm||{};
+    if(!F.signers){const one=x=>{const [n,...r]=String(x||"").split(",");return {name:n.trim(),title:"",role:r.join(",").trim()};};
+      F.signers=D.example&&/Beispiel Architekten|Example Architects/.test(F.name||"")&&!F.sig1&&!F.sig2||F.sig1==="Marco Keller, Projektleiter"?[{name:"Marco Keller",title:"dipl. Architekt ETH SIA",role:"Projektleiter"},{name:"Anna Frei",title:"dipl. Architektin FH",role:"Inhaberin"}]:[one(F.sig1),one(F.sig2)];}
+    delete F.sig1;delete F.sig2;}
   if(!D.mig.feeno){D.mig.feeno=1;const by={};FEES().slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).forEach(f=>{const y=String(f.date).slice(0,4);by[y]=(by[y]||0)+1;f.no=y+"-"+String(by[y]).padStart(3,"0");const r=makeRef(f.no);if(f.refType===r.type)f.ref=r.ref;});}
 }
 function incomeData(){
@@ -154,7 +157,7 @@ function feeFormDef(F){
   return {title:f?L("Honorarrechnung bearbeiten","Edit fee invoice"):L("Neue Honorarrechnung","New fee invoice"),body};
 }
 function keepFeeFields(fn){const keep=["fNo","fDate","fTitle"].map(i=>[i,val(i)]),vat=(document.getElementById("fVatSel")||{}).value;fn();keep.forEach(([i,v])=>{const e=document.getElementById(i);if(e)e.value=v;});const c=document.getElementById("fVatSel");if(c&&vat!=null)c.value=vat;feeCalcUpdate();}
-function readFirmForm(){if(!S.form||S.form.f!=="firm")return;const g=i=>val(i);Object.assign(S.form,{tmp:{fName:g("fName"),fStreet:g("fStreet"),fZip:g("fZip"),fCity:g("fCity"),fIban:g("fIban"),fEmail:g("fEmail"),fPhone:g("fPhone"),fVatNo:g("fVatNo"),fSig1:g("fSig1"),fSig2:g("fSig2"),fVat:(document.getElementById("fVat")||{}).checked}});}
+function readFirmForm(){if(!S.form||S.form.f!=="firm")return;const g=i=>val(i);Object.assign(S.form,{tmp:{fName:g("fName"),fStreet:g("fStreet"),fZip:g("fZip"),fCity:g("fCity"),fIban:g("fIban"),fEmail:g("fEmail"),fPhone:g("fPhone"),fVatNo:g("fVatNo"),sg:[0,1].map(n=>({name:g("fSg"+n+"n"),title:g("fSg"+n+"t"),role:g("fSg"+n+"r")})),fVat:(document.getElementById("fVat")||{}).checked}});}
 function readFeeLines(){const F=S.form;if(!F||!F.lines)return;F.lines=F.lines.map((l,i)=>({t:val("lt"+i),q:val("lq"+i),u:val("lu"+i),p:val("lp"+i)}));}
 function feeCalcUpdate(){
   const F=S.form;if(!F||F.f!=="fee")return;readFeeLines();

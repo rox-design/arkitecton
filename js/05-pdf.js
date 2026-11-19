@@ -79,7 +79,7 @@ async function costPDF(){
   y=114;const fcL=closed?L("Endkosten","Final cost"):L("Prognose Endkosten","Forecast final cost");
   const sum=[[L("Kostenvoranschlag","Cost estimate"),t.kv],[L("Vergeben","Awarded"),t.awarded],[L("Abgerechnet (geprüft)","Billed (checked)"),t.billed],[L("davon bezahlt","of which paid"),t.paid],[fcL,fc],[L("Reserve","Reserve"),t.rest]];
   sum.forEach(([l,v],n)=>{const X=20+(n%3)*57,Y=y+Math.floor(n/3)*14;font(8);gray(1);T(l,X,Y);gray(0);font(11,n===5);if(n===5&&v<0)doc.setTextColor(180,40,30);T("CHF "+nf0.format(Math.round(v)),X,Y+5.5);gray(0);});
-  y+=30;
+  y+=28;
   const C=[106,127,148,169,190],head=[L("Kostenvor.","Estimate"),L("Vergeben","Awarded"),L("Abgerechnet","Billed"),closed?L("Endkosten","Final cost"):L("Prognose","Forecast"),L("Reserve","Reserve")];
   const th=()=>{font(7.5,true);T("BKP",20,y);T(L("Arbeitsgattung","Trade"),33,y);head.forEach((h,n)=>T(h,C[n],y,{align:"right"}));y+=2;doc.setLineWidth(.2);doc.line(20,y,190,y);y+=4.5;};
   th();
@@ -92,13 +92,13 @@ async function costPDF(){
     rs.forEach(r=>{if(y>270){doc.addPage();y=20;th();}
       font(8);T(r.b.bkp,20,y);T(fit(String(tx(r.b))+(r.none?L(" (nicht vergeben)"," (not awarded)"):""),58),33,y);
       nums([r.b.kv,r.awarded,r.billed,r.forecast,r.none||!r.b.kv?null:r.rest]);y+=4.1;});
-    y+=1.5;});
+    y+=1;});
   doc.line(20,y-2,190,y-2);y+=3;font(9,true);T("Total",20,y);nums([t.kv,t.awarded,t.billed,fc,t.rest],true);y+=8;
   if(y>270){doc.addPage();y=20;}
   font(7.5);gray(1);const note=doc.splitTextToSize(closed?L("Endkosten: abgerechnete Beträge gemäss Schlussrechnungen, Regie eingeschlossen. Reserve: Kostenvoranschlag minus Endkosten.","Final cost: billed amounts per final invoices, time & materials included. Reserve: estimate minus final cost."):L("Prognose: pro Werkvertrag die Vertragssumme oder der bisher abgerechnete Betrag, je nachdem was höher ist; nach der Schlussrechnung der abgerechnete Betrag. Regie kommt dazu. Nicht vergebene Positionen mit dem Kostenvoranschlag. Reserve: Kostenvoranschlag minus Prognose. Abgerechnet: geprüfte und freigegebene Rechnungen, Beträge in CHF inkl. MWST.","Forecast: per contract, the contract sum or the amount billed so far, whichever is higher; after the final invoice, the billed amount. Time & materials on top. Items not awarded at their estimate. Reserve: estimate minus forecast. Billed: checked and approved invoices, CHF incl. VAT."),170);note.forEach((l,n)=>T(l,20,y+n*3.6));gray(0);
   /* two signatures from the office, as usual for letters to the client */
-  y+=note.length*3.6+14;if(y+24>287){doc.addPage();y=30;}font(9);T(L("Freundliche Grüsse","Kind regards"),20,y-8);font(9,true);T(F.name||"",20,y-3);font(9);
-  [[F.sig1,20],[F.sig2,118]].forEach(([sg,x])=>{doc.line(x,y+14,x+72,y+14);const [nm,...fn]=String(sg||"").split(",");font(8.5);T(nm.trim()||L("Name","Name"),x,y+18.5);if(fn.length){font(7.5);gray(1);T(fn.join(",").trim(),x,y+22);gray(0);}});
+  y+=note.length*3.6+12;if(y+28>289){doc.addPage();y=30;}font(9);T(L("Freundliche Grüsse","Kind regards"),20,y-8);font(9,true);T(F.name||"",20,y-3);font(9);
+  [0,1].forEach(n=>{const g=(F.signers||[])[n]||{},x=n?118:20;doc.line(x,y+14,x+72,y+14);font(8.5,true);T(g.name||L("Name","Name"),x,y+18.5);font(7.5);gray(1);[g.title,g.role].filter(Boolean).forEach((l,k)=>T(l,x,y+22+k*3.4));gray(0);});
   doc.save(L("Kostenstand","Cost-status")+"_"+String(p.name||"").replace(/[^\w]+/g,"-")+"_"+iso(TODAY)+".pdf");
 }
 async function feePDF(f,level){

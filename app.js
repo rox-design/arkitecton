@@ -11,7 +11,7 @@ const startView=v=>{S.from=null;S.kid=null;S.wid=null;S.tid=null;S.mid=null;S.cm
   if(v==="handwerker")S.kfilter="";if(v==="budget")S.bfilter="";if(v==="ausschreibungen"){S.ttab="verfahren";S.tfilter="open";S.pfilter="refs";}};
 const fromHere=target=>{S.from=S.view!==target?{view:S.view,top:document.getElementById("main").scrollTop}:null;};
 const backBtn=(act,label)=>S.from?`<button type="button" class="back" data-act="back-from">← ${vName(S.from.view)}</button>`:`<button type="button" class="back" data-act="${act}">← ${label}</button>`;
-function go(v){if(!VIEWS.includes(v))v="uebersicht";closeAll();if(v!=="handwerker")S.cmpBack=null;S.view=v;if(v!=="handwerker")S.kid=null;if(v!=="ausschreibungen")S.tid=null;try{history.replaceState(null,"","#"+v);}catch(e){}render();document.getElementById("main").scrollTop=0;}
+function go(v){if(!VIEWS.includes(v))v="uebersicht";closeAll();if(v!==S.view)S.mid=null;if(v!=="handwerker")S.cmpBack=null;S.view=v;if(v!=="handwerker")S.kid=null;if(v!=="ausschreibungen")S.tid=null;try{history.replaceState(null,"","#"+v);}catch(e){}render();document.getElementById("main").scrollTop=0;}
 const openForm=(f,id,w)=>{const keepDrawer=S.drawer;closeAll();S.form={f,id:id||null,w:w||null,back:keepDrawer};renderOverlay();};
 
 document.addEventListener("toggle",e=>{const d=e.target;if(d&&d.classList&&d.classList.contains("site")&&S.kOpen)S.kOpen.ids[d.dataset.pid]=d.open;},true);
@@ -41,7 +41,7 @@ document.addEventListener("click",e=>{
     case "lang-set":if(el.dataset.v!==S.lang)exampleSwap(el.dataset.v);S.lang=el.dataset.v;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
     case "lang":if(el.dataset.l!==S.lang)exampleSwap(el.dataset.l);S.lang=el.dataset.l;try{localStorage.setItem("arkitecton:lang",S.lang);}catch(err){}render();break;
     case "pfilter":S.pfilter=el.dataset.f;render();break;
-    case "open-m":S.mid=id;render();break;
+    case "open-m":S.mid=id;render();document.getElementById("main").scrollTop=0;break;
     case "back-m":S.mid=null;render();break;
     case "tfilter":S.tfilter=el.dataset.f;render();break;
     case "fold":{const st=foldGet(),k=el.dataset.k;st[k]=!st[k];try{localStorage.setItem(FOLDK,JSON.stringify(st));}catch(e){}const sec=el.closest("section");sec.classList.toggle("folded",!!st[k]);el.setAttribute("aria-expanded",String(!st[k]));break;}
@@ -103,6 +103,8 @@ document.addEventListener("click",e=>{
     case "reset-all":closeAll();clearFiles().then(()=>{try{localStorage.removeItem(KEY);}catch(err){}D=null;render();});break;
     case "close":{const back=S.form&&S.form.back;closeAll();if(back&&INV(back))S.drawer=back;render();break;}
     case "bulk-open":{const all=PIx().filter(i=>i.status==="pruefen"&&live(i)),ok=all.filter(cleanInv);closeAll();S.bulk={ids:ok.map(i=>i.id),sel:ok.map(i=>i.id),rest:all.length-ok.length};renderOverlay();break;}
+    case "team-go":S.mid=null;go("einstellungen");requestAnimationFrame(()=>{const t=document.getElementById("team");if(t)t.scrollIntoView({block:"start"});});break;
+    case "sig-person":openForm("person",null,"signers");break;
     case "bulk-tog":{const B=S.bulk;if(!B)break;B.sel=B.sel.includes(id)?B.sel.filter(x=>x!==id):B.sel.concat(id);renderOverlay();break;}
     case "bulk-approve":bulkApprove();break;
     case "approve":{const i=INV(id);i.status="frei";logInv(i,L("Freigegeben","Approved"));S.done=null;S.queryOpen=false;render();toast(L("Freigegeben · ","Approved · ")+chf(payout(i)));break;}

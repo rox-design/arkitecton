@@ -74,9 +74,13 @@ function runMigrations(){
   if(!D.mig.closedDemo){D.mig.closedDemo=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&!D.contracts.some(w=>w.pid===pa.id))seedClosedDemo(pa);}
   if(!D.mig.closedFees){D.mig.closedFees=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&D.contracts.some(w=>w.pid===pa.id)&&!D.contracts.some(w=>w.pid===pa.id&&w.bkp==="511"))seedClosedFees(pa);}
   if(!D.mig.closedMail){D.mig.closedMail=1;if(D.example)[["Gemeinde Wädenswil, Bauamt","bauamt@waedenswil.example"],["Bauversicherung Zürichsee AG","schaden@bauversicherung-zs.example"]].forEach(([n,e])=>{const k=D.contractors.find(x=>x.name===n);if(k&&!k.email)k.email=e;});}
-  if(!D.mig.signers){D.mig.signers=1;const F=D.firm||{};
-    if(!F.signers){const one=x=>{const [n,...r]=String(x||"").split(",");return {name:n.trim(),title:"",role:r.join(",").trim()};};
-      F.signers=D.example&&/Beispiel Architekten|Example Architects/.test(F.name||"")&&!F.sig1&&!F.sig2||F.sig1==="Marco Keller, Projektleiter"?[{name:"Marco Keller",title:"dipl. Architekt ETH SIA",role:"Projektleiter"},{name:"Anna Frei",title:"dipl. Architektin FH",role:"Inhaberin"}]:[one(F.sig1),one(F.sig2)];}
+  /* signatures point to people in the office team: name and title are kept once, in the team */
+  if(!D.mig.signers2){D.mig.signers2=1;const F=D.firm||(D.firm={}),O=D.office||(D.office={team:[]});O.team=O.team||[];
+    const ex=D.example&&/Beispiel Architekten|Example Architects/.test(F.name||"");
+    const old=F.signers||[F.sig1,F.sig2].filter(Boolean).map(x=>{const [n,...r]=String(x).split(",");return {name:n.trim(),title:"",role:r.join(",").trim()};});
+    if(ex&&O.team.some(m=>m.id==="m1"))F.signers=[{m:"m1",role:"Projektleiter"},{m:O.team.some(m=>m.id==="m3")?"m3":"",role:"Mitglied der Geschäftsleitung"}];
+    else F.signers=old.map(g=>{if(g.m!==undefined)return g;if(!g.name)return {m:"",role:g.role||""};let m=O.team.find(x=>(x.name||"").trim().toLowerCase()===g.name.toLowerCase());
+      if(!m){m={id:newId("m"),name:g.name,qual:g.title||"",extra:[],career:[]};O.team.push(m);}else if(!m.qual&&g.title)m.qual=g.title;return {m:m.id,role:g.role||""};});
     delete F.sig1;delete F.sig2;}
   if(!D.mig.feeno){D.mig.feeno=1;const by={};FEES().slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).forEach(f=>{const y=String(f.date).slice(0,4);by[y]=(by[y]||0)+1;f.no=y+"-"+String(by[y]).padStart(3,"0");const r=makeRef(f.no);if(f.refType===r.type)f.ref=r.ref;});}
 }
@@ -157,7 +161,7 @@ function feeFormDef(F){
   return {title:f?L("Honorarrechnung bearbeiten","Edit fee invoice"):L("Neue Honorarrechnung","New fee invoice"),body};
 }
 function keepFeeFields(fn){const keep=["fNo","fDate","fTitle"].map(i=>[i,val(i)]),vat=(document.getElementById("fVatSel")||{}).value;fn();keep.forEach(([i,v])=>{const e=document.getElementById(i);if(e)e.value=v;});const c=document.getElementById("fVatSel");if(c&&vat!=null)c.value=vat;feeCalcUpdate();}
-function readFirmForm(){if(!S.form||S.form.f!=="firm")return;const g=i=>val(i);Object.assign(S.form,{tmp:{fName:g("fName"),fStreet:g("fStreet"),fZip:g("fZip"),fCity:g("fCity"),fIban:g("fIban"),fEmail:g("fEmail"),fPhone:g("fPhone"),fVatNo:g("fVatNo"),sg:[0,1].map(n=>({name:g("fSg"+n+"n"),title:g("fSg"+n+"t"),role:g("fSg"+n+"r")})),fVat:(document.getElementById("fVat")||{}).checked}});}
+function readFirmForm(){if(!S.form||S.form.f!=="firm")return;const g=i=>val(i);Object.assign(S.form,{tmp:{fName:g("fName"),fStreet:g("fStreet"),fZip:g("fZip"),fCity:g("fCity"),fIban:g("fIban"),fEmail:g("fEmail"),fPhone:g("fPhone"),fVatNo:g("fVatNo"),fVat:(document.getElementById("fVat")||{}).checked}});}
 function readFeeLines(){const F=S.form;if(!F||!F.lines)return;F.lines=F.lines.map((l,i)=>({t:val("lt"+i),q:val("lq"+i),u:val("lu"+i),p:val("lp"+i)}));}
 function feeCalcUpdate(){
   const F=S.form;if(!F||F.f!=="fee")return;readFeeLines();

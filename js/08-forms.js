@@ -34,9 +34,16 @@ function formDef(){
         +fld("fRPhases",L("SIA-Phasen","SIA phases"),F.id?v("phases"):"31–53",{ph:"31–53"})
         +`<div class="f wide"><label class="chk"><input type="checkbox" id="fRRun"${r.running?" checked":""}> ${L("Projekt läuft noch","Project still running")}</label></div>`,
       del:!!F.id};}
+  if(F.f==="signers"){const team=D.office.team,G=D.firm.signers||[];
+    if(!team.length)return {title:L("Unterschriften","Signatures"),noSubmit:true,body:`<div class="f wide"><span class="hint">${L("Unterschreiben können Personen aus dem Team. Noch ist niemand erfasst.","People from the team can sign. Nobody has been added yet.")}</span><button type="button" class="btn primary" data-act="sig-person">${L("Person erfassen","Add person")}</button></div>`};
+    return {title:L("Unterschriften","Signatures"),body:`<div class="f wide"><span class="hint">${L("Zwei Personen unterschreiben Briefe wie den Kostenstand. Name und Titel kommen aus dem Team, die Funktion legen Sie hier fest.","Two people sign letters such as the cost status. Name and title come from the team; set the role here.")}</span></div>`
+      +[0,1].map(n=>{const g=G[n]||{};return `<div class="f wide"><span class="l sgh">${n?L("2. Unterschrift","2nd signature"):L("1. Unterschrift","1st signature")}</span></div>`
+        +`<div class="f"><label for="fSg${n}m">${L("Person","Person")}</label><select id="fSg${n}m"><option value="">${L("– niemand –","– nobody –")}</option>${team.map(m=>`<option value="${m.id}"${m.id===g.m?" selected":""}>${esc(m.name)}${m.qual?" · "+esc(m.qual):""}</option>`).join("")}</select></div>`
+        +fld("fSg"+n+"r",L("Funktion","Role"),g.role||"",{ph:n?L("z. B. Inhaberin","e.g. owner"):L("z. B. Projektleiter","e.g. project lead")});}).join("")
+      +`<div class="f wide"><button type="button" class="ghost" data-act="sig-person">+ ${L("Person erfassen","Add person")}</button></div>`};}
   if(F.f==="person"){const m=D.office.team.find(x=>x.id===F.id)||{extra:[]};
     return {title:F.id?L("Person bearbeiten","Edit person"):L("Neue Person","New person"),
-      body:fld("fMName",L("Name","Name"),m.name||"",{wide:true,req:true})+fld("fMQual",L("Ausbildung","Education"),m.qual||"",{wide:true,ph:L("z. B. dipl. Architekt FH","e.g. Architect, BSc")})
+      body:fld("fMName",L("Name","Name"),m.name||"",{wide:true,req:true})+fld("fMQual",L("Titel / Ausbildung","Title / education"),m.qual||"",{wide:true,ph:L("z. B. dipl. Architekt ETH SIA","e.g. Architect, BSc"),hint:L("Steht auch unter der Unterschrift auf Briefen.","Also shown under the signature on letters.")})
         +`<div class="f wide"><label>${L("Zusatzqualifikationen","Additional qualifications")}</label>${Object.keys(XQ).map(k=>`<label class="chk"><input type="checkbox" data-xq="${k}"${(m.extra||[]).includes(k)?" checked":""}> ${tx(XQ[k])}</label>`).join("")}</div>`
         +(F.id?"":`<p class="hint" style="grid-column:1/-1">${L("Den Werdegang mit Rollen und Jahren erfassen Sie danach auf der Personenseite.","Add the career with roles and years on the person page afterwards.")}</p>`),
       del:!!F.id};}
@@ -61,17 +68,12 @@ function formDef(){
   if(F.f==="kv"){const b=B(F.id);return {title:"BKP "+b.bkp+" "+tx(b),body:fld("fLabel",L("Bezeichnung","Name"),tx(b),{wide:true})+fld("fKv",L("Kostenvoranschlag CHF","Cost estimate CHF"),b.kv||"",{mode:"decimal",wide:true}),del:!PC().some(w=>w.bkp===b.bkp)};}
   if(F.f==="answer"){return {title:L("Antwort erhalten","Reply received"),body:`<div class="f wide"><label for="fNote">${L("Was war die Antwort?","What was the reply?")}</label><textarea id="fNote" rows="3" placeholder="${L("z. B. Rapporte erhalten, 6 h bestätigt","e.g. time sheets received, 6 h confirmed")}"></textarea><span class="hint">${L("Wird im Verlauf gespeichert. Die Rechnung ist danach wieder zu prüfen.","Saved in the history. The invoice goes back to review.")}</span></div>`};}
   if(F.f==="ded"){const i=INV(F.id),d=i.ded||{};return {title:L("Abzug · ","Deduction · ")+i.no,body:fld("fDedAmt",L("Abzug CHF","Deduction CHF"),d.amt||"",{mode:"decimal",req:true})+`<div class="f wide"><label for="fDedWhy">${L("Begründung","Reason")}</label><textarea id="fDedWhy" rows="2" placeholder="${L("z. B. 2 h Regie nicht belegt","e.g. 2 h not supported by time sheets")}">${esc(d.why||"")}</textarea><span class="hint">${L("Rechnung ","Invoice ")}${nf2.format(i.gross)} · ${L("0 eingeben, um den Abzug zu entfernen.","Enter 0 to remove the deduction.")}</span></div>`};}
-  if(F.f==="firm"){const t=F.tmp,B=t?Object.assign({},D.firm,{name:t.fName,street:t.fStreet,zip:t.fZip,city:t.fCity,iban:t.fIban,email:t.fEmail,phone:t.fPhone,vatNo:t.fVatNo,vat:t.fVat,signers:t.sg}):D.firm;return {title:L("Büro","Office"),body:fld("fName",L("Firmenname","Company name"),B.name,{wide:true,req:true})
+  if(F.f==="firm"){const t=F.tmp,B=t?Object.assign({},D.firm,{name:t.fName,street:t.fStreet,zip:t.fZip,city:t.fCity,iban:t.fIban,email:t.fEmail,phone:t.fPhone,vatNo:t.fVatNo,vat:t.fVat}):D.firm;return {title:L("Büro","Office"),body:fld("fName",L("Firmenname","Company name"),B.name,{wide:true,req:true})
     +fld("fStreet",L("Strasse und Nr.","Street and no."),B.street,{wide:true,ph:L("z. B. Seestrasse 40","e.g. Seestrasse 40")})+fld("fZip",L("PLZ","Postcode"),B.zip,{mode:"numeric"})+fld("fCity",L("Ort","Town"),B.city)
     +fld("fIban","IBAN",B.iban?fmtIban(B.iban):"",{wide:true,hint:L("Für den QR-Code auf Ihren Rechnungen.","For the QR code on your invoices.")})
     +fld("fEmail",L("E-Mail","Email"),B.email,{type:"email"})+fld("fPhone",L("Telefon","Phone"),B.phone,{type:"tel"})
     +`<div class="f wide"><label class="chk"><input type="checkbox" id="fVat"${B.vat?" checked":""}> ${L("MWST-pflichtig","Subject to VAT")}</label><span class="hint">${L("Pflichtig ab CHF 100'000 Umsatz im Jahr.","Required from CHF 100,000 turnover a year.")}</span></div>`
     +fld("fVatNo",L("MWST-Nummer","VAT number"),B.vatNo,{wide:true,ph:"CHE-123.456.789 MWST"})
-    +`<div class="f wide"><span class="l">${L("Unterschriften","Signatures")}</span><span class="hint">${L("Zwei Personen, die Briefe wie den Kostenstand unterschreiben. Name, Titel und Funktion stehen unter der Linie.","Two people who sign letters such as the cost status. Name, title and role appear under the line.")}</span></div>`
-    +[0,1].map(n=>{const g=(B.signers||[])[n]||{};return `<div class="f wide"><span class="l sgh">${n?L("2. Unterschrift","2nd signature"):L("1. Unterschrift","1st signature")}</span></div>`
-      +fld("fSg"+n+"n",L("Name","Name"),g.name,{wide:true,ph:n?"Anna Frei":"Marco Keller"})
-      +fld("fSg"+n+"t",L("Titel","Title"),g.title,{ph:n?L("z. B. dipl. Architektin FH","e.g. MSc Architecture"):L("z. B. dipl. Architekt ETH SIA","e.g. RIBA chartered architect")})
-      +fld("fSg"+n+"r",L("Funktion","Role"),g.role,{ph:n?L("z. B. Inhaberin","e.g. owner"):L("z. B. Projektleiter","e.g. project lead")});}).join("")
     +`<div class="f wide"><span class="l">Logo</span><div class="logo-row">${B.logo?`<img src="${B.logo}" alt="" class="logo-prev">`:""}<label class="btn">${B.logo?L("Ersetzen","Replace"):L("Logo wählen","Choose logo")}<input type="file" accept="image/png,image/jpeg" data-imp="logo"></label>${B.logo?`<button type="button" class="ghost" data-act="logo-del">${L("Entfernen","Remove")}</button>`:""}</div><span class="hint">${L("Erscheint oben auf Ihren Rechnungen. PNG oder JPG.","Shown at the top of your invoices. PNG or JPG.")}</span></div>`};}
   return null;
 }
@@ -167,9 +169,11 @@ function submitForm(){
     const rec={de:name,en:name,client:val("fRClient"),pub:document.getElementById("fRPub").checked,type:document.getElementById("fRType").value||null,cost:cost||0,year:run?YNOW():year,running:run,phases:val("fRPhases")};
     let r=O.refs.find(x=>x.id===F.id);if(r)Object.assign(r,rec);else{r=Object.assign({id:newId("r")},rec);O.refs.unshift(r);const pr=F.w&&PJ(F.w);if(pr)pr.refId=r.id;}
     S.pfilter="refs";backTo();render();return toast(L("Referenz gespeichert","Reference saved"));}
+  if(F.f==="signers"){D.firm.signers=[0,1].map(n=>({m:val("fSg"+n+"m"),role:val("fSg"+n+"r")}));backTo();render();return toast(L("Gespeichert","Saved"));}
   if(F.f==="person"){const O=D.office;if(!val("fMName"))return fail(L("Name fehlt.","Name missing."),"fMName");
     const extra=[...document.querySelectorAll("[data-xq]")].filter(e=>e.checked).map(e=>e.dataset.xq);
-    let m=O.team.find(x=>x.id===F.id);if(m)Object.assign(m,{name:val("fMName"),qual:val("fMQual"),extra});else{m={id:newId("m"),name:val("fMName"),qual:val("fMQual"),extra,career:[]};O.team.push(m);S.mid=m.id;}
+    let m=O.team.find(x=>x.id===F.id);if(m)Object.assign(m,{name:val("fMName"),qual:val("fMQual"),extra});else{m={id:newId("m"),name:val("fMName"),qual:val("fMQual"),extra,career:[]};O.team.push(m);if(F.w!=="signers")S.mid=m.id;}
+    if(F.w==="signers"){const G=D.firm.signers=(D.firm.signers||[]).slice(0,2);while(G.length<2)G.push({m:"",role:""});const free=G.find(g=>!g.m);if(free)free.m=m.id;closeAll();render();openForm("signers");return toast(L("Gespeichert","Saved"));}
     backTo();render();return toast(L("Gespeichert","Saved"));}
   if(F.f==="career"){const m=D.office.team.find(x=>x.id===F.id);if(!m)return;const from=parseInt(val("fCFrom"),10),to=val("fCTo")?parseInt(val("fCTo"),10):null,Y=YNOW();
     if(!(from>1950&&from<=Y))return fail(L("Startjahr eingeben, z. B. 2016.","Enter the start year, e.g. 2016."),"fCFrom");
@@ -181,7 +185,7 @@ function submitForm(){
     const ib_=norm(val("fIban"));if(ib_&&!ibanValid(ib_)) return fail(L("IBAN prüfen: Die Prüfziffer stimmt nicht.","Check the IBAN: the check digits do not match."),"fIban");
     const vat=document.getElementById("fVat").checked,vno=val("fVatNo");
     if(vat&&!/^CHE-?\d{3}\.?\d{3}\.?\d{3}/i.test(vno)) return fail(L("MWST-Nummer im Format CHE-123.456.789 MWST eingeben.","Enter the VAT number as CHE-123.456.789 MWST."),"fVatNo");
-    Object.assign(D.firm,{name:val("fName"),street:val("fStreet"),zip:val("fZip"),city:val("fCity"),iban:ib_,email:val("fEmail"),phone:val("fPhone"),vat,vatNo:vno,signers:[0,1].map(n=>({name:val("fSg"+n+"n"),title:val("fSg"+n+"t"),role:val("fSg"+n+"r")}))});
+    Object.assign(D.firm,{name:val("fName"),street:val("fStreet"),zip:val("fZip"),city:val("fCity"),iban:ib_,email:val("fEmail"),phone:val("fPhone"),vat,vatNo:vno});
     {const want=isQrIban(ib_)?"QRR":"SCOR";FEES().filter(f=>!f.paid&&f.refType!==want).forEach(f=>{const r=makeRef(f.no);f.refType=r.type;f.ref=r.ref;});} /* open fee invoices get a reference that fits the new account */
     backTo();render();return toast(L("Gespeichert","Saved"));}
 }

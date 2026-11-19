@@ -824,7 +824,7 @@ function viewOverview(){
   const flagRows=shown.map(f=>row({act:f.act,id:f.id,v:f.v,c:f.c,title:esc(f.t),meta:esc(f.m),amt:f.chf===null?"":chf(f.chf,false),label:""})).join("");
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
   return `<div class="page">
-    <header class="ph"><span class="eyebrow">${esc(today)}</span><h1><button type="button" class="pswitch" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button></h1><div class="tools">${ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"')}</div>${[p.place,p.desc].filter(Boolean).length?`<p class="lead">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</p>`:""}</header>
+    <header class="ph"><span class="eyebrow">${esc(today)}</span><h1><button type="button" class="pswitch" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button></h1><div class="tools">${ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"')}${ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"')}</div>${[p.place,p.desc].filter(Boolean).length?`<p class="lead">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</p>`:""}</header>
     ${startSteps()}
     <div class="stats">
       <button type="button" class="stat" data-act="to-pay"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(upl)}</span></button>
@@ -1662,7 +1662,7 @@ function formDelete(){
 /* ---------- sheets: Excel, projects, data ---------- */
 function sheetDef(key){
   const ex=(label,act,id)=>({label,act,id}),im=(label,imp,id,acc)=>({label,imp,id,acc}),bt=(label,act,id,cls)=>({label,act,id,btn:true,cls});
-  if(key==="projects") return {title:L("Projekte","Projects"),groups:[["",D.projects.map(p=>bt((p.id===D.pid?"● ":"")+p.name+(p.place?" · "+p.place:""),"pick-project",p.id))],["",[bt(L("+ Neues Projekt","+ New project"),"form-project"),...(P()?[bt(L("Aktuelles Projekt bearbeiten","Edit current project"),"form-project-edit",D.pid)]:[])]]]};
+  if(key==="projects") return {title:L("Projekte","Projects"),groups:[["",D.projects.map(p=>bt((p.id===D.pid?"● ":"")+p.name+(p.place?" · "+p.place:""),"pick-project",p.id))],["",[bt(L("Projekt erfassen","Add project"),"form-project"),...(P()?[bt(L("Aktuelles Projekt bearbeiten","Edit current project"),"form-project-edit",D.pid)]:[])]]]};
   if(key==="daten"){
     const c=S.confirm;
     return {title:L("Daten und Sicherung","Data and backup"),groups:[
@@ -1710,7 +1710,6 @@ function projectsHTML(){
       <div class="plist">${act.map(item).join("")||`<div class="empty">${L("Keine aktiven Projekte.","No active projects.")}</div>`}</div>
       ${done.length?`<details class="pdone"><summary>${L("Abgeschlossen","Completed")} <span class="cnt">${done.length}</span></summary><div class="plist">${done.map(item).join("")}</div></details>`:""}
       <p class="pnone" hidden>${L("Kein Projekt gefunden.","No project found.")}</p>
-      <button type="button" class="padd" data-act="form-project">${L("+ Neues Projekt","+ New project")}</button>
     </div></div>`;
 }
 function sheetHTML(){

@@ -230,7 +230,7 @@ textarea{width:100%;min-height:170px;border:1px solid var(--line);background:tra
   .tabbar .fab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8}
   .drawer,.sheet{top:auto;bottom:0;left:0;right:0;transform:none;width:100%;max-height:92%;border-radius:16px 16px 0 0}
   .ohead{padding:22px 20px 0} .obody{padding:20px} .ofoot{padding:12px 20px calc(16px + env(safe-area-inset-bottom))}
-  .ofoot .btn{flex:1}
+  .ofoot .btn{flex:1 1 auto;white-space:normal;height:auto;min-height:48px;text-align:center}
   .fields{grid-template-columns:1fr}
   #toast{bottom:96px}
 }

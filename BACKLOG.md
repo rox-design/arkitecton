@@ -17,5 +17,5 @@ Ideas decided for later. Each entry says why it waits.
 
 ## BKP catalogue licence
 
-- The app now ships the classic BKP (main groups 0 to 9, groups and items) in `bkp.js`, from a list Rox provided (tender-service.ch).
+- The app ships the classic BKP up to 3 digits in `bkp.js` (list from tender-service.ch). Sub-items like 211.5 come from the office's own list (Settings › BKP list, Excel import), so the office holds the rights to it.
 - The BKP belongs to CRB. Before selling arkitecton, clarify with CRB whether the full catalogue may be shipped, or license it.

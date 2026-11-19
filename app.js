@@ -435,6 +435,38 @@ function seedProjectDemo(p){
   mk(nx(),-48,L("Honorar Akonto 2, Bauprojekt","Fee progress payment 2"),[{t:L("Akonto 2, Phase Bauprojekt","Progress payment 2, design"),q:1,u:L("pauschal","lump sum"),p:22000}],0);
   mk(nx(),-9,L("Honorar Bauleitung Oktober","Site supervision October"),[{t:L("Bauleitung","Site supervision"),q:26,u:"h",p:145}],0);
 }
+/* example: a finished public project (municipality), everything billed and paid; the municipality holds 10 % retention, released with each final invoice */
+function seedClosedDemo(p){
+  const ad=n=>iso(new Date(TODAY.getTime()+n*864e5));
+  const kid=(n,st,z,c,iban,em,ph)=>{let k=D.contractors.find(x=>x.name===n);if(!k){k={id:newId("k"),name:n,street:st||"",zip:z||"",city:c||"",iban:iban||"",email:em||"",phone:ph||""};D.contractors.push(k);}return k.id;};
+  const cat=c=>{const s=STD_BKP.find(x=>x[0]===c);return s?[s[1],s[2]]:[bkpCat(c)||"BKP "+c,bkpCat(c)||"BKP "+c];};
+  Object.assign(p,{client:p.client||"Gemeinde Wädenswil",cstreet:p.cstreet||"Florhofstrasse 3",czip:p.czip||"8820",ccity:p.ccity||"Wädenswil"});
+  /* [bkp, cost estimate, contractor, contract sum, akonto amounts, final invoice] */
+  const plan=[
+    ["112",28000,["Abbruch Huber AG","Industriestrasse 4","8820","Wädenswil","CH44 0070 0110 0032 1144 2","info@abbruch-huber.example","044 780 22 10"],26500,[],26500],
+    ["211",640000,["Keller Bau AG"],618000,[180000,200000,160000],86400],
+    ["221",118000,["Fenster Frei AG"],121400,[60000],63900],
+    ["230",96000,["Elektro Brunner AG"],92300,[40000,35000],18100],
+    ["250",104000,["Sanitär Huber & Co."],99800,[45000,40000],15600],
+    ["271",52000,["Gipserei Rossi GmbH"],50600,[30000],21300],
+    ["285",41000,["Meier Malerei GmbH"],39200,[20000],19900],
+    ["421",36000,["Gartenbau Zollinger AG","Rietstrasse 21","8804","Au ZH","CH61 0900 0000 8711 2233 9","office@zollinger-garten.example","044 781 45 60"],34800,[],35400]];
+  p.budget=plan.map(([b,kv])=>{const [de,en]=cat(b);return {bkp:b,de,en,kv};}).concat([["511","Bewilligungen, Baugespann, Gebühren","Permits, fees",14500],["531","Bauzeitversicherungen","Construction insurance",7200]].map(([bkp,de,en,kv])=>({bkp,de,en,kv})));
+  let day=-560,n=0;const ref=()=>"21 00000 00031 "+String(52000+(++n)*37).padStart(5,"0")+" 20250 "+String(30000+n*11).slice(-5);
+  plan.forEach(([b,,k,sum,ak,fin],j)=>{const w={id:newId("w"),pid:p.id,k:kid(...k),bkp:b,sum,ret:10};D.contracts.push(w);
+    const pre=["AB","KB","FF","EB","SH","GR","MM","GZ"][j];let d=day+j*12;
+    ak.forEach((g,x)=>{D.invoices.push({id:newId("i"),no:pre+"-"+(2025)+"-"+String(100+j*10+x),w:w.id,type:"akonto",n:x+1,date:ad(d),due:ad(d+30),gross:g,status:"bezahlt",ref:ref()});d+=55;});
+    D.invoices.push({id:newId("i"),no:pre+"-"+(2025)+"-"+String(190+j),w:w.id,type:"schluss",n:0,date:ad(d+20),due:ad(d+50),gross:fin,status:"bezahlt",ref:ref()});});
+  /* fees: SIA phases billed and paid, final fee invoice included */
+  const byY={};FEES().forEach(f=>{const y=String(f.no).slice(0,4);byY[y]=Math.max(byY[y]||0,parseInt(String(f.no).slice(5),10)||0);});
+  const fee=(day,title,lines,paidAfter)=>{const y=String(ad(day)).slice(0,4);byY[y]=(byY[y]||0)+1;const no=y+"-"+String(byY[y]).padStart(3,"0"),r=makeRef(no);
+    FEES().push({id:newId("h"),pid:p.id,no,date:ad(day),title,lines,vat:!!D.firm.vat,vatRate:8.1,refType:r.type,ref:r.ref,rem:[],paid:ad(day+paidAfter),log:[{d:ad(day),t:L("Erstellt","Created")},{d:ad(day+paidAfter),t:L("Zahlung eingegangen","Payment received")}]});};
+  fee(-640,L("Honorar Vorprojekt","Fee preliminary design"),[{t:L("Phase Vorprojekt","Preliminary design"),q:1,u:L("pauschal","lump sum"),p:24000}],28);
+  fee(-560,L("Honorar Bauprojekt und Bewilligung","Fee design and permit"),[{t:L("Phase Bauprojekt und Bewilligungsverfahren","Design and permit"),q:1,u:L("pauschal","lump sum"),p:31000}],30);
+  fee(-470,L("Honorar Ausschreibung","Fee tendering"),[{t:L("Phase Ausschreibung","Tendering"),q:1,u:L("pauschal","lump sum"),p:19500}],25);
+  fee(-330,L("Honorar Ausführung, Akonto","Fee execution, progress payment"),[{t:L("Bauleitung","Site supervision"),q:180,u:"h",p:145}],31);
+  fee(-210,L("Honorar Schlussrechnung","Final fee invoice"),[{t:L("Bauleitung und Abschluss","Site supervision and completion"),q:120,u:"h",p:145},{t:L("Schlussabrechnung und Dokumentation","Final account and documentation"),q:1,u:L("pauschal","lump sum"),p:6500}],29);
+}
 /* ---------- income picture ---------- */
 function addIncomeHistory(){
   const ps=D.projects.slice(0,2);if(!ps.length)return;
@@ -512,6 +544,7 @@ function runMigrations(){
   if(!D.mig.income){addIncomeHistory();D.mig.income=1;}
   if(!D.mig.fillEmpty){D.mig.fillEmpty=1;D.projects.filter(p=>!p.closed&&!D.contracts.some(w=>w.pid===p.id)&&!FEES().some(f=>f.pid===p.id)).forEach(seedProjectDemo);}
   if(!D.mig.projs){D.mig.projs=1;[["Umbau Villa Seeblick","Küsnacht","Bauherrschaft Keller","Sanierung Gebäudehülle"],["Anbau Schulhaus Au","Wädenswil","Gemeinde Wädenswil","Erweiterung um 2 Klassenzimmer"]].forEach(([n,pl,cl,de])=>{if(!D.projects.some(p=>p.name===n))D.projects.push({id:newId("p"),name:n,place:pl,client:cl,desc:de,closed:true,budget:[]});});}
+  if(!D.mig.closedDemo){D.mig.closedDemo=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&!D.contracts.some(w=>w.pid===pa.id))seedClosedDemo(pa);}
   if(!D.mig.feeno){D.mig.feeno=1;const by={};FEES().slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).forEach(f=>{const y=String(f.date).slice(0,4);by[y]=(by[y]||0)+1;f.no=y+"-"+String(by[y]).padStart(3,"0");const r=makeRef(f.no);if(f.refType===r.type)f.ref=r.ref;});}
 }
 function incomeData(){

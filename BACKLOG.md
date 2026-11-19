@@ -14,3 +14,8 @@ Ideas decided for later. Each entry says why it waits.
 
 - The architect checks and releases contractor invoices; the release goes to the client (Bauherrschaft), who pays the contractors and the architect's fees.
 - Consequence to review: wording such as «Zu zahlen» and «Bezahlt» describes what the client pays, not the architect; the payment recommendation PDF to the client is the central output.
+
+## BKP catalogue licence
+
+- The app now ships the classic BKP (main groups 0 to 9, groups and items) in `bkp.js`, from a list Rox provided (tender-service.ch).
+- The BKP belongs to CRB. Before selling arkitecton, clarify with CRB whether the full catalogue may be shipped, or license it.

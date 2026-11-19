@@ -31,6 +31,8 @@ const tx=o=>o?(S.lang==="de"?o.de:(o.en||o.de)):"";
 
 /* ---------- reference lists ---------- */
 const STD_BKP=[["211","Baumeisterarbeiten","Building shell works"],["214","Montagebau in Holz","Timber construction"],["221","Fenster, Aussentüren","Windows, exterior doors"],["222","Spenglerarbeiten","Sheet metal works"],["224","Bedachungsarbeiten","Roofing"],["226","Fassadenputze","Facade plaster"],["230","Elektroanlagen","Electrical installations"],["240","Heizung, Lüftung, Klima","Heating, ventilation, air conditioning"],["250","Sanitäranlagen","Plumbing"],["258","Kücheneinrichtungen","Kitchens"],["271","Gipserarbeiten","Plastering"],["272","Metallbauarbeiten","Metalwork"],["273","Schreinerarbeiten","Joinery"],["281","Bodenbeläge","Floor coverings"],["285","Malerarbeiten","Painting"],["287","Baureinigung","Construction cleaning"]];
+/* example cost estimate also outside BKP 2: preparation, surroundings, ancillary costs */
+const EX_BKP_EXTRA=[["112","Abbrüche","Demolition",18000],["421","Gärtnerarbeiten","Garden works",38000],["511","Bewilligungen, Baugespann, Gebühren","Permits, fees",12500],["531","Bauzeitversicherungen","Construction insurance",6500]];
 const DISC={"291":{de:"Architektur/Baumanagement",en:"Architecture/construction management"},"292":{de:"Bauingenieurwesen",en:"Structural engineering"}};
 const ROLES={inhaber:{de:"Inhaber",en:"Owner"},pl:{de:"Projektleiter",en:"Project lead"},bl:{de:"Bauleiter",en:"Site manager"},arch:{de:"Architekt",en:"Architect"},zeich:{de:"Zeichner",en:"Draughtsman"}};
 const XQ={blfa:{de:"Bauleiter mit eidg. Fachausweis",en:"Site manager, federal certificate"},pub:{de:"Erfahrung öffentliche Bauten",en:"Public buildings experience"},sia:{de:"SIA-Mitglied",en:"SIA member"},rega:{de:"REG A",en:"REG A"}};
@@ -75,7 +77,7 @@ function seedExample(){
   const tt=seedTenders();
   return {v:1,seq:100,events:[],pid:"p1",firm:{name:L("Beispiel Architekten GmbH","Example Architects Ltd"),street:"Zugerstrasse 18",zip:"8820",city:"Wädenswil",iban:"CH6700700110004357712",email:"info@beispiel-architekten.example",phone:"044 780 12 34",vat:true,vatNo:"CHE-123.456.788 MWST"},
     projects:[{id:"p1",name:"MFH Seestrasse 12",place:"Wädenswil",client:"Familie Graf",cstreet:"Rebhalde 5",czip:"8820",ccity:"Wädenswil",desc:L("Neubau, 8 Wohnungen","New build, 8 flats"),
-      budget:[["211",420000],["221",96000],["224",58000],["230",74000],["250",88000],["271",41000],["281",52000],["285",36000]].map(([b,kv])=>{const s=STD_BKP.find(x=>x[0]===b);return {bkp:b,de:s[1],en:s[2],kv};})},
+      budget:[["211",420000],["221",96000],["224",58000],["230",74000],["250",88000],["271",41000],["281",52000],["285",36000]].map(([b,kv])=>{const s=STD_BKP.find(x=>x[0]===b);return {bkp:b,de:s[1],en:s[2],kv};}).concat(EX_BKP_EXTRA.map(([bkp,de,en,kv])=>({bkp,de,en,kv}))).sort((a,b)=>a.bkp.localeCompare(b.bkp))},
       {id:"p2",name:"EFH Bergstrasse 4",place:"Horgen",client:"Herr und Frau Keller",cstreet:"Bergstrasse 4",czip:"8810",ccity:"Horgen",desc:L("Umbau Einfamilienhaus","Single-family house conversion"),
       budget:[["221",28000],["285",14000]].map(([b,kv])=>{const s=STD_BKP.find(x=>x[0]===b);return {bkp:b,de:s[1],en:s[2],kv};})}],
     contractors:[
@@ -86,16 +88,16 @@ function seedExample(){
       {id:"k5",name:"Gipserei Rossi GmbH",street:"Hohlstrasse 120",zip:"8004",city:"Zürich",iban:"",email:"office@gipserei-rossi.example",phone:"044 241 18 77"},
       {id:"k6",name:"Meier Malerei GmbH",street:"",zip:"",city:"",iban:"",email:"",phone:"079 412 66 30"}],
     contracts:[
-      {id:"w1",pid:"p1",k:"k1",bkp:"211",sum:412500,ret:10},
-      {id:"w2",pid:"p1",k:"k2",bkp:"221",sum:98700,ret:10,
+      {id:"w1",pid:"p1",k:"k1",bkp:"211",sum:412500,ret:0},
+      {id:"w2",pid:"p1",k:"k2",bkp:"221",sum:98700,ret:0,
         offer:[{pos:"1",text:"Holz-Metall-Fenster, 2-flüglig",unit:"Stk",qty:24,price:2150},{pos:"2",text:"Hebeschiebetüren Balkon",unit:"Stk",qty:8,price:3900},{pos:"3",text:"Hauseingangstür",unit:"Stk",qty:1,price:6400},{pos:"4",text:"Fensterbänke aussen, Aluminium",unit:"m",qty:62,price:85},{pos:"5",text:"Montage und Abdichtung",unit:"pauschal",qty:1,price:4230}],
         final:[{pos:"1",text:"Holz-Metall-Fenster, 2-flüglig",unit:"Stk",qty:24,price:2150},{pos:"2",text:"Hebeschiebetüren Balkon",unit:"Stk",qty:8,price:3900},{pos:"3",text:"Hauseingangstür",unit:"Stk",qty:1,price:6400},{pos:"4",text:"Fensterbänke aussen, Aluminium",unit:"m",qty:68,price:85},{pos:"5",text:"Montage und Abdichtung",unit:"pauschal",qty:1,price:4230},{pos:"6",text:"Insektenschutzrollos",unit:"Stk",qty:8,price:290}]},
-      {id:"w3",pid:"p1",k:"k3",bkp:"230",sum:71200,ret:10},
-      {id:"w4",pid:"p1",k:"k4",bkp:"250",sum:86400,ret:10},
-      {id:"w5",pid:"p1",k:"k5",bkp:"271",sum:39800,ret:10},
-      {id:"w6",pid:"p1",k:"k6",bkp:"285",sum:34600,ret:10},
-      {id:"w7",pid:"p2",k:"k6",bkp:"285",sum:12300,ret:10},
-      {id:"w8",pid:"p2",k:"k2",bkp:"221",sum:26400,ret:10}],
+      {id:"w3",pid:"p1",k:"k3",bkp:"230",sum:71200,ret:0},
+      {id:"w4",pid:"p1",k:"k4",bkp:"250",sum:86400,ret:0},
+      {id:"w5",pid:"p1",k:"k5",bkp:"271",sum:39800,ret:0},
+      {id:"w6",pid:"p1",k:"k6",bkp:"285",sum:34600,ret:0},
+      {id:"w7",pid:"p2",k:"k6",bkp:"285",sum:12300,ret:0},
+      {id:"w8",pid:"p2",k:"k2",bkp:"221",sum:26400,ret:0}],
     invoices:[
       {id:"i1",no:"AK-031",w:"w1",type:"akonto",n:1,date:d(-134),due:d(-104),gross:120000,status:"bezahlt",ref:"21 00000 00001 10233 41100 00012"},
       {id:"i2",no:"AK-058",w:"w1",type:"akonto",n:2,date:d(-72),due:d(-42),gross:135000,status:"bezahlt",ref:"21 00000 00001 10233 41100 00027"},
@@ -152,18 +154,22 @@ const PIx=()=>{const ids=PC().map(w=>w.id);return D.invoices.filter(i=>ids.inclu
 const PI=()=>PIx().filter(live);
 const CW=kid=>PC().find(w=>w.k===kid)||null;
 const B=bkp=>{const p=P();return p?p.budget.find(b=>b.bkp===bkp):null;};
-const bName=bkp=>{const b=B(bkp);if(b)return tx(b);const s=STD_BKP.find(x=>x[0]===bkp);return s?(S.lang==="de"?s[1]:s[2]):"";};
+const BKPCAT=()=>(typeof BKP_ALL!=="undefined"?BKP_ALL:[]);
+const bkpCat=c=>{const x=BKPCAT().find(e=>e[0]===String(c));return x?x[1]:"";};
+const bkpMain=c=>String(c||"").charAt(0);
+const bkpMainName=d=>bkpCat(d)||({0:"Grundstück",1:"Vorbereitung",2:"Gebäude",3:"Betriebseinrichtungen",4:"Umgebung",5:"Baunebenkosten",9:"Ausstattung"})[d]||"";
+const bName=bkp=>{const b=B(bkp);if(b)return tx(b);const s=STD_BKP.find(x=>x[0]===bkp);if(s)return S.lang==="de"?s[1]:s[2];return bkpCat(bkp);};
 const projTitle=pp=>{const p=pp||P();return p?p.name+(p.place?", "+p.place:""):"";};
 const PJ=id=>D.projects.find(p=>p.id===id)||null;
 const KC=kid=>D.contracts.filter(w=>w.k===kid);
 const counted=i=>i.status==="frei"||i.status==="bezahlt";
 const openSub=list=>{const n=st=>list.filter(i=>i.status===st).length,c=n("pruefen"),q=n("rueckfrage"),f=n("frei");return [c?c+" "+L("zu prüfen","to check"):"",q?q+" "+L("Rückfrage","queried"):"",f?f+" "+L("freigegeben","approved"):""].filter(Boolean).join(" · ")||L("nichts offen","nothing open");};
-/* "Zu zahlen" means the same everywhere: every unpaid invoice, as the amount actually paid out */
+/* "Offene Rechnungen" (open invoices) means the same everywhere; the client pays them after the architect releases them: every unpaid invoice, as the amount actually paid out */
 const unpaid=list=>list.filter(i=>live(i)&&i.status!=="bezahlt");
 const toPay=list=>r2(unpaid(list).reduce((a,i)=>a+payout(i),0));
 const sumLines=ls=>r2((ls||[]).reduce((a,l)=>a+l.qty*l.price,0));
 /* office-wide defaults, editable under Einstellungen */
-const SET=()=>{const s=(D&&D.settings)||{};return {ret:typeof s.ret==="number"?s.ret:10,term:s.term||30,feeTerm:s.feeTerm||30,rem:Array.isArray(s.rem)&&s.rem.length===3?s.rem:[60,90,120]};};
+const SET=()=>{const s=(D&&D.settings)||{};return {ret:typeof s.ret==="number"?s.ret:0,term:s.term||30,feeTerm:s.feeTerm||30,rem:Array.isArray(s.rem)&&s.rem.length===3?s.rem:[60,90,120]};};
 const retPct=w=>w&&typeof w.ret==="number"?w.ret:SET().ret;
 const net=i=>r2(i.gross-(i.ded&&i.ded.amt?i.ded.amt:0));
 const live=i=>i.status!=="ersetzt";
@@ -409,7 +415,7 @@ function seedProjectDemo(p){
   const plan=[["214",kid(KS[0]),186000],["224",kid(KS[1]),64500],["230",kid(KS[2]),52800],["250",kid(KS[3]),71400],["285",kid(KS[4]),23900]];
   if(!(p.budget||[]).length)p.budget=plan.map(([b,,sum])=>{const s=STD_BKP.find(x=>x[0]===b)||[b,"BKP "+b,"BKP "+b];return {bkp:b,de:s[1],en:s[2],kv:Math.round(sum*1.06/1000)*1000};});
   const o=D.contracts.length*3;
-  const W_=plan.map(([b,k,sum])=>{const w={id:newId("w"),pid:p.id,k,bkp:b,sum,ret:10};D.contracts.push(w);return w;});
+  const W_=plan.map(([b,k,sum])=>{const w={id:newId("w"),pid:p.id,k,bkp:b,sum,ret:SET().ret};D.contracts.push(w);return w;});
   const ref=n=>"21 00000 00012 "+String(40000+n).padStart(5,"0")+" 20260 "+String(10000+n*7).slice(-5);
   const inv=(w,no,type,n,day,gross,status)=>D.invoices.push({id:newId("i"),no,w:w.id,type,n,date:ad(day),due:ad(day+30),gross,status,ref:ref(D.invoices.length)});
   inv(W_[0],"HA-2026-"+(311+o),"akonto",1,-96,60000,"bezahlt");
@@ -489,6 +495,8 @@ async function addDemoDocs(){
 }
 function runMigrations(){
   if(!D)return;D.mig=D.mig||{};
+  if(!D.mig.ret0){D.mig.ret0=1;if(D.example){D.contracts.forEach(w=>{if(/^w\d$/.test(w.id)&&w.ret===10)w.ret=0;});if(D.settings&&D.settings.ret===10)delete D.settings.ret;}}
+  if(!D.mig.bkpgrp){D.mig.bkpgrp=1;const p1=D.example&&D.projects.find(p=>p.id==="p1");if(p1&&p1.budget){EX_BKP_EXTRA.forEach(([bkp,de,en,kv])=>{if(!p1.budget.some(b=>b.bkp===bkp))p1.budget.push({bkp,de,en,kv});});p1.budget.sort((a,b)=>a.bkp.localeCompare(b.bkp));}}
   if(!D.mig.team2&&D.office){D.mig.team2=1;const Y=YNOW(),names=["Andrea Keller","Marco Brunner","Lea Hofmann","Simon Frei","Nina Graf"];
     D.office.team=D.office.team.map((m,i)=>{if(m.career)return m;const r=/Bauleiter/.test(m.role&&m.role.de)?"bl":/Projektleiter/.test(m.role&&m.role.de)?"pl":"arch",here=Math.min(m.years||1,r==="arch"?m.years:8);
       const career=[{role:r,firm:D.firm.name||L("Eigenes Büro","Own office"),from:Y-here+1,to:null}];
@@ -667,6 +675,25 @@ async function payPDF(i){
   y=Math.max(y+18,235);font(9);T(L("Geprüft und empfohlen","Checked and recommended"),20,y);T(L("Freigabe Bauherrschaft","Client approval"),118,y);doc.line(20,y+16,90,y+16);doc.line(118,y+16,190,y+16);font(8);T(F.name||"",20,y+20);T(L("Datum, Unterschrift","Date, signature"),118,y+20);
   doc.save(L("Zahlungsempfehlung","Payment-recommendation")+"_"+String(k.name).replace(/[^\w]+/g,"-")+"_"+String(i.no).replace(/[^\w]+/g,"-")+".pdf");
 }
+/* one release letter to the client for all released invoices of the project: the client pays the contractors */
+async function payPDFAll(list){
+  if(!list.length)return;await libsPDF();
+  const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"mm",format:"a4"}),F=D.firm,p=P()||{};
+  const T=(t,x,y,o)=>doc.text(String(t),x,y,o||{}),font=(sz,b)=>{doc.setFont("helvetica",b?"bold":"normal");doc.setFontSize(sz);};
+  let y=20;font(10,true);T(F.name||"",20,y);font(9);[F.street,[F.zip,F.city].filter(Boolean).join(" "),F.phone,F.email].filter(Boolean).forEach((l,n)=>T(l,20,y+5+n*4.5));
+  font(10);[p.client,p.cstreet,[p.czip,p.ccity].filter(Boolean).join(" ")].filter(Boolean).forEach((l,n)=>T(l,118,52+n*5));
+  font(9);T((F.city?F.city+", ":"")+fdate(iso(TODAY)),118,80);
+  font(14,true);T(L("Zahlungsfreigabe","Payment release"),20,95);font(9);T(L("Projekt: ","Project: ")+[p.name,p.place].filter(Boolean).join(", "),20,102);
+  y=114;font(10);doc.splitTextToSize(L("Wir haben die folgenden Rechnungen geprüft und geben sie zur Zahlung frei. Bitte überweisen Sie die Beträge bis zum jeweiligen Datum.","We have checked the following invoices and release them for payment. Please pay each amount by its date."),170).forEach((l,n)=>T(l,20,y+n*5));y+=16;
+  font(8,true);T(L("Unternehmer","Contractor"),20,y);T(L("Rechnung","Invoice"),82,y);T(L("Zahlbar bis","Payable by"),128,y);T("CHF",190,y,{align:"right"});y+=2;doc.setLineWidth(.2);doc.line(20,y,190,y);y+=5;
+  let sum=0;list.slice().sort((a,b)=>toDate(a.due)-toDate(b.due)).forEach(i=>{const w=W(i.w),k=K(w.k),amt=payout(i);sum+=amt;
+    if(y>250){doc.addPage();y=20;}
+    font(9);T(String(k.name).slice(0,34),20,y);T(String(typeLabel(i)+" · "+i.no).slice(0,28),82,y);T(fdate(i.due),128,y);T(nf2.format(amt),190,y,{align:"right"});y+=4.2;
+    font(7.5);T("BKP "+w.bkp+" "+String(bName(w.bkp)).slice(0,28),20,y);T("IBAN "+(k.iban||L("fehlt","missing"))+(i.ref?"  ·  Ref. "+i.ref:""),82,y);y+=6;});
+  doc.line(120,y-2,190,y-2);y+=3;font(10,true);T(L("Total zur Zahlung","Total for payment"),20,y);T(nf2.format(r2(sum)),190,y,{align:"right"});
+  y=Math.max(y+22,235);font(9);T(L("Geprüft und freigegeben","Checked and released"),20,y);T(L("Bauherrschaft","Client"),118,y);doc.line(20,y+16,90,y+16);doc.line(118,y+16,190,y+16);font(8);T(F.name||"",20,y+20);T(L("Datum, Unterschrift","Date, signature"),118,y+20);
+  doc.save(L("Zahlungsfreigabe","Payment-release")+"_"+String(p.name||"").replace(/[^\w]+/g,"-")+"_"+iso(TODAY)+".pdf");
+}
 async function feePDF(f,level){
   await libsPDF();
   const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), F=D.firm, p=PJ(f.pid)||{};
@@ -763,7 +790,7 @@ function viewFirm(){
     ${ph(esc(today),esc(name),"","")}
     ${dataNotice()}${startSteps()}
     <div class="stats">
-      <div class="stat"><span class="sl">${L("Zu zahlen","To pay")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(ps.flatMap(x=>x.chk))}</span></div>
+      <div class="stat"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(ps.flatMap(x=>x.chk))}</span></div>
       <div class="stat"><span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung fällig","no reminder due")}</span></div>
       <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${(()=>{const o=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0),y=o.filter(x=>fitOf(x).fit==="ok").length,pa=o.filter(x=>fitOf(x).fit==="partner").length;return [y?y+" "+L("Eignung erfüllt","eligible"):"",pa?pa+" "+L("nur mit Partner","only with partner"):""].filter(Boolean).join(" · ")||L("keine passend","none suitable");})()}</span></button>
     </div>
@@ -797,7 +824,7 @@ function viewOverview(){
     <header class="ph"><span class="eyebrow">${esc(today)}</span><h1><button type="button" class="pswitch" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button></h1><div class="tools">${ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"')}</div>${[p.place,p.desc].filter(Boolean).length?`<p class="lead">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</p>`:""}</header>
     ${startSteps()}
     <div class="stats">
-      <button type="button" class="stat" data-act="to-pay"><span class="sl">${L("Zu zahlen","To pay")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(upl)}</span></button>
+      <button type="button" class="stat" data-act="to-pay"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(upl)}</span></button>
       <button type="button" class="stat" data-act="jump-flags"><span class="sl">${L("Mehrkosten","Extra costs")}</span><span class="sv${fl.length?" warn":""}">${chf(flSum,false)}</span><span class="ss">${fl.length?fl.length+" "+(fl.length===1?L("Hinweis","finding"):L("Hinweise","findings"))+L(" · über Vertrag, Offerte oder Budget"," · above contract, offer or budget"):L("keine","none")}</span></button>
       <button type="button" class="stat" data-act="nav" data-v="budget"><span class="sl">${L("Kostenstand","Cost status")}</span><span class="sv">${t.kv?pct+"%":"–"}</span><span class="ss kst"><span class="mini"><i style="width:${Math.min(100,pct)}%"></i></span>${t.kv?`<span>${chf(used,false)+L(" von "," of ")+nfq.format(t.kv)+L(" freigegeben"," approved")}</span>${held>0?`<span title="${L("Zurückbehalten, wird später ausbezahlt","Withheld, paid out later")}">${L("davon ","incl. ")+chf(held,false)+L(" Rückbehalt"," retention")}</span>`:""}`:L("kein Budget","no budget")}</span></button>
       ${PF().length?(()=>{const fo=PF().filter(f=>!f.paid),b=fo.reduce((a,f)=>a+feeTotal(f),0),rm=fo.filter(f=>remDue(f)).length;return `<button type="button" class="stat" data-act="to-fees"><span class="sl">${L("Honorar zu erhalten","Fees to receive")}</span><span class="sv">${chf(b,false)}</span><span class="ss${rm?" l-crit":""}">${rm?rm+" "+(rm===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):fo.length+" "+(fo.length===1?L("Rechnung offen","invoice open"):L("Rechnungen offen","invoices open"))}</span></button>`;})():""}
@@ -815,7 +842,7 @@ function viewInvoices(){
   if(S.rtab==="deb") return `<div class="page invp">${ph(esc(p.name),L("Rechnungen","Invoices"),"",sw+ib("plus",L("Honorarrechnung erstellen","New fee invoice"),'data-act="form" data-f="fee"'))}${viewFees()}</div>`;
   const F=["zahlen","pruefen","rueckfrage","frei","bezahlt","all"], all=PIx();
   const of=f=>f==="all"?all:f==="zahlen"?unpaid(all):all.filter(i=>i.status===f);
-  const fLabel=f=>f==="zahlen"?L("Zu zahlen","To pay"):stLabel(f);
+  const fLabel=f=>f==="zahlen"?L("Offene Rechnungen","Open invoices"):stLabel(f);
   const cnt=f=>of(f).length;
   if(S.filter!=="all"&&!cnt(S.filter)&&all.length)S.filter=F.find(f=>f!=="all"&&cnt(f))||"all";
   const list=of(S.filter).slice().sort((a,b)=>toDate(b.date)-toDate(a.date));
@@ -828,8 +855,8 @@ function viewInvoices(){
   const total=pay?toPay(list):list.reduce((a,i)=>a+i.gross,0);
   return `<div class="page invp">
     ${ph(esc(p.name),L("Rechnungen","Invoices"),"",sw+`<span class="deskonly">${ib("plus",L("Rechnung erfassen: QR-Rechnung als PDF oder Foto","Add invoice: QR-bill as PDF or photo"),'data-act="capture"')}</span>`+more)}
-    <div class="stats s5">${["zahlen","pruefen","rueckfrage","frei","bezahlt"].map(f=>{const li=of(f),n=li.length,sum=f==="zahlen"?toPay(li):li.reduce((a,i)=>a+i.gross,0),sel=S.filter===f;const inner=`<span class="sl">${fLabel(f)}</span><span class="sv">${n?chf(sum,false):"–"}</span><span class="ss">${n===1?L("1 Rechnung","1 invoice"):n?n+" "+L("Rechnungen","invoices"):L("keine","none")}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="filter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;}).join("")}</div>
-    <section><div class="sh"><h2>${S.filter==="all"?L("Alle Rechnungen","All invoices"):fLabel(S.filter)}</h2><span class="cnt">${list.length}</span>${pay?`<span class="ss" style="margin-left:12px;color:var(--muted);font-size:.78rem">${L("Beträge nach Abzug des Rückbehalts","amounts after retention")}</span>`:""}<span class="right">${S.filter==="all"||!all.length?"":`<button type="button" class="ghost" data-act="filter" data-f="all">${L("Alle anzeigen","Show all")} (${all.length})</button>`}</span></div><div class="rows">${rows||(all.length?`<div class="empty">${L("Keine Rechnungen mit diesem Status.","No invoices with this status.")}</div>`:`<div class="empty"><span>${L("Noch keine Rechnungen in diesem Projekt. Scannen Sie den QR-Zahlteil einer Handwerker-Rechnung.","No invoices in this project yet. Scan the QR payment part of a contractor invoice.")}</span></div>`)}</div></section>
+    <div class="stats s4">${["pruefen","rueckfrage","frei","bezahlt"].map(f=>{const li=of(f),n=li.length,sum=f==="zahlen"?toPay(li):li.reduce((a,i)=>a+i.gross,0),sel=S.filter===f;const inner=`<span class="sl">${fLabel(f)}</span><span class="sv">${n?chf(sum,false):"–"}</span><span class="ss">${n===1?L("1 Rechnung","1 invoice"):n?n+" "+L("Rechnungen","invoices"):L("keine","none")}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="filter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;}).join("")}</div>
+    <section><div class="sh"><h2>${S.filter==="all"?L("Alle Rechnungen","All invoices"):fLabel(S.filter)}</h2><span class="cnt">${list.length}</span>${pay&&list.some(i=>retention(i)>0)?`<span class="ss" style="margin-left:12px;color:var(--muted);font-size:.78rem">${L("Beträge nach Abzug des Rückbehalts","amounts after retention")}</span>`:""}<span class="right">${S.filter==="frei"&&list.length?`<button type="button" class="ghost" data-act="pay-pdf-all">${L("Zahlungsfreigabe an Bauherrschaft (PDF)","Payment release to client (PDF)")}</button>`:""}${S.filter==="all"||!all.length?"":`<button type="button" class="ghost" data-act="filter" data-f="all">${L("Alle anzeigen","Show all")} (${all.length})</button>`}</span></div><div class="rows">${rows||(all.length?`<div class="empty">${L("Keine Rechnungen mit diesem Status.","No invoices with this status.")}</div>`:`<div class="empty"><span>${L("Noch keine Rechnungen in diesem Projekt. Scannen Sie den QR-Zahlteil einer Handwerker-Rechnung.","No invoices in this project yet. Scan the QR payment part of a contractor invoice.")}</span></div>`)}</div></section>
   </div>`;
 }
 
@@ -851,7 +878,7 @@ function viewContractors(){
       return row({act:"open-k",id:x.k.id,c:over?"crit":x.billed?"ok":"n",title:esc(x.k.name),meta:"BKP "+x.w.bkp+" "+esc(bName(x.w.bkp)),amt:kf==="billed"?chf(x.billed,false):kf==="ret"?chf(x.ret,false):chf(sum,false),
         label:`<span class="kprog${over?" over":""}"><span class="kbar"><i style="width:${Math.min(100,pc)}%"></i></span><span>${kf==="billed"?L("von","of")+" "+nf0.format(sum)+" · "+pc+" %":kf==="ret"?L("Rückbehalt","retention")+" "+retPct(x.w)+" %":pc+" % "+L("abgerechnet","billed")}</span>${missTxt(x.k)}</span>`,lc:over?"crit":"n"});}).join("")
     +shownLoose.map(k=>row({act:"open-k",id:k.id,c:"n",title:esc(k.name),meta:L("Noch kein Werkvertrag","No contract yet")+(missingOf(k).length?" · "+missTxt(k):""),amt:"",label:L("Werkvertrag erfassen","Add contract"),lc:"n"})).join("");
-  const tile=(f,l,v,ss,n)=>{const sel=kf===f,inner=`<span class="sl">${l}</span><span class="sv">${v}</span><span class="ss">${ss}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="kfilter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
+  const tile=(f,l,v,ss,n)=>{const sel=kf===f,inner=`<span class="sl">${l}</span><span class="sv">${n?v:"–"}</span><span class="ss">${n?ss:L("keine","none")}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="kfilter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   const nV=all.length;
   const missTile=kMiss.length?`<button type="button" class="stat ftile${onlyMiss?" sel":""}" data-act="kfilter" data-f="missing" aria-pressed="${onlyMiss}"><span class="sl">${L("Angaben fehlen","Details missing")}</span><span class="sv warn">${kMiss.length}</span><span class="ss">${kMiss.length===1?L("1 Handwerker","1 contractor"):kMiss.length+" "+L("Handwerker","contractors")}</span></button>`
     :`<div class="stat ftile off"><span class="sl">${L("Angaben fehlen","Details missing")}</span><span class="sv">–</span><span class="ss">${L("alles vollständig","all complete")}</span></div>`;
@@ -902,7 +929,7 @@ function viewContractor(k){
       <div class="ctx">${esc(PJ(w.pid).name)} · BKP ${w.bkp} ${esc(bName(w.bkp))}</div>${cmpBody(w)}`;
   } else if(S.ktab==="konto"){
     const oi=invOf(all).filter(i=>i.status!=="bezahlt"&&live(i)),open=oi.reduce((a,i)=>a+payout(i),0),gross=oi.reduce((a,i)=>a+net(i),0),oret=r2(gross-open);
-    const top=all.length?`<div class="total"><span>${L("Zu zahlen","To pay")}</span><span class="tv">${chf(open,false)}</span><span class="ts">${oi.length?L("Rechnungen ","Invoices ")+chf(gross,false)+(oret>0?L(" minus Rückbehalt "," minus retention ")+chf(oret,false):oret<0?L(" plus freigegebener Rückbehalt "," plus released retention ")+chf(-oret,false):""):L("nichts offen","nothing open")} · ${pids.length} ${pids.length===1?L("Projekt","project"):L("Projekte","projects")}</span></div>`:"";
+    const top=all.length?`<div class="total"><span>${L("Offen","Open")}</span><span class="tv">${chf(open,false)}</span><span class="ts">${oi.length?L("Rechnungen ","Invoices ")+chf(gross,false)+(oret>0?L(" minus Rückbehalt "," minus retention ")+chf(oret,false):oret<0?L(" plus freigegebener Rückbehalt "," plus released retention ")+chf(-oret,false):""):L("nichts offen","nothing open")} · ${pids.length} ${pids.length===1?L("Projekt","project"):L("Projekte","projects")}</span></div>`:"";
     body=top+addHere+pids.map(pid=>{
       const ws=all.filter(w=>w.pid===pid),inv=invOf(ws),multi=ws.length>1;
       const stats=ws.map(w=>{const iv=inv.filter(i=>i.w===w.id),billed=iv.filter(counted).reduce((a,i)=>a+net(i),0),paid=iv.filter(i=>i.status==="bezahlt").reduce((a,i)=>a+payout(i),0),ret=iv.filter(counted).reduce((a,i)=>a+retention(i),0);
@@ -938,9 +965,13 @@ function viewBudget(){
   const rows=S.bfilter?allRows.filter(BF[S.bfilter]):allRows,nP=n=>n===1?L("1 Position","1 item"):n+" "+L("Positionen","items");
   const bt=(f,l,v,ss,c)=>{const n=f?allRows.filter(BF[f]).length:allRows.length,sel=S.bfilter===f,inner=`<span class="sl">${l}</span><span class="sv${c||""}">${n?v:"–"}</span><span class="ss">${ss}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="bfilter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   const sumB=(f,g)=>allRows.filter(BF[f]).reduce((a,r)=>a+g(r),0);
-  const br=rows.map(r=>{const base=Math.max(r.b.kv,r.awarded,r.billed+r.open,1),pc=x=>Math.max(0,x)/base*100,aw=r.awarded?chf(r.awarded,false):L("nicht vergeben","not awarded");
+  const one=r=>{const base=Math.max(r.b.kv,r.awarded,r.billed+r.open,1),pc=x=>Math.max(0,x)/base*100,aw=r.awarded?chf(r.awarded,false):L("nicht vergeben","not awarded");
     const act=`data-act="kv-explain" data-id="${r.b.bkp}"`;
-    return `<button type="button" class="brow row${S.hl===r.b.bkp?" hl":""}" ${act}><span class="code">${r.b.bkp}</span><div><span>${esc(tx(r.b))}</span><div class="bar"><i class="c-paid" style="width:${pc(r.paid)}%"></i><i class="c-appr" style="width:${pc(r.approved)}%"></i><i class="c-open" style="width:${pc(r.open)}%"></i>${r.b.kv?`<span class="kv" style="left:${r.b.kv/base*100}%"></span>`:""}</div><span class="bsub">KV ${r.b.kv?nf0.format(r.b.kv):"–"} · ${r.awarded?L("vergeben ","awarded ")+nf0.format(r.awarded):L("nicht vergeben","not awarded")}</span></div><span class="kvc">${r.b.kv?chf(r.b.kv,false):"–"}</span><span class="nums">${aw}</span><span class="rest ${r.rest<0?"up":r.awarded?"":"mute"}">${r.b.kv?chf(r.rest,false):"–"}</span></button>`;}).join("");
+    return `<button type="button" class="brow row${S.hl===r.b.bkp?" hl":""}" ${act}><span class="code">${r.b.bkp}</span><div><span>${esc(tx(r.b))}</span><div class="bar"><i class="c-paid" style="width:${pc(r.paid)}%"></i><i class="c-appr" style="width:${pc(r.approved)}%"></i><i class="c-open" style="width:${pc(r.open)}%"></i>${r.b.kv?`<span class="kv" style="left:${r.b.kv/base*100}%"></span>`:""}</div><span class="bsub">KV ${r.b.kv?nf0.format(r.b.kv):"–"} · ${r.awarded?L("vergeben ","awarded ")+nf0.format(r.awarded):L("nicht vergeben","not awarded")}</span></div><span class="kvc">${r.b.kv?chf(r.b.kv,false):"–"}</span><span class="nums">${aw}</span><span class="rest ${r.rest<0?"up":r.awarded?"":"mute"}">${r.b.kv?chf(r.rest,false):"–"}</span></button>`;};
+  /* grouped by BKP main group (0 Grundstück … 9 Ausstattung) with a subtotal line, as in a cost estimate */
+  const grp=[...new Set(rows.map(r=>bkpMain(r.b.bkp)))].sort();
+  const br=grp.map(g=>{const rs=rows.filter(r=>bkpMain(r.b.bkp)===g),kv=rs.reduce((a,r)=>a+(r.b.kv||0),0),aw=rs.reduce((a,r)=>a+(r.awarded||0),0),rest=rs.reduce((a,r)=>a+(r.b.kv?r.rest:0),0);
+    return `<div class="bgroup"><span class="code">${g}</span><span class="gn">${esc(bkpMainName(g))}</span><span class="kvc">${kv?chf(kv,false):"–"}</span><span class="nums">${aw?chf(aw,false):"–"}</span><span class="rest${rest<0?" up":""}">${kv?chf(rest,false):"–"}</span></div>`+rs.map(one).join("");}).join("");
   return `<div class="page">
     ${ph(esc(p.name),"Budget","",ib("plus",L("BKP-Position erfassen","Add BKP item"),'data-act="form" data-f="bkp"')+excelBtn("budget"))}
     <div class="stats s4">${bt("",L("Kostenvoranschlag","Cost estimate"),chf(t.kv,false),nP(allRows.length))}${bt("aw",L("Vergeben","Awarded"),chf(t.awarded,false),(t.kv?Math.round(t.awarded/t.kv*100)+" % "+L("des Kostenvoranschlags","of the estimate"):""))}${bt("no",L("Nicht vergeben","Not awarded"),chf(sumB("no",r=>r.b.kv),false),nP(allRows.filter(BF.no).length))}${bt("over",L("Über Budget","Over budget"),chf(sumB("over",r=>-r.rest),false),nP(allRows.filter(BF.over).length)," warn")}</div>
@@ -981,7 +1012,7 @@ function viewSettings(){
       ${row(esc(f.name||L("Büroname fehlt","Firm name missing")),[adr,f.iban?"IBAN "+fmtIban(f.iban):L("IBAN fehlt","IBAN missing"),f.vatNo||""].filter(Boolean).map(esc).join(" · "),`<button type="button" class="btn" data-act="form" data-f="firm">${L("Bearbeiten","Edit")}</button>`)}
     </section>
     <section><div class="sh"><h2>${L("Standardwerte","Defaults")}</h2><span class="legend-s">${L("Gelten für neue Werkverträge und Rechnungen","Apply to new contracts and invoices")}</span></div>
-      ${row(L("Rückbehalt","Retention"),L("Für neue Werkverträge. Pro Werkvertrag änderbar.","For new contracts. Can be changed per contract."),num("ret",st.ret,"%",L("Rückbehalt","Retention")))}
+      ${row(L("Rückbehalt","Retention"),L("Standard für neue Werkverträge, meist 0 %. Öffentliche Bauherren wie die Stadt behalten oft einen Rückbehalt. Pro Werkvertrag änderbar.","Default for new contracts, usually 0 %. Public clients such as the city often hold back retention. Can be changed per contract."),num("ret",st.ret,"%",L("Rückbehalt","Retention")))}
       ${row(L("Zahlungsfrist Handwerker","Contractor payment term"),L("Wenn die Rechnung kein Fälligkeitsdatum enthält.","When the invoice has no due date."),num("term",st.term,L("Tage","days"),L("Zahlungsfrist Handwerker","Contractor payment term")))}
       ${row(L("Zahlungsfrist Honorar","Fee payment term"),L("Steht auf Ihren neuen Honorarrechnungen.","Printed on your new fee invoices."),num("feeTerm",st.feeTerm,L("Tage","days"),L("Zahlungsfrist Honorar","Fee payment term")))}
       ${row(L("Mahnungen","Reminders"),L("1., 2. und 3. Mahnung, Tage ab Rechnungsdatum.","1st, 2nd and 3rd reminder, days from the invoice date."),`<div class="setrem">${num("rem0",st.rem[0],"",L("1. Mahnung","1st reminder"))}${num("rem1",st.rem[1],"",L("2. Mahnung","2nd reminder"))}${num("rem2",st.rem[2],L("Tage","days"),L("3. Mahnung","3rd reminder"))}</div>`)}
@@ -1325,7 +1356,10 @@ function resolveCapture(d){
   const dup=D.invoices.find(x=>live(x)&&!(S.modal&&S.modal.rep===x.id)&&((d.ref&&x.ref&&norm(x.ref)===norm(d.ref))||(k&&d.no&&W(x.w).k===k.id&&x.no===d.no&&x.gross===d.amount)))||null;
   return {k,dup,w:k?CW(k.id):null};
 }
-const bkpOptions=sel=>{const p=P();const own=p?p.budget.map(b=>[b.bkp,tx(b)]):[];const rest=STD_BKP.filter(s=>!own.some(o=>o[0]===s[0])).map(s=>[s[0],S.lang==="de"?s[1]:s[2]]);return own.concat(rest).map(([c,n])=>`<option value="${c}"${c===sel?" selected":""}>${c} ${esc(n)}</option>`).join("");};
+const bkpOptions=sel=>{const p=P();const own=p?p.budget.map(b=>[b.bkp,tx(b)]):[];const rest=STD_BKP.filter(s=>!own.some(o=>o[0]===s[0])).map(s=>[s[0],S.lang==="de"?s[1]:s[2]]);
+  if(sel&&!own.concat(rest).some(o=>o[0]===sel))rest.push([sel,bName(sel)]);
+  const all=own.concat(rest).sort((a,b)=>a[0].localeCompare(b[0]));const groups=[...new Set(all.map(o=>bkpMain(o[0])))];
+  return groups.map(g=>`<optgroup label="${g} ${esc(bkpMainName(g))}">${all.filter(o=>bkpMain(o[0])===g).map(([c,n])=>`<option value="${c}"${c===sel?" selected":""}>${c} ${esc(n)}</option>`).join("")}</optgroup>`).join("");};
 function wrapCapture(title,body,foot){
   return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mT">
     <div class="ohead"><h2 id="mT" style="font-size:1.125rem;font-weight:500">${title}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
@@ -1478,13 +1512,13 @@ function formDef(){
   if(F.f==="docvalid"){const d=DOCS().find(x=>x.id===F.id)||{};return {title:esc(d.name||""),body:fld("fUntil",L("Gültig bis","Valid until"),d.until||"",{type:"date",wide:true,hint:L("Leer lassen, wenn das Dokument nicht abläuft. 30 Tage vor Ablauf erscheint eine Warnung.","Leave empty if it does not expire. A warning appears 30 days before.")})};}
   if(F.f==="project"){const x=F.id?D.projects.find(q=>q.id===F.id):{};return {title:F.id?L("Projekt bearbeiten","Edit project"):L("Projekt erfassen","Add project"),body:fld("fName",L("Projektname","Project name"),x.name,{wide:true,req:true,ph:L("z. B. EFH Bergstrasse 4","e.g. Bergstrasse 4 house")})+fld("fPlace",L("Ort","Place"),x.place,{ph:L("z. B. Horgen","e.g. Horgen")})+fld("fClient",L("Bauherrschaft","Client"),x.client)+fld("fCStreet",L("Adresse Bauherrschaft","Client address"),x.cstreet,{wide:true,ph:L("Strasse und Nr.","Street and no.")})+fld("fCZip",L("PLZ","Postcode"),x.czip,{mode:"numeric"})+fld("fCCity",L("Ort","Town"),x.ccity)+fld("fDesc",L("Beschreibung","Description"),x.desc,{wide:true,ph:L("z. B. Umbau Einfamilienhaus","e.g. house conversion")})+(F.id?`<div class="f wide"><label class="chk"><input type="checkbox" id="fClosed"${x.closed?" checked":""}> ${L("Projekt abgeschlossen","Project completed")}</label><span class="hint">${L("Abgeschlossene Projekte erscheinen in der Auswahl eingeklappt.","Completed projects are collapsed in the project switcher.")}</span></div>`:"")};}
   if(F.f==="contractor"){const x=F.id?K(F.id):{};return {title:F.id?L("Handwerker bearbeiten","Edit contractor"):L("Neuer Handwerker","New contractor"),body:fld("fName",L("Firma","Company"),x.name,{wide:true,req:true})+fld("fStreet",L("Strasse","Street"),x.street,{wide:true})+fld("fZip",L("PLZ","ZIP"),x.zip,{mode:"numeric"})+fld("fCity",L("Ort","City"),x.city)+fld("fIban","IBAN",x.iban,{wide:true})+fld("fEmail",L("E-Mail","Email"),x.email,{type:"email"})+fld("fPhone",L("Telefon","Phone"),x.phone,{type:"tel"}),del:F.id&&!D.contracts.some(w=>w.k===F.id)};}
-  if(F.f==="contract"){const k=K(F.id),w=(F.w&&W(F.w))||{};return {title:L("Werkvertrag · ","Contract · ")+k.name,body:`<div class="f wide"><label for="fBkp">BKP</label><select id="fBkp">${bkpOptions(w.bkp)}</select></div>`+fld("fSum",L("Werkvertragssumme CHF","Contract sum CHF"),w.sum||"",{mode:"decimal",req:true})+fld("fRet",L("Rückbehalt %","Retention %"),w.ret!=null?w.ret:SET().ret,{mode:"decimal"}),del:w.id&&!D.invoices.some(i=>i.w===w.id)};}
+  if(F.f==="contract"){const k=K(F.id),w=(F.w&&W(F.w))||{};return {title:L("Werkvertrag · ","Contract · ")+k.name,body:`<div class="f wide"><label for="fBkp">BKP</label><select id="fBkp">${bkpOptions(w.bkp)}</select></div>`+fld("fSum",L("Werkvertragssumme CHF","Contract sum CHF"),w.sum||"",{mode:"decimal",req:true})+fld("fRet",L("Rückbehalt % (optional)","Retention % (optional)"),w.ret!=null?w.ret:SET().ret,{mode:"decimal",hint:L("0 = kein Rückbehalt. Öffentliche Bauherren wie die Stadt verlangen oft einen, zum Beispiel 10 %.","0 = no retention. Public clients such as the city often require one, e.g. 10 %.")}),del:w.id&&!D.invoices.some(i=>i.w===w.id)};}
   if(F.f==="invoice"){
     const ks=PC().map(w=>K(w.k)).filter(Boolean);
     const sel=F.id||"";
     return {title:L("Rechnung erfassen","Add invoice"),body:(ks.length?`<div class="f wide"><label for="fK">${L("Handwerker","Contractor")}</label><select id="fK">${ks.map(k=>`<option value="${k.id}"${k.id===sel?" selected":""}>${esc(k.name)}</option>`).join("")}</select><span class="hint">${L("Nur Handwerker mit Werkvertrag in diesem Projekt.","Only contractors with a contract in this project.")}</span></div>`:"")+(ks.length?`<div class="f"><label for="fType">${L("Art","Type")}</label><select id="fType"><option value="akonto">Akonto</option><option value="schluss">${L("Schlussrechnung","Final invoice")}</option><option value="regie">${L("Regie","Time & materials")}</option></select></div>`
       +fld("fNo",L("Rechnungsnummer","Invoice number"),"")+fld("fAmt",L("Betrag CHF","Amount CHF"),"",{mode:"decimal",req:true})+fld("fDate",L("Datum","Date"),iso(TODAY),{type:"date"})+fld("fDue",L("Fällig am","Due"),addDays(iso(TODAY),SET().term),{type:"date"})+fld("fRef",L("Referenz (optional)","Reference (optional)"),"",{wide:true}):`<div class="f wide nok"><p>${L("In diesem Projekt gibt es noch keinen Handwerker mit Werkvertrag.","This project has no contractor with a contract yet.")}</p><p class="sp">${L("Am schnellsten: QR-Rechnung scannen. arkitecton legt Handwerker und Werkvertrag dabei selbst an.","Fastest: scan the QR-bill. arkitecton adds the contractor and contract for you.")}</p><div class="nokb"><button type="button" class="btn primary" data-act="capture">${L("QR scannen","Scan QR")}</button><button type="button" class="btn" data-act="form" data-f="contractor">${L("Handwerker erfassen","Add contractor")}</button></div></div>`),noSubmit:!ks.length};}
-  if(F.f==="bkp"){return {title:L("BKP-Position erfassen","Add BKP item"),body:`<div class="f wide"><label for="fStd">${L("Position","Item")}</label><select id="fStd">${STD_BKP.filter(s=>!p.budget.some(b=>b.bkp===s[0])).map(s=>`<option value="${s[0]}">${s[0]} ${esc(S.lang==="de"?s[1]:s[2])}</option>`).join("")}<option value="_">${L("Eigene Position …","Custom item …")}</option></select></div>`+fld("fCode",L("Eigene: BKP-Nummer","Custom: BKP number"),"",{mode:"numeric"})+fld("fLabel",L("Eigene: Bezeichnung","Custom: name"),"")+fld("fKv",L("Kostenvoranschlag CHF","Cost estimate CHF"),"",{mode:"decimal",wide:true})};}
+  if(F.f==="bkp"){const used=new Set(p.budget.map(b=>b.bkp));return {title:L("BKP-Position erfassen","Add BKP item"),body:`<div class="f wide"><label for="fBkpQ">${L("BKP-Position","BKP item")}</label><input id="fBkpQ" list="bkpList" autocomplete="off" placeholder="${L("Nummer oder Bezeichnung, z.B. 421 oder Gärtner","Number or name, e.g. 421 or garden")}"><datalist id="bkpList">${BKPCAT().filter(e=>e[0].length>=2&&!used.has(e[0])).map(e=>`<option value="${e[0]} ${esc(e[1])}"></option>`).join("")}</datalist><span class="hint">${L("Alle Hauptgruppen 0 bis 9. Eigene Positionen: Nummer und Bezeichnung frei eintippen.","All main groups 0 to 9. Own items: type number and name freely.")}</span></div>`+fld("fKv",L("Kostenvoranschlag CHF","Cost estimate CHF"),"",{mode:"decimal",wide:true})};}
   if(F.f==="kv"){const b=B(F.id);return {title:"BKP "+b.bkp+" "+tx(b),body:fld("fLabel",L("Bezeichnung","Name"),tx(b),{wide:true})+fld("fKv",L("Kostenvoranschlag CHF","Cost estimate CHF"),b.kv||"",{mode:"decimal",wide:true}),del:!PC().some(w=>w.bkp===b.bkp)};}
   if(F.f==="answer"){const i=INV(F.id);return {title:L("Antwort erhalten","Reply received"),body:`<div class="f wide"><label for="fNote">${L("Was war die Antwort?","What was the reply?")}</label><textarea id="fNote" rows="3" placeholder="${L("z. B. Rapporte erhalten, 6 h bestätigt","e.g. time sheets received, 6 h confirmed")}"></textarea><span class="hint">${L("Wird im Verlauf gespeichert. Die Rechnung ist danach wieder zu prüfen.","Saved in the history. The invoice goes back to review.")}</span></div>`};}
   if(F.f==="ded"){const i=INV(F.id),d=i.ded||{};return {title:L("Abzug · ","Deduction · ")+i.no,body:fld("fDedAmt",L("Abzug CHF","Deduction CHF"),d.amt||"",{mode:"decimal",req:true})+`<div class="f wide"><label for="fDedWhy">${L("Begründung","Reason")}</label><textarea id="fDedWhy" rows="2" placeholder="${L("z. B. 2 h Regie nicht belegt","e.g. 2 h not supported by time sheets")}">${esc(d.why||"")}</textarea><span class="hint">${L("Rechnung ","Invoice ")}${nf2.format(i.gross)} · ${L("0 eingeben, um den Abzug zu entfernen.","Enter 0 to remove the deduction.")}</span></div>`};}
@@ -1549,11 +1583,13 @@ function submitForm(){
     closeAll();S.drawer=ni.id;render();return toast(L("Rechnung erfasst","Invoice added"));
   }
   if(F.f==="bkp"){
-    let code=val("fStd"),label;
-    if(code==="_"){code=val("fCode");label=val("fLabel");if(!/^\d{2,4}(\.\d+)?$/.test(code)||!label) return fail(L("BKP-Nummer und Bezeichnung eingeben.","Enter BKP number and name."));}
+    const q=(val("fBkpQ")||"").trim(),m=q.match(/^(\d{2,3}(?:\.\d+)?)\s*(.*)$/);
+    if(!m) return fail(L("BKP-Nummer eingeben, z.B. 421 Gärtnerarbeiten.","Enter a BKP number, e.g. 421 garden works."));
+    let code=m[1],label=m[2].trim()||bkpCat(code);
+    if(!label) return fail(L("Bezeichnung zur BKP-Nummer eingeben.","Enter a name for the BKP number."));
     if(p.budget.some(b=>b.bkp===code)) return fail(L("Diese Position gibt es schon.","This item already exists."));
     const s=STD_BKP.find(x=>x[0]===code);
-    p.budget.push({bkp:code,de:label||(s?s[1]:code),en:label||(s?s[2]:code),kv:r2(num(val("fKv"))||0)});p.budget.sort((a,b)=>a.bkp.localeCompare(b.bkp));
+    p.budget.push({bkp:code,de:label||(s?s[1]:code),en:s?s[2]:label,kv:r2(num(val("fKv"))||0)});p.budget.sort((a,b)=>a.bkp.localeCompare(b.bkp));
     backTo();render();return toast("BKP "+code);
   }
   if(F.f==="kv"){
@@ -1869,6 +1905,7 @@ document.addEventListener("click",e=>{
     case "kfilter":S.kfilter=el.dataset.f;render();break;
     case "ffilter":S.ffilter=el.dataset.f;render();break;
     case "filter":S.filter=el.dataset.f;render();break;
+    case "pay-pdf-all":payPDFAll(PIx().filter(i=>i.status==="frei")).catch(()=>toast(L("PDF nicht möglich.","PDF failed.")));break;
     case "to-pay":startView("rechnungen");S.filter="zahlen";go("rechnungen");break;
     case "to-fees":S.rtab="deb";go("rechnungen");break;
     case "rtab":S.rtab=el.dataset.t;render();break;

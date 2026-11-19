@@ -218,8 +218,12 @@ function budgetRows(){
     /* forecast: the contract, or what is billed under it incl. invoices still to check, whichever is higher;
        time & materials (Regie) is outside the contract and always comes on top */
     const regie=inv.filter(i=>live(i)&&i.type==="regie").reduce((a,i)=>a+net(i),0);
-    const forecast=Math.max(awarded,billed+open-regie)+regie;
-    return {b,awarded,billed,paid,approved,open,ret,regie,forecast,rest:b.kv-forecast,over:b.kv>0&&forecast>b.kv};
+    /* per contract: once a final invoice is in, the billed total is the end cost; before, the contract or what is billed, whichever is higher.
+       A position without contract or invoice is expected to cost its estimate (no reserve yet). Regie always comes on top. */
+    let final=ws.length>0;const fc=ws.reduce((a,w)=>{const iw=inv.filter(i=>i.w===w.id&&live(i)&&i.type!=="regie"),bw=iw.reduce((x,i)=>x+net(i),0),fin=iw.some(i=>i.type==="schluss");if(!fin)final=false;return a+(fin?bw:Math.max(w.sum||0,bw));},0);
+    const none=!ws.length&&!inv.some(live);
+    const forecast=none?b.kv:fc+regie;
+    return {b,awarded,billed,paid,approved,open,ret,regie,forecast,final,none,rest:b.kv-forecast,over:b.kv>0&&forecast>b.kv};
   });
 }
 function totals(rows){const t={kv:0,awarded:0,billed:0,paid:0,approved:0,open:0,ret:0,rest:0};rows.forEach(r=>{for(const k in t)t[k]+=k==="kv"?r.b.kv:r[k];});return t;}
@@ -467,6 +471,14 @@ function seedClosedDemo(p){
   fee(-330,L("Honorar Ausführung, Akonto","Fee execution, progress payment"),[{t:L("Bauleitung","Site supervision"),q:180,u:"h",p:145}],31);
   fee(-210,L("Honorar Schlussrechnung","Final fee invoice"),[{t:L("Bauleitung und Abschluss","Site supervision and completion"),q:120,u:"h",p:145},{t:L("Schlussabrechnung und Dokumentation","Final account and documentation"),q:1,u:L("pauschal","lump sum"),p:6500}],29);
 }
+/* closed example: permit fees and construction insurance were paid too, by invoice from the municipality and the insurer */
+function seedClosedFees(p){
+  const ad=n=>iso(new Date(TODAY.getTime()+n*864e5));
+  const mk=(bkp,name,st,z,c,iban,sum,day,no)=>{let k=D.contractors.find(x=>x.name===name);if(!k){k={id:newId("k"),name,street:st,zip:z,city:c,iban,email:"",phone:""};D.contractors.push(k);}
+    const w={id:newId("w"),pid:p.id,k:k.id,bkp,sum,ret:0};D.contracts.push(w);D.invoices.push({id:newId("i"),no,w:w.id,type:"schluss",n:0,date:ad(day),due:ad(day+30),gross:sum,status:"bezahlt",ref:""});};
+  mk("511","Gemeinde Wädenswil, Bauamt","Florhofstrasse 3","8820","Wädenswil","CH09 0070 0110 0001 2345 6",13860,-600,"BA-2025-0412");
+  mk("531","Bauversicherung Zürichsee AG","Seestrasse 101","8810","Horgen","CH27 0900 0000 8765 4321 0",7050,-590,"POL-77310");
+}
 /* ---------- income picture ---------- */
 function addIncomeHistory(){
   const ps=D.projects.slice(0,2);if(!ps.length)return;
@@ -545,6 +557,7 @@ function runMigrations(){
   if(!D.mig.fillEmpty){D.mig.fillEmpty=1;D.projects.filter(p=>!p.closed&&!D.contracts.some(w=>w.pid===p.id)&&!FEES().some(f=>f.pid===p.id)).forEach(seedProjectDemo);}
   if(!D.mig.projs){D.mig.projs=1;[["Umbau Villa Seeblick","Küsnacht","Bauherrschaft Keller","Sanierung Gebäudehülle"],["Anbau Schulhaus Au","Wädenswil","Gemeinde Wädenswil","Erweiterung um 2 Klassenzimmer"]].forEach(([n,pl,cl,de])=>{if(!D.projects.some(p=>p.name===n))D.projects.push({id:newId("p"),name:n,place:pl,client:cl,desc:de,closed:true,budget:[]});});}
   if(!D.mig.closedDemo){D.mig.closedDemo=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&!D.contracts.some(w=>w.pid===pa.id))seedClosedDemo(pa);}
+  if(!D.mig.closedFees){D.mig.closedFees=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&D.contracts.some(w=>w.pid===pa.id)&&!D.contracts.some(w=>w.pid===pa.id&&w.bkp==="511"))seedClosedFees(pa);}
   if(!D.mig.feeno){D.mig.feeno=1;const by={};FEES().slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).forEach(f=>{const y=String(f.date).slice(0,4);by[y]=(by[y]||0)+1;f.no=y+"-"+String(by[y]).padStart(3,"0");const r=makeRef(f.no);if(f.refType===r.type)f.ref=r.ref;});}
 }
 function incomeData(){
@@ -1001,18 +1014,20 @@ function viewBudget(){
   const rows=S.bfilter?allRows.filter(BF[S.bfilter]):allRows,nP=n=>n===1?L("1 Position","1 item"):n+" "+L("Positionen","items");
   const bt=(f,l,v,ss,c)=>{const n=f?allRows.filter(BF[f]).length:allRows.length,sel=S.bfilter===f,inner=`<span class="sl">${l}</span><span class="sv${c||""}">${n?v:"–"}</span><span class="ss">${ss}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="bfilter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   const sumB=(f,g)=>allRows.filter(BF[f]).reduce((a,r)=>a+g(r),0);
-  const one=r=>{const base=Math.max(r.b.kv,r.awarded,r.billed+r.open,1),pc=x=>Math.max(0,x)/base*100,aw=r.awarded?chf(r.awarded,false):L("nicht vergeben","not awarded");
+  const fcL=p.closed?L("Endkosten","Final cost"):L("Prognose","Forecast");
+  const one=r=>{const base=Math.max(r.b.kv,r.awarded,r.billed+r.open,r.forecast,1),pc=x=>Math.max(0,x)/base*100;
     const act=`data-act="kv-explain" data-id="${r.b.bkp}"`;
-    return `<button type="button" class="brow row${S.hl===r.b.bkp?" hl":""}" ${act}><span class="code">${r.b.bkp}</span><div><span>${esc(tx(r.b))}</span><div class="bar"><i class="c-paid" style="width:${pc(r.paid)}%"></i><i class="c-appr" style="width:${pc(r.approved)}%"></i><i class="c-open" style="width:${pc(r.open)}%"></i>${r.b.kv?`<span class="kv" style="left:${r.b.kv/base*100}%"></span>`:""}</div><span class="bsub">KV ${r.b.kv?nf0.format(r.b.kv):"–"} · ${r.awarded?L("vergeben ","awarded ")+nf0.format(r.awarded):L("nicht vergeben","not awarded")}</span></div><span class="kvc">${r.b.kv?chf(r.b.kv,false):"–"}</span><span class="nums">${aw}</span><span class="rest ${r.rest<0?"up":r.awarded?"":"mute"}">${r.b.kv?chf(r.rest,false):"–"}</span></button>`;};
+    const sub=(r.b.kv?`<span class="bmob">KV ${nf0.format(r.b.kv)} · ${fcL} ${nf0.format(r.forecast)} · </span>`:"")+(r.none?L("nicht vergeben","not awarded"):[r.awarded?L("vergeben ","awarded ")+nf0.format(r.awarded):L("ohne Werkvertrag","no contract"),r.billed+r.open?L("abgerechnet ","billed ")+nf0.format(r.billed+r.open):""].filter(Boolean).join(" · "));
+    return `<button type="button" class="brow row${S.hl===r.b.bkp?" hl":""}" ${act}><span class="code">${r.b.bkp}</span><div><span>${esc(tx(r.b))}</span><div class="bar"><i class="c-paid" style="width:${pc(r.paid)}%"></i><i class="c-appr" style="width:${pc(r.approved)}%"></i><i class="c-open" style="width:${pc(r.open)}%"></i>${r.b.kv?`<span class="kv" style="left:${r.b.kv/base*100}%"></span>`:""}</div><span class="bsub">${sub}</span></div><span class="kvc">${r.b.kv?chf(r.b.kv,false):"–"}</span><span class="nums${r.none?" mute":""}">${r.forecast?chf(r.forecast,false):"–"}</span><span class="rest ${r.rest<0?"up":r.none?"mute":""}">${r.b.kv&&!r.none?chf(r.rest,false):"–"}</span></button>`;};
   /* grouped by BKP main group (0 Grundstück … 9 Ausstattung) with a subtotal line, as in a cost estimate */
   const grp=[...new Set(rows.map(r=>bkpMain(r.b.bkp)))].sort();
-  const br=grp.map(g=>{const rs=rows.filter(r=>bkpMain(r.b.bkp)===g),kv=rs.reduce((a,r)=>a+(r.b.kv||0),0),aw=rs.reduce((a,r)=>a+(r.awarded||0),0),rest=rs.reduce((a,r)=>a+(r.b.kv?r.rest:0),0);
-    return `<div class="bgroup"><span class="code">${g}</span><span class="gn">${esc(bkpMainName(g))}</span><span class="kvc">${kv?chf(kv,false):"–"}</span><span class="nums">${aw?chf(aw,false):"–"}</span><span class="rest${rest<0?" up":""}">${kv?chf(rest,false):"–"}</span></div>`+rs.map(one).join("");}).join("");
+  const br=grp.map(g=>{const rs=rows.filter(r=>bkpMain(r.b.bkp)===g),kv=rs.reduce((a,r)=>a+(r.b.kv||0),0),aw=rs.reduce((a,r)=>a+(r.forecast||0),0),rest=rs.reduce((a,r)=>a+(r.b.kv?r.rest:0),0);
+    return `<div class="bgroup"><span class="code">${g}</span><span class="gn">${esc(bkpMainName(g))}</span><span class="kvc">${kv?chf(kv,false):"–"}</span><span class="nums">${aw?chf(aw,false):"–"}</span><span class="rest${rest<0?" up":rs.every(r=>r.none)?" mute":""}">${kv&&!rs.every(r=>r.none)?chf(rest,false):"–"}</span></div>`+rs.map(one).join("");}).join("");
   return `<div class="page">
     ${ph(esc(p.name),"Budget","",ib("plus",L("BKP-Position erfassen","Add BKP item"),'data-act="form" data-f="bkp"')+excelBtn("budget"))}
     <div class="stats s4">${bt("",L("Kostenvoranschlag","Cost estimate"),chf(t.kv,false),nP(allRows.length))}${bt("aw",L("Vergeben","Awarded"),chf(t.awarded,false),(t.kv?Math.round(t.awarded/t.kv*100)+" % "+L("des Kostenvoranschlags","of the estimate"):""))}${bt("no",L("Nicht vergeben","Not awarded"),chf(sumB("no",r=>r.b.kv),false),nP(allRows.filter(BF.no).length))}${bt("over",L("Über Budget","Over budget"),chf(sumB("over",r=>-r.rest),false),nP(allRows.filter(BF.over).length)," warn")}</div>
     <section><div class="sh"><h2>${({aw:L("Vergeben","Awarded"),no:L("Nicht vergeben","Not awarded"),over:L("Über Budget","Over budget")})[S.bfilter]||L("Alle Positionen","All items")}</h2><span class="cnt">${rows.length}</span><span class="right"><span class="ss" style="color:var(--muted);font-size:.875rem">${L("Reserve","Reserve")} <b style="font-weight:500;color:${t.rest<0?"var(--warn)":"var(--ink)"}">${chf(t.rest,false)}</b></span>${S.bfilter?`<button type="button" class="ghost" data-act="bfilter" data-f="">${L("Alle anzeigen","Show all")} (${allRows.length})</button>`:""}</span></div></section>
-    <section>${br?`<div class="bhead"><span>BKP</span><span>${L("Arbeitsgattung","Trade")}</span><span class="kvc">${L("Kostenvoranschlag","Estimate")}</span><span class="nums">${L("Vergeben","Awarded")}</span><span class="rest">${L("Reserve","Reserve")}</span></div>`:""}${br||`<div class="empty"><span>${L("Noch kein Kostenvoranschlag. Erfassen Sie die BKP-Positionen mit Betrag, daran misst arkitecton alle Rechnungen.","No cost estimate yet. Add the BKP items with amounts; arkitecton measures every invoice against them.")}</span><div class="eb"><button type="button" class="btn primary" data-act="form" data-f="bkp">${L("BKP-Position erfassen","Add BKP item")}</button></div></div>`}
+    <section>${br?`<div class="bhead"><span>BKP</span><span>${L("Arbeitsgattung","Trade")}</span><span class="kvc">${L("Kostenvoranschlag","Estimate")}</span><span class="nums">${fcL}</span><span class="rest">${L("Reserve","Reserve")}</span></div>`:""}${br||`<div class="empty"><span>${L("Noch kein Kostenvoranschlag. Erfassen Sie die BKP-Positionen mit Betrag, daran misst arkitecton alle Rechnungen.","No cost estimate yet. Add the BKP items with amounts; arkitecton measures every invoice against them.")}</span><div class="eb"><button type="button" class="btn primary" data-act="form" data-f="bkp">${L("BKP-Position erfassen","Add BKP item")}</button></div></div>`}
       ${rows.length?`<div class="legend"><span><i class="c-paid"></i>${L("Bezahlt","Paid")}</span><span><i class="c-appr"></i>${L("Freigegeben","Approved")}</span><span><i class="c-open"></i>${L("Zu prüfen","To check")}</span><span><i style="width:1px;height:12px;background:var(--ink)"></i>${L("Kostenvoranschlag","Estimate")}</span></div>`:""}</section>
   </div>`;
 }
@@ -1716,17 +1731,18 @@ function sheetDef(key){
   return null;
 }
 function kvHTML(){
-  const r=budgetRows().find(x=>x.b.bkp===S.kvx);if(!r)return "";
+  const r=budgetRows().find(x=>x.b.bkp===S.kvx),p=P()||{};if(!r)return "";
   const ws=PC().filter(w=>w.bkp===r.b.bkp),kv=r.b.kv,sg=v=>v>0?"+"+nf2.format(v).replace(/\.00$/,""):v<0?"−"+nf2.format(-v).replace(/\.00$/,""):"0";
   const line=(a,b,c,cls)=>`<span${cls?` class="${cls}"`:""}>${a}</span><span class="r${cls?" "+cls:""}">${b}</span><span class="r d${cls?" "+cls:""}">${c||""}</span>`;
+  /* one base for every line: the cost estimate; the line that counts is named and explained */
   let rows=line(L("Kostenvoranschlag","Cost estimate"),nfq.format(kv),"");
-  if(ws.length===1){const w=ws[0];rows+=line(L("Werkvertrag ","Contract ")+esc(K(w.k).name),nfq.format(w.sum),"("+sg(w.sum-kv)+")");}
-  else if(ws.length){ws.forEach(w=>{rows+=line(L("Werkvertrag ","Contract ")+esc(K(w.k).name),nfq.format(w.sum),"");});rows+=line(L("Vergeben total","Awarded total"),nfq.format(r.awarded),"("+sg(r.awarded-kv)+")");}
+  ws.forEach(w=>{rows+=line(L("Werkvertrag ","Contract ")+esc(K(w.k).name),nfq.format(w.sum||0),"");});
   const base=r.billed+r.open-r.regie;
-  if(base>r.awarded) rows+=line(r.open?L("Abgerechnet inkl. offene Rechnungen","Billed incl. open invoices"):L("Abgerechnet (freigegeben)","Billed (approved)"),nfq.format(base),"("+sg(base-r.awarded)+")");
-  if(r.regie) rows+=line(L("Regie ausserhalb Werkvertrag","Time & materials outside contract"),nfq.format(r.regie),"(+"+nfq.format(r.regie)+")");
-  if(!r.awarded&&!r.regie) rows+=line(L("Noch nicht vergeben","Not awarded yet"),"–","");
-  rows+=line(r.rest<0?L("Über Kostenvoranschlag","Over cost estimate"):L("Reserve","Reserve"),nfq.format(Math.abs(r.rest)),"","sum");
+  if(base) rows+=line(r.open?L("Abgerechnet inkl. offene Rechnungen","Billed incl. open invoices"):L("Abgerechnet","Billed"),nfq.format(base),"");
+  if(r.regie) rows+=line(L("Regie ausserhalb Werkvertrag","Time & materials outside contract"),nfq.format(r.regie),"");
+  const why=r.none?L("noch nicht vergeben, darum der Kostenvoranschlag","not awarded yet, so the cost estimate"):r.final?L("Schlussrechnung liegt vor, darum abgerechnet","final invoice in, so the billed total"):base>r.awarded?L("abgerechnet, weil höher als der Werkvertrag","billed, as it exceeds the contract"):L("Werkvertrag, Rest wird noch verrechnet","contract, the rest is still to be billed");
+  rows+=line((p.closed||r.final?L("Endkosten","Final cost"):L("Prognose","Forecast"))+`<span class="kvwhy">${why}${r.regie?L(", plus Regie",", plus T&M"):""}</span>`,nfq.format(r.forecast),"","fc");
+  rows+=line(r.rest<0?L("Über Kostenvoranschlag","Over cost estimate"):L("Reserve","Reserve")+`<span class="kvwhy">${L("Kostenvoranschlag minus ","cost estimate minus ")+(p.closed||r.final?L("Endkosten","final cost"):L("Prognose","forecast"))}</span>`,nfq.format(Math.abs(r.rest)),"","sum");
   const cmpBtns=ws.filter(w=>compare(w)).map(w=>`<button type="button" class="btn primary" data-act="open-cmp" data-id="${w.id}">${L("Abweichungen","Differences")}${ws.length>1?" · "+esc(K(w.k).name):""}</button>`).join("");
   return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="kT">
     <div class="ohead"><div><h2 id="kT" style="font-size:1.125rem;font-weight:500">BKP ${esc(r.b.bkp)} ${esc(tx(r.b))}</h2><div class="sub">${r.rest<0?"CHF "+nfq.format(-r.rest)+" "+L("über Kostenvoranschlag","over cost estimate"):L("Reserve CHF ","Reserve CHF ")+nfq.format(r.rest)}</div></div><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>

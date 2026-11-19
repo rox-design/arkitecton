@@ -22,6 +22,6 @@ Ideas decided for later. Each entry says why it waits.
 
 ## Architecture before launch (from the code review, 19.11.2026)
 
-- Unit tests for the money logic: forecast/end cost, retention and its release, payout, fee totals, QR payload and references. Today only the layout is tested automatically.
-- Split `app.js` (one file, ~270 KB, global state) into modules: data, money logic, QR/PDF, views.
+- Done 19.11.2026: unit tests for the money logic and QR codes (`tests/unit.js`, run with `tests/run_unit.py`; `tests/check_all.sh` runs them together with the layout check).
+- Done 19.11.2026: the code is split into `js/01-core.js` … `js/08-forms.js` and `app.js` (start-up), loaded in order by index.html. Next step later: ES modules with explicit imports instead of one shared global scope.
 - Server sync with a schema version, replacing per-browser storage (see the sync decision).

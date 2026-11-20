@@ -24,45 +24,57 @@ async function payPDF(i){
   await libsPDF();
   const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"mm",format:"a4"}),F=D.firm,w=W(i.w),k=K(w.k),p=PJ(w.pid)||{};
   const T=(t,x,y,o)=>doc.text(String(t),x,y,o||{}),font=(sz,b)=>{doc.setFont("helvetica",b?"bold":"normal");doc.setFontSize(sz);};
+  const seal=await sealRelease([i],p),img=await mosaicPng(seal.url,700);
   let y=20;font(10,true);T(F.name||"",20,y);font(9);[F.street,[F.zip,F.city].filter(Boolean).join(" "),F.phone,F.email].filter(Boolean).forEach((l,n)=>T(l,20,y+5+n*4.5));
-  font(10);[p.client,p.cstreet,[p.czip,p.ccity].filter(Boolean).join(" ")].filter(Boolean).forEach((l,n)=>T(l,118,52+n*5));
-  font(9);T((F.city?F.city+", ":"")+fdate(iso(TODAY)),118,80);
-  font(14,true);T(L("Zahlungsempfehlung","Payment recommendation"),20,95);
-  font(9);T(L("Projekt: ","Project: ")+[p.name,p.place].filter(Boolean).join(", "),20,102);
-  y=114;font(10);doc.splitTextToSize(L("Wir haben die folgende Rechnung geprüft und empfehlen Ihnen, den unten stehenden Betrag zu überweisen.","We have checked the following invoice and recommend that you pay the amount below."),170).forEach((l,n)=>T(l,20,y+n*5));y+=16;
+  sealBlock(doc,img.data,seal,154,10,36);
+  font(10);[p.client,p.cstreet,[p.czip,p.ccity].filter(Boolean).join(" ")].filter(Boolean).forEach((l,n)=>T(l,118,58+n*5));
+  font(9);T((F.city?F.city+", ":"")+fdate(iso(TODAY)),118,84);
+  font(14,true);T(L("Zahlungsfreigabe ","Payment release ")+seal.no,20,97);
+  font(9);T(L("Projekt: ","Project: ")+[p.name,p.place].filter(Boolean).join(", "),20,104);
+  y=115;font(10);doc.splitTextToSize(L("Wir haben die folgende Rechnung geprüft und geben den unten stehenden Betrag zur Zahlung frei.","We have checked the following invoice and recommend that you pay the amount below."),170).forEach((l,n)=>T(l,20,y+n*5));y+=16;
   const kv=(a,b)=>{font(9);T(a,20,y);T(b,70,y);y+=5.5;};
   kv(L("Unternehmer","Contractor"),[k.name,[k.zip,k.city].filter(Boolean).join(" ")].filter(Boolean).join(", "));
-  kv(L("Arbeitsgattung","Trade"),"BKP "+w.bkp+" "+bName(w.bkp));kv(L("Rechnung","Invoice"),typeLabel(i)+" · "+i.no+" · "+fdate(i.date));
+  kv(L("Arbeitsgattung","Trade"),"BKP "+w.bkp+" "+bName(w.bkp));kv(L("Rechnung","Invoice"),typeLabel(i)+" · "+i.no+" · "+fdate(i.date)+" · "+i.vno);
   kv(L("Werkvertrag","Contract"),"CHF "+nf2.format(w.sum||0)+(i.type==="regie"?L(" (Regie ausserhalb Werkvertrag)"," (outside contract)"):""));
   y+=4;doc.setLineWidth(.2);doc.line(20,y,190,y);y+=7;
   const ln=(a,b,bold)=>{font(bold?10:9,bold);T(a,20,y);T(b,190,y,{align:"right"});y+=bold?7:5.5;};
   const ret=retention(i);ln(L("Rechnungsbetrag","Invoice amount"),nf2.format(i.gross));
   if(i.ded&&i.ded.amt)ln(L("Abzug: ","Deduction: ")+i.ded.why,"- "+nf2.format(i.ded.amt));
   if(ret>0)ln(L("Rückbehalt ","Retention ")+invPct(i)+" %","- "+nf2.format(ret));if(ret<0)ln(L("Freigabe Rückbehalt","Retention released"),"+ "+nf2.format(-ret));
-  doc.line(120,y-1,190,y-1);y+=4;ln(L("Zur Zahlung empfohlen CHF","Recommended for payment CHF"),nf2.format(payout(i)),true);
+  doc.line(120,y-1,190,y-1);y+=4;ln(L("Zur Zahlung freigegeben CHF","Released for payment CHF"),nf2.format(payout(i)),true);
   y+=4;kv(L("Zahlbar bis","Payable by"),fdate(i.due));kv("IBAN",k.iban||L("fehlt","missing"));if(i.ref)kv(L("Referenz","Reference"),i.ref);
   const iss=checksFor(i).filter(c=>c.s==="warn");if(iss.length){y+=4;font(9,true);T(L("Hinweise aus der Prüfung","Notes from the check"),20,y);y+=5.5;font(9);iss.forEach(c=>{doc.splitTextToSize("– "+c.t,170).forEach(l=>{T(l,20,y);y+=4.8;});});}
   y=Math.max(y+18,232);sig3(doc,y,p);
-  doc.save(L("Zahlungsempfehlung","Payment-recommendation")+"_"+String(k.name).replace(/[^\w]+/g,"-")+"_"+String(i.no).replace(/[^\w]+/g,"-")+".pdf");
+  doc.save(L("Zahlungsfreigabe","Payment-release")+"_"+String(k.name).replace(/[^\w]+/g,"-")+"_"+String(i.no).replace(/[^\w]+/g,"-")+".pdf");
 }
 /* one release letter to the client for all released invoices of the project: the client pays the contractors */
 async function payPDFAll(list){
   if(!list.length)return;await libsPDF();
   const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"mm",format:"a4"}),F=D.firm,p=P()||{};
   const T=(t,x,y,o)=>doc.text(String(t),x,y,o||{}),font=(sz,b)=>{doc.setFont("helvetica",b?"bold":"normal");doc.setFontSize(sz);};
-  let y=20;font(10,true);T(F.name||"",20,y);font(9);[F.street,[F.zip,F.city].filter(Boolean).join(" "),F.phone,F.email].filter(Boolean).forEach((l,n)=>T(l,20,y+5+n*4.5));
-  font(10);[p.client,p.cstreet,[p.czip,p.ccity].filter(Boolean).join(" ")].filter(Boolean).forEach((l,n)=>T(l,118,52+n*5));
-  font(9);T((F.city?F.city+", ":"")+fdate(iso(TODAY)),118,80);
-  font(14,true);T(L("Zahlungsfreigabe","Payment release"),20,95);font(9);T(L("Projekt: ","Project: ")+[p.name,p.place].filter(Boolean).join(", "),20,102);
-  y=114;font(10);doc.splitTextToSize(L("Wir haben die folgenden Rechnungen geprüft und geben sie zur Zahlung frei. Bitte überweisen Sie die Beträge bis zum jeweiligen Datum.","We have checked the following invoices and release them for payment. Please pay each amount by its date."),170).forEach((l,n)=>T(l,20,y+n*5));y+=16;
-  font(8,true);T(L("Unternehmer","Contractor"),20,y);T(L("Rechnung","Invoice"),82,y);T(L("Zahlbar bis","Payable by"),128,y);T("CHF",190,y,{align:"right"});y+=2;doc.setLineWidth(.2);doc.line(20,y,190,y);y+=5;
-  let sum=0;list.slice().sort((a,b)=>toDate(a.due)-toDate(b.due)).forEach(i=>{const w=W(i.w),k=K(w.k),amt=payout(i);sum+=amt;
-    if(y>250){doc.addPage();y=20;}
-    font(9);T(String(k.name).slice(0,34),20,y);T(String(typeLabel(i)+" · "+i.no).slice(0,28),82,y);T(fdate(i.due),128,y);T(nf2.format(amt),190,y,{align:"right"});y+=4.2;
-    font(7.5);T("BKP "+w.bkp+" "+String(bName(w.bkp)).slice(0,28),20,y);T("IBAN "+(k.iban||L("fehlt","missing"))+(i.ref?"  ·  Ref. "+i.ref:""),82,y);y+=6;});
-  doc.line(120,y-2,190,y-2);y+=3;font(10,true);T(L("Total zur Zahlung","Total for payment"),20,y);T(nf2.format(r2(sum)),190,y,{align:"right"});
-  y=Math.max(y+22,232);sig3(doc,y,p);
+  /* one page per group of up to SEAL_MAX invoices, each with its own number and check code */
+  const all=list.slice().sort((a,b)=>toDate(a.due)-toDate(b.due)),pages=[];for(let n=0;n<all.length;n+=SEAL_MAX)pages.push(all.slice(n,n+SEAL_MAX));
+  for(let pn=0;pn<pages.length;pn++){const part=pages[pn];if(pn)doc.addPage();
+    const seal=await sealRelease(part,p),img=await mosaicPng(seal.url,700);
+    let y=20;font(10,true);T(F.name||"",20,y);font(9);[F.street,[F.zip,F.city].filter(Boolean).join(" "),F.phone,F.email].filter(Boolean).forEach((l,n)=>T(l,20,y+5+n*4.5));
+    sealBlock(doc,img.data,seal,154,10,36);
+    font(10);[p.client,p.cstreet,[p.czip,p.ccity].filter(Boolean).join(" ")].filter(Boolean).forEach((l,n)=>T(l,118,58+n*5));
+    font(9);T((F.city?F.city+", ":"")+fdate(iso(TODAY)),118,84);
+    font(14,true);T(L("Zahlungsfreigabe ","Payment release ")+seal.no,20,97);font(9);T(L("Projekt: ","Project: ")+[p.name,p.place].filter(Boolean).join(", ")+(pages.length>1?L(" · Seite "," · page ")+(pn+1)+L(" von "," of ")+pages.length:""),20,104);
+    y=115;font(10);doc.splitTextToSize(L("Wir haben die folgenden Rechnungen geprüft und geben sie zur Zahlung frei. Bitte überweisen Sie die Beträge bis zum jeweiligen Datum.","We have checked the following invoices and release them for payment. Please pay each amount by its date."),170).forEach((l,n)=>T(l,20,y+n*5));y+=16;
+    font(8,true);T(L("Unternehmer","Contractor"),20,y);T(L("Rechnung","Invoice"),82,y);T(L("Zahlbar bis","Payable by"),128,y);T("CHF",190,y,{align:"right"});y+=2;doc.setLineWidth(.2);doc.line(20,y,190,y);y+=5;
+    let sum=0;part.forEach(i=>{const w=W(i.w),k=K(w.k),amt=payout(i);sum+=amt;
+      font(9);T(String(k.name).slice(0,34),20,y);T(String(typeLabel(i)+" · "+i.no).slice(0,28),82,y);T(fdate(i.due),128,y);T(nf2.format(amt),190,y,{align:"right"});y+=4.2;
+      font(7.5);T("BKP "+w.bkp+" "+String(bName(w.bkp)).slice(0,22)+" · "+i.vno,20,y);T("IBAN "+(k.iban||L("fehlt","missing"))+(i.ref?"  ·  Ref. "+i.ref:""),82,y);y+=6;});
+    doc.line(120,y-2,190,y-2);y+=3;font(10,true);T(L("Total zur Zahlung","Total for payment"),20,y);T(nf2.format(r2(sum)),190,y,{align:"right"});
+    y=Math.max(y+22,232);sig3(doc,y,p);}
   doc.save(L("Zahlungsfreigabe","Payment-release")+"_"+String(p.name||"").replace(/[^\w]+/g,"-")+"_"+iso(TODAY)+".pdf");
+}
+/* the check code with its caption, top right of a page */
+function sealBlock(doc,png,seal,x,y,size){
+  doc.addImage(png,"PNG",x,y,size,size);
+  doc.setFont("helvetica","bold");doc.setFontSize(7);doc.setTextColor(20);doc.text(L("Echtheit prüfen: Code scannen","Check authenticity: scan code"),x+size,y+size+3.5,{align:"right"});
+  doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.setTextColor(110);doc.text(seal.no+" · "+L("Schlüssel ","Key ")+seal.print,x+size,y+size+6.6,{align:"right"});doc.setTextColor(20);
 }
 /* cost status for the client: estimate, awarded, billed, forecast and reserve per BKP, grouped by main group */
 /* the people who sign: team member + role from the office settings */

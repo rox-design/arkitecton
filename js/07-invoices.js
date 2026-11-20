@@ -33,7 +33,7 @@ function drawerHTML(i){
   let actions="";
   if(i.status==="rueckfrage") actions=why+`<button type="button" class="btn" data-act="answer" data-id="${i.id}">${L("Antwort erhalten","Reply received")}</button><button type="button" class="btn primary" data-act="approve" data-id="${i.id}"${crit?" disabled":""}>${apLbl}</button>`;
   else if(!counted(i)) actions=why+`<button type="button" class="btn" data-act="query">${L("Rückfrage","Query")}</button><button type="button" class="btn primary" data-act="approve" data-id="${i.id}"${crit?" disabled":""}>${apLbl}</button>`;
-  else if(i.status==="frei") actions=`<button type="button" class="btn" data-act="pay-pdf" data-id="${i.id}">${L("Zahlungsempfehlung (PDF)","Payment recommendation (PDF)")}</button><button type="button" class="btn primary" data-act="paid" data-id="${i.id}">${L("Als bezahlt markieren","Mark as paid")}</button>`;
+  else if(i.status==="frei") actions=`<button type="button" class="btn" data-act="pay-pdf" data-id="${i.id}">${L("Zahlungsfreigabe (PDF)","Payment release (PDF)")}</button><button type="button" class="btn primary" data-act="paid" data-id="${i.id}">${L("Als bezahlt markieren","Mark as paid")}</button>`;
   else if(i.status==="bezahlt") actions=`<button type="button" class="btn" data-act="inv-unpaid" data-id="${i.id}">${L("Zahlung zurücknehmen","Undo payment")}</button>`;
   const done=S.done&&S.done.id===i.id?`<div class="done"><span class="h">${L("Für Sie erledigt","Done for you")}</span><div class="chips">${S.done.items.map(x=>`<span class="chip ok">${esc(x)}</span>`).join("")}</div></div>`:"";
   const log=i.log&&i.log.length?`<details><summary>${L("Verlauf","History")}</summary><div class="in"><dl class="kv">${i.log.map(e=>`<dt>${fdate(e.d)}</dt><dd>${esc(e.t)}</dd>`).join("")}</dl></div></details>`:"";
@@ -360,7 +360,7 @@ function bulkHTML(){
 }
 function bulkApprove(){
   const list=S.bulk.sel.map(INV).filter(i=>i&&cleanInv(i));if(!list.length)return;
-  list.forEach(i=>{i.status="frei";i.rel=iso(TODAY);logInv(i,L("Freigegeben (gemeinsam)","Approved (together)"));});
+  list.forEach(i=>{i.status="frei";i.rel=iso(TODAY);ensureVno(i);logInv(i,L("Freigegeben (gemeinsam)","Approved (together)"));});
   const sum=r2(list.reduce((a,i)=>a+payout(i),0));
   closeAll();S.filter="frei";render();
   toast((list.length===1?L("1 Rechnung freigegeben","1 invoice approved"):list.length+L(" Rechnungen freigegeben"," invoices approved"))+" · "+chf(sum));
@@ -376,9 +376,9 @@ function invDocRow(i){
 async function visumPDF(i){
   const w=W(i.w),k=K(w.k),f=invFile(i),F=D.firm||{},who=signer(0).name;
   /* the approval date: when it was approved, not today */
-  const relD=i.rel||((i.log||[]).find(e=>/^(Freigegeben|Approved)/.test(e.t))||{}).d||i.date,ret=retention(i);
+  const relD=relDate(i),ret=retention(i),seal=await sealInvoice(i),qr=await mosaicPng(seal.url,600);
   /* the stamp shows how the amount to pay comes about: invoice, deduction, retention held or released */
-  const lines=[L("GEPRÜFT UND FREIGEGEBEN","CHECKED AND APPROVED"),F.name||"",L("Datum: ","Date: ")+fdate(relD),"BKP "+w.bkp+" · "+typeLabel(i),L("Rechnungsbetrag: CHF ","Invoice amount: CHF ")+nf2.format(i.gross)]
+  const lines=[L("GEPRÜFT UND FREIGEGEBEN","CHECKED AND APPROVED"),F.name||"",seal.no+" · "+L("Datum: ","Date: ")+fdate(relD),"BKP "+w.bkp+" · "+typeLabel(i),L("Rechnungsbetrag: CHF ","Invoice amount: CHF ")+nf2.format(i.gross)]
     .concat(i.ded&&i.ded.amt?[L("Abzug: CHF -","Deduction: CHF -")+nf2.format(i.ded.amt)]:[])
     .concat(ret>0?[L("Rückbehalt: CHF -","Retention: CHF -")+nf2.format(ret)]:ret<0?[L("Rückbehalt-Freigabe: CHF +","Retention release: CHF +")+nf2.format(-ret)]:[])
     .concat([L("Zur Zahlung: CHF ","To pay: CHF ")+nf2.format(payout(i)),L("Visum: ","Initials: ")+(who||"")]);
@@ -390,8 +390,11 @@ async function visumPDF(i){
     if(blob&&/^image\//.test(blob.type||f.type||"")){const bytes=await blob.arrayBuffer(),img=/png/i.test(blob.type||f.type)?await pdf.embedPng(bytes):await pdf.embedJpg(bytes);const sc=Math.min(555/img.width,800/img.height);pg.drawImage(img,{x:20,y:841.89-20-img.height*sc,width:img.width*sc,height:img.height*sc});}
     else{const fo=await pdf.embedFont(StandardFonts.Helvetica);[k.name,[k.street,[k.zip,k.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),"",L("Rechnung ","Invoice ")+i.no+" · "+fdate(i.date),typeLabel(i)+" · BKP "+w.bkp,L("Rechnungsbetrag CHF ","Invoice amount CHF ")+nf2.format(i.gross),"",f?"":L("Original nicht in arkitecton gespeichert. Dieses Blatt ersetzt den Stempel auf dem Original.","Original not stored in arkitecton. This sheet replaces the stamp on the original.")].forEach((t,n)=>pg.drawText(asc(t),{x:56,y:760-n*16,size:n===3?13:10,font:fo,color:rgb(.1,.1,.1)}));}}
   const pg=pdf.getPage(0),{width:W0,height:H0}=pg.getSize(),fb=await pdf.embedFont(StandardFonts.HelveticaBold),fr=await pdf.embedFont(StandardFonts.Helvetica);
-  const ink=rgb(.1,.27,.62),bw=200,lh=12,bh=16+lines.length*lh,x=W0-bw-28,y=H0-bh-28;
-  pg.drawRectangle({x,y,width:bw,height:bh,color:rgb(1,1,1),opacity:.9,borderColor:ink,borderWidth:1.4});
+  const ink=rgb(.1,.27,.62),qs=86,bw=206+qs,lh=12,bh=Math.max(16+lines.length*lh,qs+30),x=W0-bw-24,y=H0-bh-24;
+  pg.drawRectangle({x,y,width:bw,height:bh,color:rgb(1,1,1),opacity:.92,borderColor:ink,borderWidth:1.4});
+  const qi=await pdf.embedPng(qr.data);pg.drawImage(qi,{x:x+bw-qs-10,y:y+bh-qs-8,width:qs,height:qs});
+  pg.drawText(asc(L("Echtheit prüfen: scannen","Check: scan code")),{x:x+bw-qs-10,y:y+12,size:6.5,font:fb,color:rgb(.1,.1,.1)});
+  pg.drawText(asc(L("Schlüssel ","Key ")+seal.print),{x:x+bw-qs-10,y:y+4,size:6,font:fr,color:rgb(.4,.4,.4)});
   lines.forEach((t,n)=>pg.drawText(asc(t),{x:x+10,y:y+bh-18-n*lh,size:n?8.5:9.5,font:n===0||n===boldAt?fb:fr,color:ink}));
   const bytes=await pdf.save(),a=document.createElement("a");a.href=URL.createObjectURL(new Blob([bytes],{type:"application/pdf"}));
   a.download=L("Visiert_","Approved_")+String(k.name).replace(/[^\w]+/g,"-")+"_"+String(i.no).replace(/[^\w]+/g,"-")+".pdf";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);

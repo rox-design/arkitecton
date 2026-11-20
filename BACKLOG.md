@@ -25,3 +25,9 @@ Ideas decided for later. Each entry says why it waits.
 - Done 19.11.2026: unit tests for the money logic and QR codes (`tests/unit.js`, run with `tests/run_unit.py`; `tests/check_all.sh` runs them together with the layout check).
 - Done 19.11.2026: the code is split into `js/01-core.js` … `js/08-forms.js` and `app.js` (start-up), loaded in order by index.html. Next step later: ES modules with explicit imports instead of one shared global scope.
 - Server sync with a schema version, replacing per-browser storage (see the sync decision).
+
+## Echtheits-Code (Prüfsiegel) – Stand 20.11.2026
+- Umgesetzt: Jedes Büro hat ein Schlüsselpaar (ECDSA P-256). Zahlungsfreigabe (ein Code pro Seite, max. 6 Rechnungen) und Visum (ein Code pro Rechnung) tragen einen signierten Mosaik-QR. `pruefen.html` prüft die Signatur im Browser, zeigt den Schlüssel-Fingerabdruck und merkt ihn sich pro Büro.
+- Grenze ohne Server: Ein komplett nachgebauter Code mit eigenem Schlüssel wird nur erkannt, wenn das Gerät den echten Schlüssel des Büros schon kennt.
+- Mit Server: Schlüsselregister pro Büro (Prüfseite fragt «gehört dieser Schlüssel zu diesem Büro?»), privater Schlüssel nicht mehr im Browser-Speicher, Widerruf bei Verlust, Prüfprotokoll der Scans.
+- Option später: Logo des Büros im Code (grosses Paket).

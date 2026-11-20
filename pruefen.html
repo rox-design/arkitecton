@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>arkitecton · Echtheit prüfen</title>
+<style>
+  :root{--bg:#fafaf8;--ink:#141414;--muted:#6b6b66;--line:#e4e4df;--ok:#1f7a4d;--okbg:#e9f5ee;--bad:#b3261e;--badbg:#fbeceb;--warn:#8a5a00;--warnbg:#fdf3e1;--red:#d6342c}
+  @media (prefers-color-scheme:dark){:root{--bg:#121212;--ink:#f1f1ee;--muted:#a3a39d;--line:#2c2c2a;--ok:#5cc28d;--okbg:#16281e;--bad:#ff8a80;--badbg:#2e1716;--warn:#f0b54a;--warnbg:#2b2210}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  main{max-width:560px;margin:0 auto;padding:28px 20px 48px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:500;margin-bottom:28px}
+  .brand svg{width:26px;height:26px}
+  h1{font-size:1.75rem;font-weight:500;margin:0 0 6px;letter-spacing:-.01em}
+  .lead{color:var(--muted);margin:0 0 22px}
+  .card{border-radius:12px;padding:16px 18px;margin:0 0 14px;display:flex;gap:12px;align-items:flex-start}
+  .card .ic{flex:0 0 26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff}
+  .ok{background:var(--okbg)} .ok .ic{background:var(--ok)}
+  .bad{background:var(--badbg)} .bad .ic{background:var(--bad)}
+  .warn{background:var(--warnbg)} .warn .ic{background:var(--warn)}
+  .card b{display:block;font-weight:600}
+  .card span{color:var(--ink)}
+  dl{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;margin:22px 0;padding:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  dt{color:var(--muted)} dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+  dd.big{font-size:1.25rem;font-weight:600}
+  table{width:100%;border-collapse:collapse;margin:6px 0 18px;font-size:.92rem}
+  th{text-align:left;font-weight:500;color:var(--muted);padding:6px 0;border-bottom:1px solid var(--line)}
+  td{padding:9px 0;border-bottom:1px solid var(--line);vertical-align:top}
+  td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+  td small{display:block;color:var(--muted)}
+  .note{color:var(--muted);font-size:.85rem;margin-top:22px}
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><svg viewBox="0 0 30 30" aria-hidden="true"><rect fill="currentColor" x="3" y="20" width="24" height="7"/><rect fill="currentColor" x="7" y="9" width="9" height="11"/><rect fill="currentColor" x="16" y="14" width="7" height="6"/><rect fill="#d6342c" x="16" y="3" width="6" height="6"/></svg>arkitecton</div>
+  <h1>Echtheit prüfen</h1>
+  <p class="lead" id="lead">Code wird geprüft …</p>
+  <div id="out"></div>
+</main>
+<script>
+"use strict";
+/* Checks a signed code from arkitecton entirely in this browser: nothing is sent anywhere.
+   Code = base64url(message) . base64url(compressed P-256 public key) . base64url(signature). */
+const unb64u=s=>{s=s.replace(/-/g,"+").replace(/_/g,"/");while(s.length%4)s+="=";const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const chf=v=>"CHF "+Number(v).toLocaleString("de-CH",{minimumFractionDigits:2,maximumFractionDigits:2});
+const fd=d=>{const m=/^(\d{4})-?(\d{2})-?(\d{2})$/.exec(d||"");return m?m[3]+"."+m[2]+"."+m[1]:esc(d||"");};
+/* P-256: expand a compressed public key (02/03 + x) to the uncompressed form WebCrypto imports */
+const P=0xffffffff00000001000000000000000000000000ffffffffffffffffffffffffn,B=0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604bn;
+const mod=(a,m)=>((a%m)+m)%m,pow=(b,e,m)=>{let r=1n;b=mod(b,m);while(e>0n){if(e&1n)r=r*b%m;b=b*b%m;e>>=1n;}return r;};
+function expand(c){
+  let x=0n;for(let i=1;i<33;i++)x=(x<<8n)|BigInt(c[i]);
+  let y=pow(mod(x*x*x-3n*x+B,P),(P+1n)/4n,P);if((y&1n)!==BigInt(c[0]&1))y=P-y;
+  const u=new Uint8Array(65);u[0]=4;for(let i=0;i<32;i++){u[32-i]=Number((x>>BigInt(8*i))&255n);u[64-i]=Number((y>>BigInt(8*i))&255n);}return u;
+}
+async function print(c){const h=new Uint8Array(await crypto.subtle.digest("SHA-256",c));const x=[...h.slice(0,4)].map(b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();return x.slice(0,4)+"-"+x.slice(4);}
+const card=(c,ic,t,s)=>`<div class="card ${c}"><span class="ic" aria-hidden="true">${ic}</span><div><b>${t}</b><span>${s}</span></div></div>`;
+async function run(){
+  const lead=document.getElementById("lead"),out=document.getElementById("out"),parts=location.hash.slice(1).split(".");
+  if(parts.length!==3){lead.textContent="Kein Code gefunden.";out.innerHTML=card("warn","!","Bitte den Code auf dem Dokument mit der Handy-Kamera scannen.","Diese Seite öffnet sich dann mit den Angaben zum Prüfen.");return;}
+  let msg,ok=false,key="";
+  try{
+    msg=unb64u(parts[0]);const pub=unb64u(parts[1]),sig=unb64u(parts[2]);key=await print(pub);
+    const k=await crypto.subtle.importKey("raw",expand(pub),{name:"ECDSA",namedCurve:"P-256"},false,["verify"]);
+    ok=await crypto.subtle.verify({name:"ECDSA",hash:"SHA-256"},k,sig,msg);
+  }catch(e){ok=false;}
+  const f=msg?new TextDecoder().decode(msg).split("|"):[];
+  if(!ok||!/^AK[12]$/.test(f[0])){lead.textContent="Prüfung abgeschlossen.";out.innerHTML=card("bad","✕","Nicht gültig","Der Code wurde verändert oder ist beschädigt. Verlassen Sie sich nicht auf dieses Dokument und fragen Sie beim Architekturbüro nach.");return;}
+  const firm=f[3];
+  /* remember which key this office used before, on this device */
+  let seen={};try{seen=JSON.parse(localStorage.getItem("ark-keys")||"{}");}catch(e){}
+  const prev=seen[firm];let keyCard;
+  if(!prev)keyCard=card("warn","i","Erstes Dokument dieses Büros auf diesem Gerät","Schlüssel <b style=\"display:inline\">"+key+"</b>. Bei späteren Dokumenten zeigt diese Seite an, ob es derselbe Schlüssel ist.");
+  else if(prev===key)keyCard=card("ok","✓","Gleicher Schlüssel wie bei früheren Dokumenten","Schlüssel "+key+" von "+esc(firm)+".");
+  else keyCard=card("bad","!","Achtung: anderer Schlüssel als bisher","Früher "+esc(prev)+", jetzt "+key+". Das kann eine Fälschung sein. Fragen Sie beim Büro nach, bevor Sie bezahlen.");
+  try{if(!prev){seen[firm]=key;localStorage.setItem("ark-keys",JSON.stringify(seen));}}catch(e){}
+  let body="";
+  if(f[1]==="V"){
+    lead.textContent="Visierte Rechnung";
+    body=`<dl><dt>Visum-Nr.</dt><dd>V-${esc(f[2].replace(/^V-/,""))}</dd><dt>Freigegeben von</dt><dd>${esc(firm)}</dd><dt>Unternehmer</dt><dd>${esc(f[4])}</dd><dt>Rechnung</dt><dd>${esc(f[5])}</dd><dt>BKP</dt><dd>${esc(f[9])}</dd><dt>Freigegeben am</dt><dd>${fd(f[6])}</dd><dt>Rechnungsbetrag</dt><dd>${chf(f[7])}</dd><dt>Zur Zahlung</dt><dd class="big">${chf(f[8])}</dd></dl>`;
+  }else if(f[1]==="Z"){
+    lead.textContent="Zahlungsfreigabe";
+    const rows=f.slice(8).map(x=>x.split("~")).map(r=>`<tr><td>V-${esc(/^\d{4}-/.test(r[0])?r[0]:f[5].slice(0,4)+"-"+r[0])}</td><td class="r">${chf(r[1])}</td></tr>`).join("");
+    body=`<dl><dt>Nummer</dt><dd>ZA-${esc(f[2].replace(/^ZA-/,""))}</dd><dt>Freigegeben von</dt><dd>${esc(firm)}</dd><dt>Projekt</dt><dd>${esc(f[4])}</dd><dt>Datum</dt><dd>${fd(f[5])}</dd><dt>Total zur Zahlung</dt><dd class="big">${chf(f[6])}</dd></dl><table><thead><tr><th>Visum-Nr. der Rechnungen (${esc(f[7])})</th><th class="r">CHF</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  out.innerHTML=card("ok","✓","Echt und unverändert","Signiert von "+esc(firm)+". Vergleichen Sie die Angaben unten mit dem Papier: Weicht ein Betrag oder eine Visum-Nummer ab, wurde das Dokument verändert.")+keyCard+body
+    +`<p class="note">Die Prüfung läuft nur in diesem Browser, es werden keine Daten gesendet. Ob ein Schlüssel wirklich zum genannten Büro gehört, bestätigt arkitecton künftig zentral. Bis dahin hilft der Vergleich mit früheren Dokumenten.</p>`;
+}
+run();window.addEventListener("hashchange",run);
+</script>
+</body>
+</html>

@@ -61,7 +61,8 @@ async function mosaicPng(url,px,ecc,lg){
   const g=cv.getContext("2d"),ink="#141414",red="#d6342c";g.fillStyle="#fff";g.fillRect(0,0,W0,W0);
   const eye=(r,c)=>(r<7&&c<7)||(r<7&&c>=n-7)||(r>=n-7&&c<7);
   const cw=Math.round(n*(lg||.16))|1,c0=Math.floor((n-cw)/2),mid=(r,c)=>r>=c0&&r<c0+cw&&c>=c0&&c<c0+cw;
-  g.fillStyle=ink;
+  /* dots run from black (top left) to a dark arkitecton red (bottom right); dark enough to scan and to print in black and white */
+  const grad=g.createLinearGradient(qz*s,qz*s,(n+qz)*s,(n+qz)*s);grad.addColorStop(0,ink);grad.addColorStop(.35,ink);grad.addColorStop(1,"#8c1c16");g.fillStyle=grad;
   for(let r=0;r<n;r++)for(let c=0;c<n;c++){if(!q.isDark(r,c)||eye(r,c)||mid(r,c))continue;g.beginPath();g.arc((c+qz+.5)*s,(r+qz+.5)*s,s*.46,0,Math.PI*2);g.fill();}
   const rr=(x,y,w,h,rad)=>{g.beginPath();g.moveTo(x+rad,y);g.arcTo(x+w,y,x+w,y+h,rad);g.arcTo(x+w,y+h,x,y+h,rad);g.arcTo(x,y+h,x,y,rad);g.arcTo(x,y,x+w,y,rad);g.closePath();};
   [[0,0],[0,n-7],[n-7,0]].forEach(([r,c])=>{const x=(c+qz)*s,y=(r+qz)*s;g.fillStyle=ink;rr(x,y,7*s,7*s,2*s);g.fill();g.fillStyle="#fff";rr(x+s,y+s,5*s,5*s,1.4*s);g.fill();g.fillStyle=ink;rr(x+2*s,y+2*s,3*s,3*s,.9*s);g.fill();});

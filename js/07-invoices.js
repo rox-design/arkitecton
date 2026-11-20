@@ -375,7 +375,14 @@ function invDocRow(i){
 }
 async function visumPDF(i){
   const w=W(i.w),k=K(w.k),f=invFile(i),F=D.firm||{},who=signer(0).name;
-  const lines=[L("GEPRÜFT UND FREIGEGEBEN","CHECKED AND APPROVED"),F.name||"",L("Datum: ","Date: ")+fdate(i.rel||iso(TODAY)),"BKP "+w.bkp+" · "+typeLabel(i),L("Zur Zahlung: CHF ","To pay: CHF ")+nf2.format(payout(i))].concat(retention(i)>0?[L("Rückbehalt: CHF ","Retention: CHF ")+nf2.format(retention(i))]:[]).concat([L("Visum: ","Initials: ")+(who||"")]);
+  /* the approval date: when it was approved, not today */
+  const relD=i.rel||((i.log||[]).find(e=>/^(Freigegeben|Approved)/.test(e.t))||{}).d||i.date,ret=retention(i);
+  /* the stamp shows how the amount to pay comes about: invoice, deduction, retention held or released */
+  const lines=[L("GEPRÜFT UND FREIGEGEBEN","CHECKED AND APPROVED"),F.name||"",L("Datum: ","Date: ")+fdate(relD),"BKP "+w.bkp+" · "+typeLabel(i),L("Rechnungsbetrag: CHF ","Invoice amount: CHF ")+nf2.format(i.gross)]
+    .concat(i.ded&&i.ded.amt?[L("Abzug: CHF -","Deduction: CHF -")+nf2.format(i.ded.amt)]:[])
+    .concat(ret>0?[L("Rückbehalt: CHF -","Retention: CHF -")+nf2.format(ret)]:ret<0?[L("Rückbehalt-Freigabe: CHF +","Retention release: CHF +")+nf2.format(-ret)]:[])
+    .concat([L("Zur Zahlung: CHF ","To pay: CHF ")+nf2.format(payout(i)),L("Visum: ","Initials: ")+(who||"")]);
+  const boldAt=lines.length-2;
   await loadScript("vendor/pdf-lib.min.js");const {PDFDocument,rgb,StandardFonts}=window.PDFLib;
   let pdf;const blob=f&&await FDB.get(f.id);
   if(blob&&/pdf/i.test(blob.type||f.type||"")){pdf=await PDFDocument.load(await blob.arrayBuffer(),{ignoreEncryption:true});}
@@ -385,7 +392,7 @@ async function visumPDF(i){
   const pg=pdf.getPage(0),{width:W0,height:H0}=pg.getSize(),fb=await pdf.embedFont(StandardFonts.HelveticaBold),fr=await pdf.embedFont(StandardFonts.Helvetica);
   const ink=rgb(.1,.27,.62),bw=200,lh=12,bh=16+lines.length*lh,x=W0-bw-28,y=H0-bh-28;
   pg.drawRectangle({x,y,width:bw,height:bh,color:rgb(1,1,1),opacity:.9,borderColor:ink,borderWidth:1.4});
-  lines.forEach((t,n)=>pg.drawText(asc(t),{x:x+10,y:y+bh-18-n*lh,size:n?8.5:9.5,font:n===0||n===4?fb:fr,color:ink}));
+  lines.forEach((t,n)=>pg.drawText(asc(t),{x:x+10,y:y+bh-18-n*lh,size:n?8.5:9.5,font:n===0||n===boldAt?fb:fr,color:ink}));
   const bytes=await pdf.save(),a=document.createElement("a");a.href=URL.createObjectURL(new Blob([bytes],{type:"application/pdf"}));
   a.download=L("Visiert_","Approved_")+String(k.name).replace(/[^\w]+/g,"-")+"_"+String(i.no).replace(/[^\w]+/g,"-")+".pdf";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
 }

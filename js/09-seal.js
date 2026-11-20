@@ -44,11 +44,13 @@ async function sealInvoice(i){
   return {url:await sealUrl(text),no:i.vno,print:await keyPrint((await sealKey()).pub)};
 }
 async function sealRelease(list,p){
-  list.forEach(ensureVno);const za=nextZa();saveData();
+  /* the same invoices give the same release: number and date are kept, so printing twice does not create a second release */
+  list.forEach(ensureVno);const ids=list.map(i=>i.id).sort().join(","),R=D.releases||(D.releases=[]);
+  let rec=R.find(r=>r.ids===ids);if(!rec){rec={no:nextZa(),ids,date:iso(TODAY)};R.push(rec);}saveData();const za=rec.no;
   const total=r2(list.reduce((a,i)=>a+payout(i),0));
   /* per invoice only its visum number and amount: contractor and invoice stand next to it on paper; keeps the code easy to scan */
-  const text=["AK2","Z",za.replace(/^ZA-/,""),clean((D.firm||{}).name),clean(p&&p.name).slice(0,20),cd(iso(TODAY)),amt(total),list.length].concat(list.map(i=>i.vno.replace(/^V-\d{4}-/,"")+"~"+amt(payout(i)))).join("|");
-  return {url:await sealUrl(text),no:za,print:await keyPrint((await sealKey()).pub)};
+  const text=["AK2","Z",za.replace(/^ZA-/,""),clean((D.firm||{}).name),clean(p&&p.name).slice(0,20),cd(rec.date),amt(total),list.length].concat(list.map(i=>i.vno.replace(/^V-\d{4}-/,"")+"~"+amt(payout(i)))).join("|");
+  return {url:await sealUrl(text),no:za,date:rec.date,print:await keyPrint((await sealKey()).pub)};
 }
 
 /* the mosaic code: round dots, rounded finder eyes, the arkitecton mark in the middle */

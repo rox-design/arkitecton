@@ -28,7 +28,7 @@ async function payPDF(i){
   let y=20;font(10,true);T(F.name||"",20,y);font(9);[F.street,[F.zip,F.city].filter(Boolean).join(" "),F.phone,F.email].filter(Boolean).forEach((l,n)=>T(l,20,y+5+n*4.5));
   sealBlock(doc,img.data,seal,154,10,36);
   font(10);[p.client,p.cstreet,[p.czip,p.ccity].filter(Boolean).join(" ")].filter(Boolean).forEach((l,n)=>T(l,118,58+n*5));
-  font(9);T((F.city?F.city+", ":"")+fdate(iso(TODAY)),118,84);
+  font(9);T((F.city?F.city+", ":"")+fdate(seal.date),118,84);
   font(14,true);T(L("Zahlungsfreigabe ","Payment release ")+seal.no,20,97);
   font(9);T(L("Projekt: ","Project: ")+[p.name,p.place].filter(Boolean).join(", "),20,104);
   y=115;font(10);doc.splitTextToSize(L("Wir haben die folgende Rechnung geprüft und geben den unten stehenden Betrag zur Zahlung frei.","We have checked the following invoice and recommend that you pay the amount below."),170).forEach((l,n)=>T(l,20,y+n*5));y+=16;
@@ -59,7 +59,7 @@ async function payPDFAll(list){
     let y=20;font(10,true);T(F.name||"",20,y);font(9);[F.street,[F.zip,F.city].filter(Boolean).join(" "),F.phone,F.email].filter(Boolean).forEach((l,n)=>T(l,20,y+5+n*4.5));
     sealBlock(doc,img.data,seal,154,10,36);
     font(10);[p.client,p.cstreet,[p.czip,p.ccity].filter(Boolean).join(" ")].filter(Boolean).forEach((l,n)=>T(l,118,58+n*5));
-    font(9);T((F.city?F.city+", ":"")+fdate(iso(TODAY)),118,84);
+    font(9);T((F.city?F.city+", ":"")+fdate(seal.date),118,84);
     font(14,true);T(L("Zahlungsfreigabe ","Payment release ")+seal.no,20,97);font(9);T(L("Projekt: ","Project: ")+[p.name,p.place].filter(Boolean).join(", ")+(pages.length>1?L(" · Seite "," · page ")+(pn+1)+L(" von "," of ")+pages.length:""),20,104);
     y=115;font(10);doc.splitTextToSize(L("Wir haben die folgenden Rechnungen geprüft und geben sie zur Zahlung frei. Bitte überweisen Sie die Beträge bis zum jeweiligen Datum.","We have checked the following invoices and release them for payment. Please pay each amount by its date."),170).forEach((l,n)=>T(l,20,y+n*5));y+=16;
     font(8,true);T(L("Unternehmer","Contractor"),20,y);T(L("Rechnung","Invoice"),82,y);T(L("Zahlbar bis","Payable by"),128,y);T("CHF",190,y,{align:"right"});y+=2;doc.setLineWidth(.2);doc.line(20,y,190,y);y+=5;

@@ -107,11 +107,12 @@ document.addEventListener("click",e=>{
     case "sig-person":openForm("person",null,"signers");break;
     case "bulk-tog":{const B=S.bulk;if(!B)break;B.sel=B.sel.includes(id)?B.sel.filter(x=>x!==id):B.sel.concat(id);renderOverlay();break;}
     case "bulk-approve":bulkApprove();break;
-    case "approve":{const i=INV(id);i.status="frei";logInv(i,L("Freigegeben","Approved"));S.done=null;S.queryOpen=false;render();toast(L("Freigegeben · ","Approved · ")+chf(payout(i)));break;}
+    case "visum-pdf":visumPDF(INV(id)).then(()=>toast(L("Rechnung mit Visum gespeichert","Invoice with approval stamp saved"))).catch(e=>{console.error(e);toast(L("PDF nicht möglich.","PDF failed."));});break;
+    case "approve":{const i=INV(id);i.status="frei";i.rel=iso(TODAY);logInv(i,L("Freigegeben","Approved"));S.done=null;S.queryOpen=false;render();toast(L("Freigegeben · ","Approved · ")+chf(payout(i)));break;}
     case "unapprove":{const i=INV(id);i.status="pruefen";logInv(i,L("Freigabe zurückgenommen","Approval undone"));render();break;}
     case "paid":{const i=INV(id);i.status="bezahlt";logInv(i,L("Bezahlt","Paid"));render();toast(L("Bezahlt","Paid"));break;}
     case "inv-unpaid":{const i=INV(id);i.status="frei";logInv(i,L("Zahlung zurückgenommen","Payment undone"));render();toast(L("Wieder freigegeben, nicht bezahlt","Back to approved, not paid"));break;}
-    case "del-inv":D.invoices=D.invoices.filter(x=>x.id!==id);closeAll();render();toast(L("Rechnung gelöscht","Invoice deleted"));break;
+    case "del-inv":D.invoices=D.invoices.filter(x=>x.id!==id);DOCS().filter(d=>d.scope==="inv"&&d.ref===id).forEach(d=>FDB.del(d.id));D.docs=DOCS().filter(d=>!(d.scope==="inv"&&d.ref===id));closeAll();render();toast(L("Rechnung gelöscht","Invoice deleted"));break;
     case "query":S.queryOpen=true;renderOverlay();{const q=document.getElementById("qtext");if(q)q.scrollIntoView({block:"nearest"});}break;
     case "copy-query":{const q=document.getElementById("qtext");copy(q?q.value:"",L("Kopiert","Copied"));break;}
     case "share-query":{const q=document.getElementById("qtext"),inv=D.invoices.find(x=>x.id===id);navigator.share({title:L("Rechnung ","Invoice ")+(inv?inv.no:""),text:q?q.value:""}).catch(()=>{});break;}

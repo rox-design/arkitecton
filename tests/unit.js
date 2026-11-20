@@ -95,6 +95,12 @@ test("Mehrere Rechnungen erfassen",()=>{
   eq(M.batch.items.map(i=>i.st),["ok","dup","fx","err","twice"],"neu, bereits erfasst, Fremdwährung, kein QR, zweimal");
   eq(M.batch.sel,[0],"nur die neue ist ausgewählt");
   const r=saveCapture(M.batch.items[0].d,{type:M.batch.items[0].type});eq(r.ni.n,2,"Akonto 2 aus dem Text");eq(r.ni.status,"pruefen","liegt in Zu prüfen");});
+test("KV revidiert",()=>{
+  D=base();D.projects[0].budget=[{bkp:"211",de:"Baumeister",en:"",kv:100000,kvr:120000},{bkp:"221",de:"Fenster",en:"",kv:50000}];
+  D.contracts=[{id:"w1",pid:"p1",k:"k1",bkp:"211",sum:110000,ret:0}];D.invoices=[];
+  const rs=budgetRows(),t=totals(rs);
+  eq(rs[0].kv,120000,"revidierter KV zählt");eq(rs[0].rest,10000,"Reserve gegen revidierten KV");yes(rs[0].rev&&!rs[1].rev,"nur 211 revidiert");
+  eq(t.kv,170000,"Total revidiert");eq(t.kv0,150000,"Total ursprünglich");yes(t.rev,"Projekt hat Revision");});
 D=keep;
 window.__unit=results;
 })();

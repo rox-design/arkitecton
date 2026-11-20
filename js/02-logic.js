@@ -75,6 +75,8 @@ function compare(w){
 function budgetRows(){
   const p=P(); if(!p) return [];
   return p.budget.map(b=>{
+    /* a revised estimate replaces the original for forecast and reserve; the original stays for comparison */
+    const rev=b.kvr!=null&&b.kvr!=="",kv=rev?+b.kvr:(b.kv||0);
     const ws=PC().filter(w=>w.bkp===b.bkp), ids=ws.map(w=>w.id), inv=D.invoices.filter(i=>ids.includes(i.w));
     const awarded=ws.reduce((a,w)=>a+w.sum,0), billed=inv.filter(counted).reduce((a,i)=>a+net(i),0);
     const paid=inv.filter(i=>i.status==="bezahlt").reduce((a,i)=>a+payout(i),0), approved=inv.filter(i=>i.status==="frei").reduce((a,i)=>a+payout(i),0);
@@ -86,11 +88,11 @@ function budgetRows(){
        A position without contract or invoice is expected to cost its estimate (no reserve yet). Regie always comes on top. */
     let final=ws.length>0;const fc=ws.reduce((a,w)=>{const iw=inv.filter(i=>i.w===w.id&&live(i)&&i.type!=="regie"),bw=iw.reduce((x,i)=>x+net(i),0),fin=iw.some(i=>i.type==="schluss");if(!fin)final=false;return a+(fin?bw:Math.max(w.sum||0,bw));},0);
     const none=!ws.length&&!inv.some(live);
-    const forecast=none?b.kv:fc+regie;
-    return {b,awarded,billed,paid,approved,open,ret,regie,forecast,final,none,rest:b.kv-forecast,over:b.kv>0&&forecast>b.kv};
+    const forecast=none?kv:fc+regie;
+    return {b,kv,rev,awarded,billed,paid,approved,open,ret,regie,forecast,final,none,rest:kv-forecast,over:kv>0&&forecast>kv};
   });
 }
-function totals(rows){const t={kv:0,awarded:0,billed:0,paid:0,approved:0,open:0,ret:0,rest:0};rows.forEach(r=>{for(const k in t)t[k]+=k==="kv"?r.b.kv:r[k];});return t;}
+function totals(rows){const t={kv:0,kv0:0,awarded:0,billed:0,paid:0,approved:0,open:0,ret:0,rest:0};rows.forEach(r=>{for(const k in t)t[k]+=k==="kv0"?(r.b.kv||0):r[k];});t.rev=rows.some(r=>r.rev);return t;}
 function flags(){
   const out=[], p=P(); if(!p) return out;
   PI().filter(i=>!counted(i)).forEach(i=>{

@@ -50,6 +50,7 @@ function drawerHTML(i){
       ${i.replaces&&INV(i.replaces)?`<div class="notice"><span class="ic info" aria-hidden="true">i</span><span>${L("Ersetzt Rechnung ","Replaces invoice ")}<button type="button" class="ghost link" data-act="open-inv" data-id="${i.replaces}">${esc(INV(i.replaces).no)}</button></span></div>`:""}
       ${issues.length?`<ul class="checks" style="border-top:1px solid var(--line)">${issues.map(li).join("")}</ul>`:`<div class="notice"><span class="ic ok" aria-hidden="true">✓</span><span>${L("Alle Prüfungen in Ordnung","All checks passed")}</span></div>`}
       <div class="calc"><span>${L("Rechnung","Invoice")}</span><span class="r">${nf2.format(i.gross)}</span>${i.ded&&i.ded.amt?`<span>${L("Abzug","Deduction")} <span class="sp">· ${esc(i.ded.why)}</span></span><span class="r">− ${nf2.format(i.ded.amt)}</span>`:""}<span>${retLine[0]}</span><span class="r">${retLine[1]}</span><span class="sum">${L("Auszahlung","Payout")}</span><span class="r sum">${chf(payout(i))}</span></div>
+      ${invDocRow(i)}
       <div>
         ${oks.length&&issues.length?`<details><summary>${L("Weitere Prüfungen: ","Other checks: ")}${oks.length} ${L("in Ordnung","passed")}</summary><div class="in"><ul class="checks">${oks.map(li).join("")}</ul></div></details>`:""}
         <details><summary>${L("Zahlungsdaten","Payment details")}</summary><div class="in"><dl class="kv"><dt>IBAN</dt><dd>${k.iban?esc(k.iban):`<span class="neg">${L("fehlt","missing")}</span>`}</dd><dt>${L("Referenz","Reference")}</dt><dd>${i.ref?esc(i.ref):"–"}</dd><dt>${L("Fällig","Due")}</dt><dd>${fdate(i.due)}</dd></dl></div></details>
@@ -164,7 +165,7 @@ async function onScanFile(file){
   stopCam();
   const pdf=isPdf(file);
   if(!pdf&&!/^image\//.test(file.type)){S.modal.err=L("Bitte ein PDF oder Foto der Rechnung wählen.","Please choose a PDF or photo of the invoice.");return renderOverlay();}
-  S.modal.busy=true;S.modal.err="";renderOverlay();
+  S.modal.busy=true;S.modal.err="";S.modal.file=file;renderOverlay();
   let txt=null;try{txt=pdf?await decodePdfQR(file):await decodeQR(file);}catch(e){txt=null;}
   if(!S.modal)return;S.modal.busy=false;
   const d=txt?parseSPC(txt):null;
@@ -265,7 +266,7 @@ function confirmCapture(){
   if(!d.amount){S.modal.err=L("Betrag eingeben","Enter the amount");return renderOverlay();}
   S.modal.err="";
   const moved=S.modal.pid&&S.modal.pid!==D.pid;if(S.modal.pid)D.pid=S.modal.pid;
-  const r=saveCapture(d,{type:(document.getElementById("capType")||{}).value||"akonto",bkp:(document.getElementById("capBkp")||{}).value,rep:S.modal.rep});
+  const r=saveCapture(d,{type:(document.getElementById("capType")||{}).value||"akonto",bkp:(document.getElementById("capBkp")||{}).value,rep:S.modal.rep,file:S.modal.file});
   if(r.dup){S.modal.step=3;logDup();return renderOverlay();}
   S.done={id:r.ni.id,items:r.items};S.modal=null;S.drawer=r.ni.id;S.queryOpen=false;render();
   if(moved)toast(L("Im Projekt ","Filed in ")+P().name);
@@ -283,6 +284,7 @@ function saveCapture(d,o){
   const ni={id:newId("i"),no:d.no||L("ohne Nr.","no number"),w:w.id,type,n,date:d.date||iso(TODAY),due:d.due||addDays(d.date||iso(TODAY),SET().term),gross:r2(d.amount),status:"pruefen",ref:d.ref||""};if(d.fx)ni.fx=d.fx;
   logInv(ni,L("Per QR erfasst","Captured via QR"));
   D.invoices.push(ni);if(o.rep)linkReplace(o.rep,ni);
+  if(o.file)keepInvoiceFile(ni,o.file);
   if(type==="akonto")items.push(L("Rückbehalt ","Retention ")+nf2.format(retention(ni)));
   if(d.ref)items.push(L("Keine Doppelrechnung","No duplicate"));
   return {ni,items};
@@ -309,7 +311,7 @@ async function onScanFiles(files){
     if(!S.modal||S.modal!==M)return;
     let d=null;
     if(isPdf(f)||/^image\//.test(f.type)){let txt=null;try{txt=isPdf(f)?await decodePdfQR(f):await decodeQR(f);}catch(e){txt=null;}d=txt?parseSPC(txt):null;}
-    M.batch.items.push(batchItem(d,f.name));renderOverlay();
+    const it=batchItem(d,f.name);it.fileObj=f;M.batch.items.push(it);renderOverlay();
   }
   if(S.modal!==M)return;
   if(M.batch.items.some(i=>i.d))D.realScan=true;
@@ -337,7 +339,7 @@ function batchHTML(M){
 function batchSave(){
   const B=S.modal&&S.modal.batch;if(!B)return;
   const cnt={},home=D.pid;let n=0;
-  B.sel.map(x=>B.items[x]).forEach(it=>{const r=withP(it.pid,()=>saveCapture(it.d,{type:it.type,bkp:it.bkp}));if(r.ni){n++;cnt[it.pid]=(cnt[it.pid]||0)+1;}});
+  B.sel.map(x=>B.items[x]).forEach(it=>{const r=withP(it.pid,()=>saveCapture(it.d,{type:it.type,bkp:it.bkp,file:it.fileObj}));if(r.ni){n++;cnt[it.pid]=(cnt[it.pid]||0)+1;}});
   const pids=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]);
   closeAll();D.pid=pids[0]||home;S.view="rechnungen";S.rtab="kred";S.filter="pruefen";render();
   toast((n===1?L("1 Rechnung erfasst","1 invoice added"):n+L(" Rechnungen erfasst"," invoices added"))+(pids.length>1?L(" in "," in ")+pids.length+L(" Projekten"," projects"):"")+L(" · jetzt prüfen"," · check now"));
@@ -358,8 +360,34 @@ function bulkHTML(){
 }
 function bulkApprove(){
   const list=S.bulk.sel.map(INV).filter(i=>i&&cleanInv(i));if(!list.length)return;
-  list.forEach(i=>{i.status="frei";logInv(i,L("Freigegeben (gemeinsam)","Approved (together)"));});
+  list.forEach(i=>{i.status="frei";i.rel=iso(TODAY);logInv(i,L("Freigegeben (gemeinsam)","Approved (together)"));});
   const sum=r2(list.reduce((a,i)=>a+payout(i),0));
   closeAll();S.filter="frei";render();
   toast((list.length===1?L("1 Rechnung freigegeben","1 invoice approved"):list.length+L(" Rechnungen freigegeben"," invoices approved"))+" · "+chf(sum));
 }
+
+/* ---------- the invoice file and its approval stamp (visum) ---------- */
+const invFile=i=>DOCS().find(d=>d.scope==="inv"&&d.ref===i.id);
+function keepInvoiceFile(i,f){const id=newId("f");FDB.put(id,f).then(()=>{DOCS().push({id,scope:"inv",ref:i.id,name:f.name||L("Rechnung","Invoice")+" "+i.no+".pdf",type:f.type||"application/pdf",size:f.size||0,date:iso(TODAY)});saveData();}).catch(()=>{});}
+function invDocRow(i){
+  const f=invFile(i),vis=counted(i);if(!f&&!vis)return "";
+  return `<div class="visrow">${f?`<button type="button" class="btn" data-act="doc-open" data-id="${f.id}">${L("Rechnung öffnen","Open invoice")}</button>`:""}${vis?`<button type="button" class="btn" data-act="visum-pdf" data-id="${i.id}" data-tip="${L("Die Rechnung mit Freigabevermerk: geprüft, Datum, Betrag zur Zahlung, Visum. Ersetzt den Stempel von Hand.","The invoice with an approval stamp: checked, date, amount to pay, initials. Replaces the hand stamp.")}">${L("Mit Visum (PDF)","With approval stamp (PDF)")}</button>`:""}</div>`;
+}
+async function visumPDF(i){
+  const w=W(i.w),k=K(w.k),f=invFile(i),F=D.firm||{},who=signer(0).name;
+  const lines=[L("GEPRÜFT UND FREIGEGEBEN","CHECKED AND APPROVED"),F.name||"",L("Datum: ","Date: ")+fdate(i.rel||iso(TODAY)),"BKP "+w.bkp+" · "+typeLabel(i),L("Zur Zahlung: CHF ","To pay: CHF ")+nf2.format(payout(i))].concat(retention(i)>0?[L("Rückbehalt: CHF ","Retention: CHF ")+nf2.format(retention(i))]:[]).concat([L("Visum: ","Initials: ")+(who||"")]);
+  await loadScript("vendor/pdf-lib.min.js");const {PDFDocument,rgb,StandardFonts}=window.PDFLib;
+  let pdf;const blob=f&&await FDB.get(f.id);
+  if(blob&&/pdf/i.test(blob.type||f.type||"")){pdf=await PDFDocument.load(await blob.arrayBuffer(),{ignoreEncryption:true});}
+  else{pdf=await PDFDocument.create();const pg=pdf.addPage([595.28,841.89]);
+    if(blob&&/^image\//.test(blob.type||f.type||"")){const bytes=await blob.arrayBuffer(),img=/png/i.test(blob.type||f.type)?await pdf.embedPng(bytes):await pdf.embedJpg(bytes);const sc=Math.min(555/img.width,800/img.height);pg.drawImage(img,{x:20,y:841.89-20-img.height*sc,width:img.width*sc,height:img.height*sc});}
+    else{const fo=await pdf.embedFont(StandardFonts.Helvetica);[k.name,[k.street,[k.zip,k.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),"",L("Rechnung ","Invoice ")+i.no+" · "+fdate(i.date),typeLabel(i)+" · BKP "+w.bkp,L("Rechnungsbetrag CHF ","Invoice amount CHF ")+nf2.format(i.gross),"",f?"":L("Original nicht in arkitecton gespeichert. Dieses Blatt ersetzt den Stempel auf dem Original.","Original not stored in arkitecton. This sheet replaces the stamp on the original.")].forEach((t,n)=>pg.drawText(asc(t),{x:56,y:760-n*16,size:n===3?13:10,font:fo,color:rgb(.1,.1,.1)}));}}
+  const pg=pdf.getPage(0),{width:W0,height:H0}=pg.getSize(),fb=await pdf.embedFont(StandardFonts.HelveticaBold),fr=await pdf.embedFont(StandardFonts.Helvetica);
+  const ink=rgb(.1,.27,.62),bw=200,lh=12,bh=16+lines.length*lh,x=W0-bw-28,y=H0-bh-28;
+  pg.drawRectangle({x,y,width:bw,height:bh,color:rgb(1,1,1),opacity:.9,borderColor:ink,borderWidth:1.4});
+  lines.forEach((t,n)=>pg.drawText(asc(t),{x:x+10,y:y+bh-18-n*lh,size:n?8.5:9.5,font:n===0||n===4?fb:fr,color:ink}));
+  const bytes=await pdf.save(),a=document.createElement("a");a.href=URL.createObjectURL(new Blob([bytes],{type:"application/pdf"}));
+  a.download=L("Visiert_","Approved_")+String(k.name).replace(/[^\w]+/g,"-")+"_"+String(i.no).replace(/[^\w]+/g,"-")+".pdf";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+/* the standard PDF fonts know Latin-1 only: keep umlauts, replace the rest */
+const asc=t=>String(t).replace(/[‘’]/g,"'").replace(/[“”«»]/g,'"').replace(/[–—]/g,"-").replace(/[^\x00-\xff]/g,"");

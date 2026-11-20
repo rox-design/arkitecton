@@ -80,9 +80,9 @@ function seedTenders(){
 function seedExample(){
   const t0=iso(TODAY), d=n=>addDays(t0,n);
   const tt=seedTenders();
-  return {v:1,seq:100,events:[],pid:"p1",firm:{name:L("Beispiel Architekten GmbH","Example Architects Ltd"),street:"Zugerstrasse 18",zip:"8820",city:"Wädenswil",iban:"CH6700700110004357712",email:"info@beispiel-architekten.example",signers:[{m:"m1",role:"Projektleiter"},{m:"m3",role:"Mitglied der Geschäftsleitung"}],phone:"044 780 12 34",vat:true,vatNo:"CHE-123.456.788 MWST"},
+  return {v:1,seq:100,events:[],pid:"p1",firm:{name:L("Beispiel Architekten GmbH","Example Architects Ltd"),street:"Zugerstrasse 18",zip:"8820",city:"Wädenswil",iban:"CH6700700110004357712",email:"info@beispiel-architekten.example",signers:[{m:"m1",role:"Projektleiter"},{m:"m2",role:"Bauleitung"}],phone:"044 780 12 34",vat:true,vatNo:"CHE-123.456.788 MWST"},
     projects:[{id:"p1",name:"MFH Seestrasse 12",place:"Wädenswil",client:"Familie Graf",cstreet:"Rebhalde 5",czip:"8820",ccity:"Wädenswil",desc:L("Neubau, 8 Wohnungen","New build, 8 flats"),
-      budget:[["211",420000],["221",96000],["224",58000],["230",74000],["250",88000],["271",41000],["281",52000],["285",36000]].map(([b,kv])=>{const s=STD_BKP.find(x=>x[0]===b);return {bkp:b,de:s[1],en:s[2],kv};}).concat(EX_BKP_EXTRA.map(([bkp,de,en,kv])=>({bkp,de,en,kv}))).sort((a,b)=>a.bkp.localeCompare(b.bkp))},
+      budget:[["211",420000],["221",96000],["224",58000],["230",74000],["250",88000],["271",41000],["281",52000],["285",36000]].map(([b,kv])=>{const s=STD_BKP.find(x=>x[0]===b);return Object.assign({bkp:b,de:s[1],en:s[2],kv},b==="285"?{kvr:41000}:{});}).concat(EX_BKP_EXTRA.map(([bkp,de,en,kv])=>({bkp,de,en,kv}))).sort((a,b)=>a.bkp.localeCompare(b.bkp))},
       {id:"p2",name:"EFH Bergstrasse 4",place:"Horgen",client:"Herr und Frau Keller",cstreet:"Bergstrasse 4",czip:"8810",ccity:"Horgen",desc:L("Umbau Einfamilienhaus","Single-family house conversion"),
       budget:[["221",28000],["285",14000]].map(([b,kv])=>{const s=STD_BKP.find(x=>x[0]===b);return {bkp:b,de:s[1],en:s[2],kv};})}],
     contractors:[

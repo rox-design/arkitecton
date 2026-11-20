@@ -75,10 +75,12 @@ function runMigrations(){
   if(!D.mig.closedFees){D.mig.closedFees=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&D.contracts.some(w=>w.pid===pa.id)&&!D.contracts.some(w=>w.pid===pa.id&&w.bkp==="511"))seedClosedFees(pa);}
   if(!D.mig.closedMail){D.mig.closedMail=1;if(D.example)[["Gemeinde Wädenswil, Bauamt","bauamt@waedenswil.example"],["Bauversicherung Zürichsee AG","schaden@bauversicherung-zs.example"]].forEach(([n,e])=>{const k=D.contractors.find(x=>x.name===n);if(k&&!k.email)k.email=e;});}
   /* signatures point to people in the office team: name and title are kept once, in the team */
+  if(!D.mig.kvr){D.mig.kvr=1;const p0=D.example&&(D.projects||[]).find(p=>p.id==="p1"),b=p0&&(p0.budget||[]).find(x=>x.bkp==="285");if(b&&b.kvr==null&&b.kv===36000)b.kvr=41000;}
+  if(!D.mig.signers3){D.mig.signers3=1;const G=(D.firm||{}).signers;if(D.example&&G&&G[1]&&G[1].m==="m3"&&G[1].role==="Mitglied der Geschäftsleitung"&&((D.office||{}).team||[]).some(m=>m.id==="m2"))G[1]={m:"m2",role:"Bauleitung"};}
   if(!D.mig.signers2){D.mig.signers2=1;const F=D.firm||(D.firm={}),O=D.office||(D.office={team:[]});O.team=O.team||[];
     const ex=D.example&&/Beispiel Architekten|Example Architects/.test(F.name||"");
     const old=F.signers||[F.sig1,F.sig2].filter(Boolean).map(x=>{const [n,...r]=String(x).split(",");return {name:n.trim(),title:"",role:r.join(",").trim()};});
-    if(ex&&O.team.some(m=>m.id==="m1"))F.signers=[{m:"m1",role:"Projektleiter"},{m:O.team.some(m=>m.id==="m3")?"m3":"",role:"Mitglied der Geschäftsleitung"}];
+    if(ex&&O.team.some(m=>m.id==="m1"))F.signers=[{m:"m1",role:"Projektleiter"},{m:O.team.some(m=>m.id==="m2")?"m2":"",role:"Bauleitung"}];
     else F.signers=old.map(g=>{if(g.m!==undefined)return g;if(!g.name)return {m:"",role:g.role||""};let m=O.team.find(x=>(x.name||"").trim().toLowerCase()===g.name.toLowerCase());
       if(!m){m={id:newId("m"),name:g.name,qual:g.title||"",extra:[],career:[]};O.team.push(m);}else if(!m.qual&&g.title)m.qual=g.title;return {m:m.id,role:g.role||""};});
     delete F.sig1;delete F.sig2;}

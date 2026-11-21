@@ -151,15 +151,16 @@ function dscanHTML(){
   const kind=M.kind||"wv",withK=DK_WITH_K.includes(kind),pid=M.pid||D.pid||(D.projects[0]||{}).id,ks=D.contractors.filter(k=>D.contracts.some(w=>w.pid===pid&&w.k===k.id));
   const kid=M.kid&&ks.some(k=>k.id===M.kid)?M.kid:"",name=M.name||dsName(kind,pid,kid);
   return wrapCapture(L("Dokument ablegen","File document"),`${thumbs}
-    <div class="f wide"><label for="dsKind">${L("Was ist es?","What is it?")}</label><select id="dsKind" data-act="ds-field">${DK_ORDER.map(k=>`<option value="${k}"${k===kind?" selected":""}>${dkName(k)}</option>`).join("")}</select></div>
+    <div class="f wide"><label for="dsKind">${L("Was ist es?","What is it?")}</label><select id="dsKind" data-act="ds-field">${dkOptions(kind)}</select></div>
     <div class="f wide"><label for="dsPid">${L("Projekt","Project")}</label><select id="dsPid" data-act="ds-field">${D.projects.filter(p=>!p.closed||p.id===pid).map(p=>`<option value="${p.id}"${p.id===pid?" selected":""}>${esc(p.name)}</option>`).join("")}</select></div>
     ${withK?`<div class="f wide"><label for="dsKid">${L("Handwerker","Contractor")}</label><select id="dsKid" data-act="ds-field"><option value="">${L("– keiner –","– none –")}</option>${ks.map(k=>`<option value="${k.id}"${k.id===kid?" selected":""}>${esc(k.name)}</option>`).join("")}</select><span class="hint">${L("Dann erscheint das Dokument auch beim Handwerker.","Then the document also shows with the contractor.")}</span></div>`:""}
+    ${DK_UNTIL.includes(kind)?`<div class="f wide"><label for="dsUntil">${kind==="gs"?L("Garantie endet am","Warranty ends on"):L("Gültig bis","Valid until")}</label><input id="dsUntil" type="date" data-act="ds-field" value="${esc(M.until!=null?M.until:kind==="gs"?addDays(iso(TODAY),730):"")}"><span class="hint">${kind==="gs"?L("Meist 2 Jahre ab Abnahme. 60 Tage vorher erscheint eine Warnung unter «Zu erledigen», damit Mängel rechtzeitig gerügt werden.","Usually 2 years from acceptance. A warning appears under «To do» 60 days before."):L("30 Tage vor Ablauf erscheint eine Warnung unter «Zu erledigen».","A warning appears under «To do» 30 days before.")}</span></div>`:""}
     <div class="f wide"><label for="dsName">${L("Name","Name")}</label><input id="dsName" value="${esc(name)}"></div>`,
     `<button type="button" class="btn" data-act="ds-more">${L("+ Seite","+ Page")}</button><button type="button" class="btn primary" data-act="ds-save">${L("Ablegen","File")}</button>`);
 }
-function dsName(kind,pid,kid){const k=kid&&K(kid);return [dkName(kind),k?k.name:(PJ(pid)||{}).name,fdate(iso(TODAY))].filter(Boolean).join(" ");}
+function dsName(kind,pid,kid){const k=kid&&K(kid);return [dkShort(kind),k?k.name:(PJ(pid)||{}).name,fdate(iso(TODAY))].filter(Boolean).join(" ");}
 function dsRead(){const M=DS(),g=id=>{const e=document.getElementById(id);return e?e.value:null;};
-  const kind=g("dsKind"),pid=g("dsPid"),kid=g("dsKid"),nm=g("dsName");
+  const kind=g("dsKind"),pid=g("dsPid"),kid=g("dsKid"),nm=g("dsName"),un=g("dsUntil");if(kind&&kind!==M.kind)M.until=null;else if(un!==null)M.until=un;
   const auto=!M.name||M.name===dsName(M.kind||"wv",M.pid||D.pid,M.kid||"");
   if(kind)M.kind=kind;if(pid)M.pid=pid;M.kid=kid||"";if(nm!==null)M.name=auto?"":nm;}
 
@@ -186,7 +187,7 @@ async function dscanSave(){
   M.pages.forEach(pg=>{const land=pg.w>pg.h,PW=land?297:210,PH=land?210:297;if(!doc)doc=new jsPDF({unit:"mm",format:"a4",orientation:land?"landscape":"portrait"});else doc.addPage("a4",land?"landscape":"portrait");
     const s=Math.min(PW/pg.w,PH/pg.h),w=pg.w*s,h=pg.h*s;doc.addImage(pg.data,"JPEG",(PW-w)/2,(PH-h)/2,w,h);});
   const blob=doc.output("blob"),id=newId("f");await FDB.put(id,blob);
-  DOCS().push({id,scope:"doc",ref:pid,pid,kid:kid||undefined,kind,name,type:"application/pdf",size:blob.size,date:iso(TODAY),pages:M.pages.length});
+  DOCS().push({id,scope:"doc",ref:pid,pid,kid:kid||undefined,kind,name,type:"application/pdf",size:blob.size,date:iso(TODAY),pages:M.pages.length,until:DK_UNTIL.includes(kind)?(M.until!=null?M.until:kind==="gs"?addDays(iso(TODAY),730):"")||null:null});
   dscanClose();render();
   toast(dkName(kind)+L(" abgelegt bei "," filed with ")+((PJ(pid)||{}).name||"")+(kid&&K(kid)?" · "+K(kid).name:""));
 }

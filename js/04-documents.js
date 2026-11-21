@@ -13,7 +13,7 @@ const DOCS=()=>D.docs||(D.docs=[]);
 const docsFor=(scope,ref)=>DOCS().filter(d=>d.scope===scope&&d.ref===ref).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
 const kindOf=n=>{const e=(String(n).split(".").pop()||"").toLowerCase();return e==="pdf"?"PDF":["doc","docx"].includes(e)?"Word":["xls","xlsx","csv"].includes(e)?"Excel":["jpg","jpeg","png","heic"].includes(e)?L("Bild","Image"):e.toUpperCase();};
 const fsize=b=>b>=1048576?(b/1048576).toFixed(1).replace(".0","")+" MB":Math.max(1,Math.round(b/1024))+" KB";
-function docValid(d){if(!d.until)return null;const n=daysTo(d.until);return n<0?{c:"crit",t:L("abgelaufen","expired")}:n<=30?{c:"warn",t:L("läuft ab in "+n+" "+dayWord(n),"expires in "+n+" "+(n===1?"day":"days"))}:{c:"ok",t:L("gültig bis ","valid until ")+fdate(d.until)};}
+function docValid(d){if(!d.until)return null;const n=daysTo(d.until),gs=d.kind==="gs";return n<0?{c:"crit",t:gs?L("Garantie abgelaufen","warranty expired"):L("abgelaufen","expired")}:n<=dkWarnDays(d.kind)?gs?{c:"warn",t:L("Garantie endet in "+n+" "+dayWord(n),"warranty ends in "+n+" days")}:{c:"warn",t:L("läuft ab in "+n+" "+dayWord(n),"expires in "+n+" "+(n===1?"day":"days"))}:{c:"ok",t:L("gültig bis ","valid until ")+fdate(d.until)};}
 function docsBlock(scope,ref,title,hint){
   const rk=d=>{const v=docValid(d);return v?{crit:0,warn:1,ok:2}[v.c]:3;};
   const list=docsFor(scope,ref).sort((a,b)=>scope==="firm"?rk(a)-rk(b):0);
@@ -23,14 +23,38 @@ function docsBlock(scope,ref,title,hint){
 }
 /* ---------- document kinds: one document is stored once and shows wherever it belongs ----------
    project page: everything of the project, grouped by kind; contractor page: everything of the contractor, grouped by project */
-const DKIND={wv:[["Werkvertrag","Contract"],["Werkverträge","Contracts"]],of:[["Offerte","Offer"],["Offerten","Offers"]],rr:[["Regierapport","Time report"],["Regierapporte","Time reports"]],
-  am:[["Ausmass","Measurement"],["Ausmasse","Measurements"]],ls:[["Lieferschein","Delivery note"],["Lieferscheine","Delivery notes"]],ab:[["Abnahmeprotokoll / Mängelliste","Acceptance / defects"],["Abnahmen und Mängel","Acceptance and defects"]],
-  pr:[["Bausitzungsprotokoll","Site meeting minutes"],["Protokolle","Minutes"]],br:[["Brief / Bewilligung","Letter / permit"],["Briefe und Bewilligungen","Letters and permits"]],
-  gr:[["Plan / Grundlage","Plan / basis"],["Pläne und Grundlagen","Plans and basics"]],so:[["Sonstiges","Other"],["Sonstiges","Other"]]};
-const DK_ORDER=Object.keys(DKIND),DK_WITH_K=["wv","of","rr","am","ls","ab"];
-const dkName=(k,pl)=>L(...DKIND[k||"so"][pl?1:0]);
+const DKIND={
+  av:[["Architektenvertrag","Architect contract"],["Architektenverträge","Architect contracts"]],
+  bw:[["Baugesuch / Baubewilligung","Permit application / permit"],["Baubewilligung und Auflagen","Permit and conditions"]],
+  gr:[["Plan / Grundlage","Plan / basis"],["Pläne und Grundlagen","Plans and basics"]],
+  br:[["Brief / Korrespondenz","Letter"],["Briefe","Letters"]],
+  of:[["Offerte","Offer"],["Offerten","Offers"]],
+  wv:[["Werkvertrag","Contract"],["Werkverträge","Contracts"]],
+  vs:[["Versicherungsnachweis","Insurance certificate"],["Versicherungsnachweise","Insurance certificates"]],
+  na:[["Nachtrag","Change order"],["Nachträge","Change orders"]],
+  rr:[["Regierapport","Time report"],["Regierapporte","Time reports"]],
+  am:[["Ausmass","Measurement"],["Ausmasse","Measurements"]],
+  ls:[["Lieferschein","Delivery note"],["Lieferscheine","Delivery notes"]],
+  pr:[["Bausitzungsprotokoll","Site meeting minutes"],["Protokolle","Minutes"]],
+  bj:[["Baujournal","Site journal"],["Baujournal","Site journal"]],
+  ab:[["Abnahmeprotokoll / Mängelliste","Acceptance / defects"],["Abnahmen und Mängel","Acceptance and defects"]],
+  gs:[["Garantieschein (Solidarbürgschaft)","Warranty bond"],["Garantiescheine","Warranty bonds"]],
+  sr:[["Schlussabrechnung Handwerker","Contractor final account"],["Schlussabrechnungen","Final accounts"]],
+  ba:[["Bauabrechnung","Construction account"],["Bauabrechnung","Construction account"]],
+  so:[["Sonstiges","Other"],["Sonstiges","Other"]]};
+/* the order of work on a building: the choice list is grouped like this so 18 kinds stay easy to scan */
+const DK_PHASES=[[["Planung und Bewilligung","Planning and permit"],["av","bw","gr","br"]],[["Vergabe","Award"],["of","wv","vs"]],
+  [["Ausführung","Construction"],["na","rr","am","ls","pr","bj"]],[["Abschluss und Garantie","Completion and warranty"],["ab","gs","sr","ba"]],[["Weiteres","More"],["so"]]];
+const DK_ORDER=DK_PHASES.flatMap(g=>g[1]),DK_WITH_K=["of","wv","vs","na","rr","am","ls","ab","gs","sr"],DK_UNTIL=["gs","vs"];
+const dkName=(k,pl)=>L(...DKIND[DKIND[k]?k:"so"][pl?1:0]);
+const dkShort=k=>dkName(k).replace(/ \(.*\)| \/.*/,"");
+const dkOptions=sel=>DK_PHASES.map(([g,ks])=>`<optgroup label="${esc(L(...g))}">${ks.map(k=>`<option value="${k}"${k===sel?" selected":""}>${esc(dkName(k))}</option>`).join("")}</optgroup>`).join("");
+/* warranty bonds warn earlier: defects must be reported before the warranty ends */
+const dkWarnDays=k=>k==="gs"?60:30;
 function guessDocKind(name){const n=String(name||"").toLowerCase();
-  return /werkvertrag|vertrag/.test(n)?"wv":/offerte|angebot|nachtrag/.test(n)?"of":/rapport|regie|stunden/.test(n)?"rr":/ausmass|massurkunde/.test(n)?"am":/lieferschein/.test(n)?"ls":/abnahme|mängel|maengel/.test(n)?"ab":/protokoll|sitzung/.test(n)?"pr":/bewilligung|brief|bauamt|verfügung|versicherung/.test(n)?"br":/plan|kostenvoranschlag|grundlage|kv/.test(n)?"gr":"so";}
+  return /architektenvertrag|planervertrag|sia.?102/.test(n)?"av":/garantieschein|bürgschaft|buergschaft|garantie/.test(n)?"gs":/nachtrag/.test(n)?"na":/schlussabrechnung/.test(n)?"sr":/bauabrechnung/.test(n)?"ba":
+    /baujournal|bautagebuch/.test(n)?"bj":/versicherung/.test(n)?"vs":/werkvertrag|vertrag/.test(n)?"wv":/offerte|angebot/.test(n)?"of":/rapport|regie|stunden/.test(n)?"rr":/ausmass|massurkunde/.test(n)?"am":/lieferschein/.test(n)?"ls":
+    /abnahme|mängel|maengel/.test(n)?"ab":/protokoll|sitzung/.test(n)?"pr":/baugesuch|bewilligung|auflage|verfügung/.test(n)?"bw":/brief|bauamt/.test(n)?"br":/plan|kostenvoranschlag|grundlage|kv/.test(n)?"gr":"so";}
 const docKind=d=>d.kind||guessDocKind(d.name);
 const docsOfProject=pid=>DOCS().filter(d=>(d.scope==="project"&&d.ref===pid)||(d.scope==="doc"&&d.pid===pid)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
 const docsOfContractor=kid=>DOCS().filter(d=>(d.scope==="contractor"&&d.ref===kid)||(d.scope==="doc"&&d.kid===kid)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
@@ -65,6 +89,18 @@ function samplePdf(lines){
   let out="%PDF-1.4\n";const off=[];objs.forEach((o,i)=>{off.push(out.length);out+=(i+1)+" 0 obj\n"+o+"\nendobj\n";});
   const x=out.length;out+="xref\n0 "+(objs.length+1)+"\n0000000000 65535 f \n"+off.map(o=>String(o).padStart(10,"0")+" 00000 n \n").join("")+"trailer\n<< /Size "+(objs.length+1)+" /Root 1 0 R >>\nstartxref\n"+x+"\n%%EOF";
   return new Blob([out],{type:"application/pdf"});
+}
+/* example: a warranty bond running out and an insurance certificate, so the deadlines show under «Zu erledigen» */
+async function addDocs3(){
+  const ad=n=>addDays(iso(TODAY),n),p1=D.projects.find(p=>p.id==="p1")||D.projects[0];if(!p1)return;
+  const onP=nm=>D.contractors.find(c=>c.name.startsWith(nm)&&D.contracts.some(w=>w.k===c.id&&w.pid===p1.id))||D.contractors.find(c=>D.contracts.some(w=>w.k===c.id&&w.pid===p1.id));
+  const mk=async(k,kind,name,lines,date,until)=>{if(!k)return;const b=samplePdf(lines.concat(["","Beispieldokument, fiktive Daten."]));const id=newId("f");await FDB.put(id,b);
+    DOCS().push({id,scope:"doc",ref:p1.id,pid:p1.id,kid:k.id,kind,name,type:"application/pdf",size:b.size,date:ad(date),until:until==null?null:ad(until)});};
+  const f=onP("Fenster"),m=onP("Meier");
+  await mk(f,"gs","Garantieschein "+(f&&f.name)+".pdf",["Garantieschein (Solidarbuergschaft)",(f&&f.name)||"","Haftungsbetrag: 10 % der Vertragssumme","Dauer: 2 Jahre ab Abnahme"],-685,45);
+  if(m&&m!==f)await mk(m,"vs","Versicherungsnachweis "+m.name+".pdf",["Versicherungsnachweis Betriebshaftpflicht",m.name],-350,12);
+  await mk(f,"na","Nachtrag 1 "+(f&&f.name)+".pdf",["Nachtrag 1","Zusaetzliche Fensterbaenke Nordfassade",(f&&f.name)||""],-60);
+  saveData();
 }
 async function addDemoDocs(){
   const ad=n=>addDays(iso(TODAY),n),F=D.firm.name||"Beispiel Architekten GmbH";
@@ -164,6 +200,8 @@ function runMigrations(){
   if(!D.mig.closedFees){D.mig.closedFees=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&D.contracts.some(w=>w.pid===pa.id)&&!D.contracts.some(w=>w.pid===pa.id&&w.bkp==="511"))seedClosedFees(pa);}
   /* contractor documents get their project when the contractor works on exactly one, so they also show on that project */
   if(!D.mig.docs2){D.mig.docs2=1;DOCS().forEach(d=>{if(d.scope!=="contractor")return;const ps=[...new Set(D.contracts.filter(w=>w.k===d.ref).map(w=>w.pid))];d.kind=d.kind||guessDocKind(d.name);if(ps.length===1){d.scope="doc";d.kid=d.ref;d.pid=ps[0];d.ref=ps[0];}});}
+  if(!D.mig.docs3){D.mig.docs3=1;DOCS().forEach(d=>{if(d.kind==="br"&&/baugesuch|bewilligung|auflage/i.test(d.name))d.kind="bw";});
+    if(D.example&&window.indexedDB)addDocs3().then(render).catch(e=>console.error(e));}
   if(!D.mig.subT){D.mig.subT=1;if(D.example&&window.indexedDB)seedSubmittedTender().then(render).catch(e=>console.error(e));}
   if(!D.mig.closedMail){D.mig.closedMail=1;if(D.example)[["Gemeinde Wädenswil, Bauamt","bauamt@waedenswil.example"],["Bauversicherung Zürichsee AG","schaden@bauversicherung-zs.example"]].forEach(([n,e])=>{const k=D.contractors.find(x=>x.name===n);if(k&&!k.email)k.email=e;});}
   /* signatures point to people in the office team: name and title are kept once, in the team */

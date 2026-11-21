@@ -48,13 +48,17 @@ function viewOverview(){
   const used=t.billed, pct=t.kv?Math.round(used/t.kv*100):0, held=r2(t.ret);
   const feeRows=PF().filter(f=>remDue(f)).map(f=>row({act:"open-fee",id:f.id,c:"crit",title:esc(L("Honorar ","Fee ")+f.no),meta:remName(remDue(f))+L(" senden"," to send"),amt:chf(feeTotal(f),false),label:L("seit "+feeAge(f)+" Tagen offen","open for "+feeAge(f)+" days"),lc:"crit"})).join("");
   const mtRows=mt.map(x=>row({act:"open-k",id:x.k.id,c:"crit",title:esc(x.k.name),meta:L("Fehlt: ","Missing: ")+x.m.join(", "),amt:"",label:L("Angaben fehlen","details missing"),lc:"crit"})).join("");
-  const nTodo=toCheck.length+mt.length+PF().filter(f=>remDue(f)).length;
+  /* deadlines of filed documents: warranty bonds, insurance certificates */
+  const dl=docsOfProject(p.id).map(d=>[d,docValid(d)]).filter(([d,v])=>v&&v.c!=="ok").sort((a,b)=>(a[0].until||"").localeCompare(b[0].until||""));
+  const dlRows=dl.map(([d,v])=>{const k=d.kid&&K(d.kid);return row({act:"doc-open",id:d.id,c:v.c,title:esc(k?k.name:d.name),meta:esc(dkShort(docKind(d)))+(docKind(d)==="gs"?L(" · Mängel rügen"," · report defects"):L(" · neu verlangen"," · request new")),amt:"",label:v.t,lc:v.c});}).join("");
+  const nTodo=toCheck.length+mt.length+PF().filter(f=>remDue(f)).length+dl.length;
   /* same groups and words as the tiles on Rechnungen: Zu prüfen, Rückfrage */
   const invR=st=>toCheck.filter(i=>st==="rueckfrage"?i.status==="rueckfrage":i.status!=="rueckfrage").map(i=>{const k=K(W(i.w).k),dd=daysTo(i.due),q=i.status==="rueckfrage",tone=q?"crit":dueTone(dd);return row({act:"open-inv",id:i.id,c:tone,title:esc(k.name),meta:typeLabel(i),amt:chf(i.gross,false),label:dueText(dd),lc:tone});}).join("");
   const invP=invR("pruefen"),invQ=invR("rueckfrage");
   const todo=(invP?subTitle(L("Zu prüfen","To check"))+`<div class="rows">${invP}</div>`:"")+(invQ?subTitle(L("Rückfrage","Query"))+`<div class="rows">${invQ}</div>`:"")
     +(feeRows?subTitle(L("Mahnen","Send reminders"))+`<div class="rows">${feeRows}</div>`:"")
-    +(mtRows?subTitle(L("Angaben ergänzen","Complete details"))+`<div class="rows">${mtRows}</div>`:"");
+    +(mtRows?subTitle(L("Angaben ergänzen","Complete details"))+`<div class="rows">${mtRows}</div>`:"")
+    +(dlRows?subTitle(L("Fristen","Deadlines"))+`<div class="rows">${dlRows}</div>`:"");
   const shown=S.allFlags?fl:fl.slice(0,3);
   const flagRows=shown.map(f=>row({act:f.act,id:f.id,v:f.v,c:f.c,title:esc(f.t),meta:esc(f.m),amt:f.chf===null?"":chf(f.chf,false),label:""})).join("");
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});

@@ -121,6 +121,47 @@ async function costPDF(){
   [0,1].forEach(n=>{const g=signer(n),x=n?118:20;doc.line(x,y+14,x+72,y+14);font(8.5,true);T(g.name||L("Name","Name"),x,y+18.5);font(7.5);gray(1);[g.title,g.role].filter(Boolean).forEach((l,k)=>T(l,x,y+22+k*3.4));gray(0);});
   doc.save(L("Kostenstand","Cost-status")+"_"+String(p.name||"").replace(/[^\w]+/g,"-")+"_"+iso(TODAY)+".pdf");
 }
+/* Bauabrechnung: the final account of the building per BKP, prepared by the site management and approved by the client.
+   Before the project is closed it is marked provisional and uses the forecast as end cost. */
+async function finalPDF(){
+  const p=P();if(!p)return;const rows=budgetRows().filter(r=>r.kv||r.b.kv||r.awarded||r.billed||r.open);if(!rows.length){toast(L("Noch kein Kostenvoranschlag.","No cost estimate yet."));return;}
+  await libsPDF();
+  const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"mm",format:"a4"}),F=D.firm,t=totals(rows),closed=!!p.closed;
+  const fc=r2(rows.reduce((a,r)=>a+r.forecast,0)),dev=r2(fc-t.kv),devP=t.kv?dev/t.kv*100:0;
+  const fit=(x,w)=>{if(doc.getTextWidth(x)<=w)return x;while(x.length>3&&doc.getTextWidth(x+"…")>w)x=x.slice(0,-1);return x.trimEnd()+"…";};
+  const T=(x,X,Y,o)=>doc.text(String(x),X,Y,o||{}),font=(sz,b)=>{doc.setFont("helvetica",b?"bold":"normal");doc.setFontSize(sz);},gray=on=>doc.setTextColor(on?110:20);
+  const n0=v=>v?nf0.format(Math.round(v)):"–",sg=v=>!Math.round(v)?"–":(v>0?"+":"-")+nf0.format(Math.abs(Math.round(v)));
+  let y=20;font(10,true);T(F.name||"",20,y);font(9);[F.street,[F.zip,F.city].filter(Boolean).join(" "),F.phone,F.email].filter(Boolean).forEach((l,n)=>T(l,20,y+5+n*4.5));
+  font(10);[p.client,p.cstreet,[p.czip,p.ccity].filter(Boolean).join(" ")].filter(Boolean).forEach((l,n)=>T(l,118,52+n*5));
+  font(9);T((F.city?F.city+", ":"")+fdate(iso(TODAY)),118,80);
+  font(14,true);T(L("Bauabrechnung","Construction account")+(closed?"":L(" (provisorisch)"," (provisional)")),20,95);
+  font(9);T(L("Projekt: ","Project: ")+[p.name,p.place].filter(Boolean).join(", ")+L(" · Stand "," · as of ")+fdate(iso(TODAY)),20,102);
+  /* summary: what was planned, what it cost, the difference */
+  y=114;const kvL=t.rev?L("Kostenvoranschlag revidiert","Revised estimate"):L("Kostenvoranschlag","Cost estimate");
+  [[kvL,"CHF "+nf0.format(Math.round(t.kv))],[closed?L("Endkosten","Final cost"):L("Endkosten (Prognose)","Final cost (forecast)"),"CHF "+nf0.format(Math.round(fc))],
+   [dev>0?L("Mehrkosten","Overrun"):L("Minderkosten","Savings"),"CHF "+sg(dev)+(t.kv?"  ("+(dev>0?"+":"-")+Math.abs(devP).toFixed(1)+" %)":"")]].forEach(([l,v],n)=>{const X=20+n*57;font(8);gray(1);T(l,X,y);gray(0);font(11,n===2);if(n===2&&dev>0)doc.setTextColor(180,40,30);T(v,X,y+5.5);gray(0);});
+  y+=16;
+  const RV=t.rev,C=RV?[96,114,132,150,170,190]:[104,125,146,168,190],NW=RV?48:56;
+  const head=[L("Kostenvor.","Estimate")].concat(RV?[L("KV rev.","Revised")]:[],[L("Vergeben","Awarded"),L("Abgerechnet","Billed"),L("Endkosten","Final cost"),L("Abweichung","Deviation")]);
+  const th=()=>{font(7.5,true);T("BKP",20,y);T(L("Arbeitsgattung","Trade"),33,y);head.forEach((h,n)=>T(h,C[n],y,{align:"right"}));y+=2;doc.setLineWidth(.2);doc.line(20,y,190,y);y+=4.5;};
+  th();
+  const nums=(v,b)=>{const vals=[v.kv0].concat(RV?[v.kv]:[],[v.aw,v.bi,v.fc]);font(8,b);vals.forEach((x,n)=>T(n0(x),C[n],y,{align:"right"}));const d=v.fc-v.kv;if(d>0.5)doc.setTextColor(180,40,30);T(sg(d),C[C.length-1],y,{align:"right"});gray(0);};
+  const vOf=rs=>({kv0:rs.reduce((a,r)=>a+(r.b.kv||0),0),kv:rs.reduce((a,r)=>a+r.kv,0),aw:rs.reduce((a,r)=>a+r.awarded,0),bi:rs.reduce((a,r)=>a+r.billed,0),fc:rs.reduce((a,r)=>a+r.forecast,0)});
+  [...new Set(rows.map(r=>bkpMain(r.b.bkp)))].sort().forEach(g=>{const rs=rows.filter(r=>bkpMain(r.b.bkp)===g);
+    if(y>250){doc.addPage();y=20;th();}
+    font(8,true);T(g,20,y);T(fit(String(bkpMainName(g)),NW),33,y);nums(vOf(rs),true);y+=5;
+    rs.forEach(r=>{if(y>262){doc.addPage();y=20;th();}font(8);T(r.b.bkp,20,y);T(fit(String(tx(r.b)),NW),33,y);nums(vOf([r]));y+=4.1;});y+=1;});
+  doc.line(20,y-2,190,y-2);y+=3;font(9,true);T("Total",20,y);nums(vOf(rows),true);y+=9;
+  /* what is still open: invoices to check, retention to pay out after the warranty bond */
+  if(y>235){doc.addPage();y=24;}
+  const open=[[L("Rechnungen noch zu prüfen","Invoices still to check"),t.open],[L("Rückbehalte, Auszahlung gegen Garantieschein","Retention, paid against warranty bond"),t.ret]].filter(x=>x[1]>0.5);
+  if(open.length){font(8.5,true);T(L("Noch offen","Still open"),20,y);y+=5;font(8.5);open.forEach(([l,v])=>{T(l,20,y);T("CHF "+nf0.format(Math.round(v)),120,y,{align:"right"});y+=4.5;});y+=3;}
+  font(7.5);gray(1);const note=doc.splitTextToSize(closed?L("Endkosten: abgerechnete Beträge gemäss Schlussrechnungen der Handwerker, Regie eingeschlossen, ohne MwSt.-Korrekturen nach Abschluss. Abweichung: Endkosten minus Kostenvoranschlag.","Final cost: billed amounts per contractors' final invoices, time & materials included. Deviation: final cost minus estimate."):L("Provisorisch: Das Projekt ist noch nicht abgeschlossen. Endkosten sind die Prognose, also Werkvertrag oder bisher abgerechnet, je nachdem was höher ist, plus Regie. Abweichung: Endkosten minus Kostenvoranschlag.","Provisional: the project is not closed yet. Final cost is the forecast. Deviation: final cost minus estimate."),170);
+  doc.text(note,20,y);gray(0);y+=note.length*3.6+8;
+  /* prepared by the architect and site management, approved by the client */
+  if(y+34>289){doc.addPage();y=30;}font(8.5);T(L("Erstellt und geprüft durch Architekt und Bauleitung, genehmigt durch die Bauherrschaft.","Prepared and checked by architect and site management, approved by the client."),20,y);y+=8;sig3(doc,y,p);
+  doc.save(L("Bauabrechnung","Construction-account")+"_"+String(p.name||"").replace(/[^\w]+/g,"-")+"_"+iso(TODAY)+".pdf");
+}
 async function feePDF(f,level){
   await libsPDF();
   const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), F=D.firm, p=PJ(f.pid)||{};

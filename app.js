@@ -50,6 +50,7 @@ document.addEventListener("click",e=>{
     case "ffilter":S.ffilter=el.dataset.f;render();break;
     case "filter":S.filter=el.dataset.f;render();break;
     case "bkp-reset":delete D.bkpList;delete D.bkpListInfo;saveData();render();toast(L("Standardliste aktiv","Standard list active"));break;
+    case "final-pdf":closeAll();renderOverlay();finalPDF().then(()=>toast(L("Bauabrechnung als PDF gespeichert","Construction account saved as PDF"))).catch(e=>{console.error(e);toast(L("PDF nicht möglich.","PDF failed."));});break;
     case "cost-pdf":closeAll();renderOverlay();costPDF().then(()=>toast(L("Kostenstand als PDF gespeichert","Cost status saved as PDF"))).catch(()=>toast(L("PDF nicht möglich.","PDF failed.")));break;
     case "pay-pdf-all":payPDFAll(PIx().filter(i=>i.status==="frei")).catch(()=>toast(L("PDF nicht möglich.","PDF failed.")));break;
     case "to-pay":startView("rechnungen");S.filter="zahlen";go("rechnungen");break;

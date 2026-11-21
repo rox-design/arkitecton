@@ -309,7 +309,7 @@ function popItems(kind,key){
     uebersicht:[it(L("Projekt bearbeiten","Edit project"),"form-project-edit",`data-id="${D.pid}"`),it(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client")+xl,"x-report"),...popItems("proj",D.pid).filter(x=>x.act!=="form-project-edit")],
     rechnungen:[it(L("Ohne QR erfassen","Add without QR"),"form",'data-f="invoice"'),it(L("Honorarrechnung erstellen","New fee invoice"),"form",'data-f="fee"'),it(L("Rechnungsliste","Invoice list")+xl,"x-invoices")],
     handwerker:[im(L("Handwerkerliste importieren","Import contractor list"),"contractors"),it(L("Handwerkerliste","Contractor list")+xl,"x-contractors")],
-    budget:[it(L("Kostenstand für die Bauherrschaft (PDF)","Cost status for the client (PDF)"),"cost-pdf"),it(L("Budget nach BKP","Budget by BKP")+xl,"x-budget")],
+    budget:[it(L("Kostenstand für die Bauherrschaft (PDF)","Cost status for the client (PDF)"),"cost-pdf"),it(L("Bauabrechnung (PDF)","Construction account (PDF)"),"final-pdf"),it(L("Budget nach BKP","Budget by BKP")+xl,"x-budget")],
     ausschreibungen:[it(L("Verfahrensliste","Procedure list")+xl,"x-tenders"),it(L("Referenzliste","Reference list")+xl,"x-refs")]})[key]||[];
   if(kind==="nav"&&key===S.view){const on=pageActs();return navList.filter(x=>!on.has(itemKey(x)));}
   if(kind==="nav")return navList;

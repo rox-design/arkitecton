@@ -52,22 +52,43 @@ function detectQuad(src){
     gx=gray[i-w+1]+2*gray[i+1]+gray[i+w+1]-gray[i-w-1]-2*gray[i-1]-gray[i+w-1],gy=gray[i+w-1]+2*gray[i+w]+gray[i+w+1]-gray[i-w-1]-2*gray[i-w]-gray[i-w+1];
     const m=Math.min(255,Math.hypot(gx,gy)/4);mag[i]=m;mh[m|0]++;}
   let acc=0,T=255;for(let t=0;t<256;t++){acc+=mh[t];if(acc>=w*h*.85){T=t;break;}}
-  const lab=new Int32Array(w*h).fill(-1),q=new Int32Array(w*h),ok=i=>gray[i]>th&&mag[i]<T;let bestN=0,bestId=-1,id=0;
-  for(let s0=0;s0<w*h;s0++){if(!ok(s0)||lab[s0]>=0)continue;let qh=0,qt=0,n=0;q[qt++]=s0;lab[s0]=id;
-    while(qh<qt){const p=q[qh++];n++;const x=p%w,y=(p-x)/w;
-      if(x>0&&lab[p-1]<0&&ok(p-1)){lab[p-1]=id;q[qt++]=p-1;}if(x<w-1&&lab[p+1]<0&&ok(p+1)){lab[p+1]=id;q[qt++]=p+1;}
-      if(y>0&&lab[p-w]<0&&ok(p-w)){lab[p-w]=id;q[qt++]=p-w;}if(y<h-1&&lab[p+w]<0&&ok(p+w)){lab[p+w]=id;q[qt++]=p+w;}}
-    if(n>bestN){bestN=n;bestId=id;}id++;}
-  /* grow back over the sheet's own edges and text, but only a few pixels, so neighbouring light areas stay out */
-  let reg=new Uint8Array(w*h);for(let i=0;i<w*h;i++)reg[i]=lab[i]===bestId?1:0;
-  for(let r=0;r<6;r++){const nx=reg.slice();for(let i=0;i<w*h;i++){if(reg[i])continue;const x=i%w;if((x>0&&reg[i-1])||(x<w-1&&reg[i+1])||(i>=w&&reg[i-w])||(i<w*h-w&&reg[i+w]))nx[i]=1;}reg=nx;}
+  /* largest connected region of pixels that pass ok(i) */
+  const biggest=ok=>{const lab=new Int32Array(w*h).fill(-1),q=new Int32Array(w*h);let bestN=0,bestId=-1,id=0;
+    for(let s0=0;s0<w*h;s0++){if(lab[s0]>=0||!ok(s0))continue;let qh=0,qt=0,n=0;q[qt++]=s0;lab[s0]=id;
+      while(qh<qt){const p=q[qh++];n++;const x=p%w;
+        for(const nb of [x>0?p-1:-1,x<w-1?p+1:-1,p-w,p+w])if(nb>=0&&nb<w*h&&lab[nb]<0&&ok(nb)){lab[nb]=id;q[qt++]=nb;}}
+      if(n>bestN){bestN=n;bestId=id;}id++;}
+    const r=new Uint8Array(w*h);for(let i=0;i<w*h;i++)r[i]=lab[i]===bestId&&bestId>=0?1:0;return [r,bestN];};
+  const chroma=new Uint8Array(w*h);for(let i=0;i<w*h;i++){const a=px[i*4],b=px[i*4+1],c=px[i*4+2];chroma[i]=Math.max(a,b,c)-Math.min(a,b,c);}
   const inset=()=>[[.06,.06],[.94,.06],[.94,.94],[.06,.94]].map(([a,b])=>[a*W,b*H]);
-  if(bestN<w*h*.12||bestN>w*h*.97)return inset();
-  /* corners: extreme points along the diagonals */
+  /* 1st pass: rough sheet, to learn how bright this paper is */
+  let [reg,n]=biggest(i=>gray[i]>th&&mag[i]<T);if(n<w*h*.08)return inset();
+  const gh=new Uint32Array(256);for(let i=0;i<w*h;i++)if(reg[i])gh[gray[i]]++;let med=0;for(let t=0,a=0;t<256;t++){a+=gh[t];if(a>=n/2){med=t;break;}}
+  /* 2nd pass: paper is near that brightness and nearly colourless. A grey-blue strip, a wooden table or a folder next to the sheet drops out. */
+  const th2=Math.max(th,med*.8),paper=i=>gray[i]>th2&&chroma[i]<40;
+  [reg,n]=biggest(i=>paper(i)&&mag[i]<T);if(n<w*h*.08||n>w*h*.97)return inset();
+  /* grow back over the sheet's own edges and handwriting, a few pixels only and only onto paper-like pixels */
+  for(let r=0;r<6;r++){const nx=reg.slice();for(let i=0;i<w*h;i++){if(reg[i]||!paper(i))continue;const x=i%w;if((x>0&&reg[i-1])||(x<w-1&&reg[i+1])||(i>=w&&reg[i-w])||(i<w*h-w&&reg[i+w]))nx[i]=1;}reg=nx;}
+  /* fill holes (dark text, punched holes): everything not reachable from the border is inside */
+  {const seen=new Uint8Array(w*h),q=[];for(let x=0;x<w;x++){q.push(x,(h-1)*w+x);}for(let y=0;y<h;y++){q.push(y*w,y*w+w-1);}
+    while(q.length){const p=q.pop();if(seen[p]||reg[p])continue;seen[p]=1;const x=p%w;if(x>0)q.push(p-1);if(x<w-1)q.push(p+1);if(p>=w)q.push(p-w);if(p<w*h-w)q.push(p+w);}
+    for(let i=0;i<w*h;i++)if(!seen[i])reg[i]=1;}
+  /* rough corners: extreme points along the diagonals */
   let tl=[0,0,1e9],tr=[0,0,-1e9],br=[0,0,-1e9],bl=[0,0,1e9];
-  for(let p=0;p<w*h;p++){if(!reg[p]||gray[p]<=th)continue;const x=p%w,y=(p-x)/w;
+  for(let p=0;p<w*h;p++){if(!reg[p])continue;const x=p%w,y=(p-x)/w;
     if(x+y<tl[2])tl=[x,y,x+y];if(x+y>br[2])br=[x,y,x+y];if(x-y>tr[2])tr=[x,y,x-y];if(x-y<bl[2])bl=[x,y,x-y];}
-  return [tl,tr,br,bl].map(([x,y])=>[x/k,y/k]);
+  const Q=[tl,tr,br,bl].map(([x,y])=>[x,y]);
+  /* precise corners: fit a straight line to each side of the outline and intersect neighbouring sides.
+     Extreme points alone sit slightly inside when a corner is rounded or dog-eared. */
+  const B=[];for(let p=0;p<w*h;p++){if(!reg[p])continue;const x=p%w;if(x===0||x===w-1||p<w||p>=w*h-w||!reg[p-1]||!reg[p+1]||!reg[p-w]||!reg[p+w])B.push([x,(p-x)/w]);}
+  const lines=Q.map((A,i)=>{const C=Q[(i+1)%4],vx=C[0]-A[0],vy=C[1]-A[1],L=Math.hypot(vx,vy)||1,ux=vx/L,uy=vy/L;
+    let sx=0,sy=0,sxx=0,syy=0,sxy=0,m=0;
+    for(const [x,y] of B){const dx=x-A[0],dy=y-A[1],t=(dx*ux+dy*uy)/L,d=-dx*uy+dy*ux;if(t>.15&&t<.85&&Math.abs(d)<Math.max(6,L*.06)){sx+=x;sy+=y;sxx+=x*x;syy+=y*y;sxy+=x*y;m++;}}
+    if(m<10)return {p:A,d:[ux,uy]};
+    const cx=sx/m,cy=sy/m,a=sxx/m-cx*cx,b=sxy/m-cx*cy,c=syy/m-cy*cy,ang=.5*Math.atan2(2*b,a-c);return {p:[cx,cy],d:[Math.cos(ang),Math.sin(ang)]};});
+  return Q.map((q0,i)=>{const l1=lines[(i+3)%4],l2=lines[i],det=l1.d[0]*-l2.d[1]+l2.d[0]*l1.d[1];let X=q0;
+    if(Math.abs(det)>1e-6){const rx=l2.p[0]-l1.p[0],ry=l2.p[1]-l1.p[1],t=(rx*-l2.d[1]+l2.d[0]*ry)/det,P=[l1.p[0]+t*l1.d[0],l1.p[1]+t*l1.d[1]];if(Math.hypot(P[0]-q0[0],P[1]-q0[1])<25)X=P;}
+    return [Math.max(0,Math.min(W,X[0]/k)),Math.max(0,Math.min(H,X[1]/k))];});
 }
 
 /* ---------- straighten: projective warp of the quad onto a rectangle ---------- */

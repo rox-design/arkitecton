@@ -84,7 +84,7 @@ document.addEventListener("click",e=>{
     case "back-from":{const f=S.from;S.from=null;S.kid=null;S.wid=null;S.tid=null;S.cmpBack=null;if(f){go(f.view);document.getElementById("main").scrollTop=f.top||0;}else render();break;}
     case "back-t":S.tid=null;render();break;
     case "ttab":S.ttab=el.dataset.t;render();break;
-    case "t-status":{const t=T(id);t.status=el.dataset.s;render();toast(tx(TST[t.status]));break;}
+    case "t-status":{const t=T(id);t.status=el.dataset.s;if(t.status==="eingereicht")t.sub=iso(TODAY);render();toast(tx(TST[t.status]));break;}
     case "t-doc":{const t=T(el.dataset.t);t.done[el.dataset.d]=!t.done[el.dataset.d];render();break;}
     case "sheet":closeAll();S.sheet=el.dataset.k;renderOverlay();break;
     case "form":openForm(el.dataset.f,id,el.dataset.w);break;

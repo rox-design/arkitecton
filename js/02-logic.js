@@ -148,10 +148,12 @@ function evalReq(r){
 function fitOf(t){const ev=t.reqs.map(evalReq);if(!D.office.refs.length||!D.office.team.length)return {ev,fit:"nodata"};return {ev,fit:ev.some(e=>e.s==="crit")?"no":ev.some(e=>e.s==="warn")?"partner":"ok"};}
 function docsOf(t){
   const ev=fitOf(t).ev;
-  return t.docs.map(d=>{
+  const fileOf=d=>d.file&&DOCS().find(x=>x.scope==="tender"&&x.ref===t.id&&x.name===d.file);
+  return t.docs.map(d=>Object.assign(docItem(d),{file:fileOf(d)}));
+  function docItem(d){
     if(d.auto==="refs"){const e=ev.find(x=>x.k==="refs"),ok=!!e&&e.s==="ok";return {id:d.id,auto:true,done:ok,t:L("Referenzblätter","Reference sheets"),sub:ok?e.refs.map(x=>tx(x)).join(", "):L("Zu wenig passende Referenzen","Not enough matching references")};}
     if(d.auto==="team"){const m=D.office.team.filter(x=>mTags(x).length);return {id:d.id,auto:true,done:m.length>0,t:L("Schlüsselpersonen","Key people"),sub:m.map(x=>esc(x.name)+" ("+(curRole(x)?tx(ROLES[curRole(x)]):"")+")").join(", ")};}
-    if(d.auto==="self")return {id:d.id,auto:false,done:!!t.done[d.id],t:L("Selbstdeklaration","Self-declaration"),sub:L("Vorausgefüllt, unterschreiben","Pre-filled, sign it")};
+    if(d.auto==="self")return {id:d.id,auto:false,done:!!t.done[d.id],t:L("Selbstdeklaration","Self-declaration"),sub:t.done[d.id]?L("Unterschrieben","Signed"):L("Vorausgefüllt, unterschreiben","Pre-filled, sign it")};
     return {id:d.id,auto:false,done:!!t.done[d.id],t:tx(d),sub:""};
-  });
+  }
 }

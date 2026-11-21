@@ -55,6 +55,71 @@ async function addDemoDocs(){
   for(const p of [...kon("Meier",[["Offerte Malerarbeiten.pdf","Offerte Malerarbeiten",-150]]),...kon("Fenster",[["Offerte Fenster.pdf","Offerte Fenster und Aussentueren",-210],["Werkvertrag BKP 221.pdf","Werkvertrag BKP 221",-190]])]) await p;
   const t=D.tenders[0];if(t){await mk("tender",t.id,"Ausschreibungsunterlagen.pdf",["Ausschreibungsunterlagen",tx(t.title)],-10);await mk("tender",t.id,"Fragen und Antworten.pdf",["Fragen und Antworten",tx(t.title)],-3);}
 }
+/* ---------- example: a submitted tender with the full dossier ----------
+   Documents follow what Zurich procurement asks of planners: bid form with company details, self-declaration,
+   proof of taxes and social contributions, commercial and debt-enforcement register extracts, references,
+   key people, fee offer, task analysis and approach, liability insurance. All data fictional. */
+function tenderDocPdf(title,sub,blocks,o){
+  const {jsPDF}=window.jspdf,a3=o&&o.a3,doc=new jsPDF({unit:"mm",format:a3?"a3":"a4",orientation:a3?"landscape":"portrait"}),F=D.firm||{},W0=a3?420:210,H0=a3?297:297,R=W0-20;
+  const T=(t,x,y,op)=>doc.text(String(t),x,y,op||{}),font=(sz,b)=>{doc.setFont("helvetica",b?"bold":"normal");doc.setFontSize(sz);};
+  let y=20;font(9,true);T(F.name||"Beispiel Architekten GmbH",20,y);font(8);T([F.street,[F.zip,F.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),20,y+4.5);
+  font(8);doc.setTextColor(110);T(L("Beispieldokument, fiktive Daten","Example document, fictional data"),R,y,{align:"right"});doc.setTextColor(20);
+  y=38;font(a3?20:15,true);T(title,20,y);font(9);doc.setTextColor(90);T(sub,20,y+6.5);doc.setTextColor(20);y+=18;
+  const colW=a3?(W0-50)/2:170;let x=20,top=y;
+  blocks.forEach(b=>{
+    const need=(b.lines?b.lines.length*5:0)+(b.table?b.table.length*5.6:0)+10;
+    if(y+need>H0-30){if(a3&&x===20){x=20+colW+10;y=top;}else{doc.addPage();y=20;x=20;top=y;}}
+    if(b.h){font(10.5,true);T(b.h,x,y);y+=6;}
+    if(b.lines){font(9);b.lines.forEach(l=>{doc.splitTextToSize(l,colW).forEach(ln=>{T(ln,x,y);y+=4.6;});});y+=3;}
+    if(b.table){b.table.forEach((r,n)=>{font(9,n===b.table.length-1&&b.sum);T(r[0],x,y);if(r[1]!=null)T(String(r[1]),x+colW,y,{align:"right"});y+=5.4;});doc.setLineWidth(.15);doc.line(x,y-3.6,x+colW,y-3.6);y+=4;}
+  });
+  if(o&&o.sign){y=Math.max(y+8,H0-48);font(9);T((F.city||"Wädenswil")+", "+fdate(o.date),20,y);const s0=signer(0).name||"Andrea Keller",s1=signer(1).name||"Marco Brunner";
+    doc.line(20,y+18,85,y+18);doc.line(110,y+18,175,y+18);font(8.5);T(s0,20,y+22.5);T(s1,110,y+22.5);font(7.5);doc.setTextColor(110);T(L("Rechtsgültige Unterschrift","Authorised signature"),20,y+26);T(L("Rechtsgültige Unterschrift","Authorised signature"),110,y+26);doc.setTextColor(20);}
+  return doc.output("blob");
+}
+async function seedSubmittedTender(){
+  if(!D.example||!D.tenders||D.tenders.some(t=>t.id==="t5"))return;
+  await libsPDF();
+  const ad=n=>addDays(iso(TODAY),n),sub=ad(-3),F=D.firm||{},tm=(D.office||{}).team||[],r1=(D.office.refs||[]).find(r=>r.id==="r1"),r3=(D.office.refs||[]).find(r=>r.id==="r3");
+  const t={id:"t5",title:{de:"Gesamtsanierung Schulhaus Dorf",en:"Full refurbishment, village school"},client:"Gemeinde Rüschlikon, Liegenschaften",proc:"offen",phases:"31–53",cost:3.4,qDue:ad(-24),due:ad(-2),sub,status:"eingereicht",
+    reqs:[{k:"refs",n:2,since:2016,minCost:2.5,pub:true,types:["schule"]},{k:"team",tag:"pl"},{k:"disc",need:["291"]}],
+    docs:[{id:"d9",de:"Angebotsformular mit Angaben zur Unternehmung",en:"Bid form with company details",file:"01 Angebotsformular.pdf"},{id:"d3",auto:"self",file:"02 Selbstdeklaration.pdf"},
+      {id:"d7",de:"Nachweis Steuern und Sozialabgaben",en:"Proof of taxes and social contributions",file:"03 Nachweis Steuern und Sozialabgaben.pdf"},{id:"d8",de:"Handelsregisterauszug",en:"Commercial register extract",file:"04 Handelsregisterauszug.pdf"},
+      {id:"d10",de:"Betreibungsregisterauszug (max. 3 Monate alt)",en:"Debt enforcement register extract (max. 3 months)",file:"05 Betreibungsregisterauszug.pdf"},{id:"d11",de:"Nachweis Berufshaftpflichtversicherung",en:"Professional liability insurance",file:"06 Berufshaftpflicht.pdf"},
+      {id:"d1",auto:"refs",file:"07 Referenzblätter.pdf"},{id:"d2",auto:"team",file:"08 Schlüsselpersonen.pdf"},{id:"d6",de:"Honorarofferte (Honorarparameter SIA 102)",en:"Fee offer (SIA 102 parameters)",file:"09 Honorarofferte.pdf"},
+      {id:"d4",de:"Auftragsanalyse und Vorgehensvorschlag (2 A3)",en:"Task analysis and approach (2 A3)",file:"10 Auftragsanalyse und Vorgehen A3.pdf"}],
+    done:{d9:true,d3:true,d7:true,d8:true,d10:true,d11:true,d6:true,d4:true}};
+  D.tenders.push(t);
+  /* fee offer arithmetic, computed so every total adds up */
+  const H={base:r2(2680*138)};H.disc=r2(H.base*.03);H.nk=r2((H.base-H.disc)*.03);H.net=r2(H.base-H.disc+H.nk);H.vat=r2(H.net*.081);H.tot=r2(H.net+H.vat);
+  const T0="Gesamtsanierung Schulhaus Dorf · Gemeinde Rüschlikon",uid="CHE-412.587.903",m=n=>tm[n]||{},nm=n=>m(n).name||["Andrea Keller","Marco Brunner","Lea Hofmann"][n];
+  const files=[
+    ["01 Angebotsformular.pdf",tenderDocPdf("Angebotsformular",T0,[{h:"Anbieterin",table:[["Firma",F.name||"Beispiel Architekten GmbH"],["Adresse",[F.street,[F.zip,F.city].filter(Boolean).join(" ")].filter(Boolean).join(", ")],["Rechtsform","GmbH, gegründet 2009"],["UID",uid],["MWST-Nummer",F.vatNo||uid+" MWST"],["Ansprechperson",nm(0)+", "+(F.email||"info@beispiel-architekten.example")]]},
+      {h:"Angaben zur Unternehmung",table:[["Mitarbeitende","8 (7,2 Vollzeitstellen)"],["Davon in Ausbildung (Lernende)","1 Zeichnerin EFZ Architektur"],["Umsatz Durchschnitt 3 Jahre","CHF 1,6 Mio."],["Berufshaftpflicht","CHF 5 Mio. Personen- und Sachschäden"]]},
+      {h:"Angebot",table:[["Leistungen","Architekturleistungen SIA 102, Teilphasen 31–53"],["Honorar gemäss Honorarofferte, inkl. MWST","CHF "+nf2.format(H.tot)],["Gültigkeit des Angebots","180 Tage ab Eingabe"],["Subplanende","keine"]]},
+      {lines:["Die Anbieterin bestätigt, die Ausschreibungsunterlagen vollständig erhalten zu haben, und anerkennt sie als Grundlage des Angebots."]}],{sign:true,date:sub})],
+    ["02 Selbstdeklaration.pdf",tenderDocPdf("Selbstdeklaration",T0+" · gemäss Art. 12 und 26 IVöB",[{lines:["Die Anbieterin bestätigt mit ihrer Unterschrift, dass sie:"]},
+      {table:[["die Arbeitsschutzbestimmungen und Arbeitsbedingungen einhält","ja"],["die Melde- und Bewilligungspflichten (BGSA) einhält","ja"],["die Lohngleichheit von Frau und Mann einhält (Logib-Analyse 2025)","ja"],["das Umweltrecht einhält","ja"],["die Regeln zur Vermeidung von Korruption einhält","ja"],["Steuern und Sozialabgaben bezahlt hat","ja"],["keine Abreden getroffen hat, die den Wettbewerb beeinträchtigen","ja"]]},
+      {lines:["Falsche Angaben können zum Ausschluss vom Verfahren, zum Widerruf des Zuschlags und zu Sanktionen nach Art. 44 und 45 IVöB führen."]}],{sign:true,date:sub})],
+    ["03 Nachweis Steuern und Sozialabgaben.pdf",tenderDocPdf("Nachweis Steuern und Sozialabgaben",T0,[{table:[["AHV/IV/EO/ALV, Ausgleichskasse Zürich","bezahlt, Bestätigung vom "+fdate(ad(-21))],["Berufliche Vorsorge (BVG)","bezahlt, Bestätigung vom "+fdate(ad(-25))],["Unfallversicherung (UVG)","bezahlt, Bestätigung vom "+fdate(ad(-25))],["Staats- und Gemeindesteuern","bezahlt, Bestätigung vom "+fdate(ad(-30))],["Mehrwertsteuer","bezahlt, Bestätigung vom "+fdate(ad(-30))]]},{lines:["Die einzelnen Bestätigungen der Auskunftsstellen liegen bei."]}])],
+    ["04 Handelsregisterauszug.pdf",tenderDocPdf("Handelsregisterauszug",(F.name||"Beispiel Architekten GmbH")+" · Kanton Zürich",[{table:[["Firma",F.name||"Beispiel Architekten GmbH"],["UID",uid],["Sitz",F.city||"Wädenswil"],["Rechtsform","Gesellschaft mit beschränkter Haftung"],["Zweck","Planung und Realisierung von Hochbauten, Architektur und Bauleitung"],["Zeichnungsberechtigt",nm(0)+", "+nm(2)+", je kollektiv zu zweien"],["Auszug vom",fdate(ad(-20))]]}])],
+    ["05 Betreibungsregisterauszug.pdf",tenderDocPdf("Betreibungsregisterauszug",(F.name||"Beispiel Architekten GmbH")+" · Betreibungsamt "+(F.city||"Wädenswil"),[{table:[["Betreibungen in den letzten 5 Jahren","keine"],["Verlustscheine","keine"],["Konkurseröffnungen","keine"],["Auszug vom",fdate(ad(-18))+" (weniger als 3 Monate alt)"]]}])],
+    ["06 Berufshaftpflicht.pdf",tenderDocPdf("Nachweis Berufshaftpflichtversicherung",(F.name||"Beispiel Architekten GmbH"),[{table:[["Versicherung","Bauversicherung Zürichsee AG"],["Police","BH-2026-48812"],["Deckung Personen- und Sachschäden","CHF 5'000'000"],["Deckung Vermögensschäden","CHF 1'000'000"],["Gültig bis","31.12.2027"]]}])],
+    ["07 Referenzblätter.pdf",tenderDocPdf("Referenzblätter",T0+" · Eignungskriterium Referenzen",[r1,r3].filter(Boolean).map((r,n)=>({h:(n+1)+". "+tx(r),table:[["Bauherrschaft",r.client+" (öffentlich)"],["Fertigstellung",String(r.year)],["Baukosten BKP 1–9","CHF "+String(r.cost).replace(".",",")+" Mio."],["Erbrachte Teilphasen SIA 102",r.phases],["Projektleitung",nm(0)],["Auskunftsperson","Leiter Liegenschaften, Tel. 044 000 00 0"+(n+1)]]})))],
+    ["08 Schlüsselpersonen.pdf",tenderDocPdf("Schlüsselpersonen",T0,[0,1].map(n=>({h:(n?"Bauleitung: ":"Projektleitung: ")+nm(n),lines:[(m(n).qual||(n?"Bauleiter Hochbau mit eidg. Fachausweis":"dipl. Architekt FH"))+", "+(n?"12":"18")+" Jahre Berufserfahrung.",n?"Bauleitung bei «Erweiterung Schulhaus, Horgen» und «Instandsetzung Wohnsiedlung, Thalwil». Erfahrung mit Bauen im laufenden Schulbetrieb.":"Projektleitung bei «Erweiterung Schulhaus, Horgen» und «Neubau Doppelkindergarten, Adliswil». Verfügbarkeit für dieses Projekt: 60 %."]})))],
+    ["09 Honorarofferte.pdf",tenderDocPdf("Honorarofferte",T0+" · Honorarparameter gemäss SIA 102",[{h:"Parameter",table:[["Mittlerer Stundenansatz","CHF 138.00"],["Teamfaktor","1,0"],["Anpassungsfaktor","1,0"],["Rabatt","3 %"]]},
+      {h:"Aufwandschätzung",table:[["31 Vorprojekt","260 h"],["32 Bauprojekt","540 h"],["33 Bewilligungsverfahren","90 h"],["41 Ausschreibung","430 h"],["51 Ausführungsprojekt","380 h"],["52 Ausführung","860 h"],["53 Inbetriebnahme, Abschluss","120 h"],["Total","2'680 h"]],sum:true},
+      {h:"Honorar",table:[["2'680 h × CHF 138.00","CHF "+nf2.format(H.base)],["Rabatt 3 %","CHF -"+nf2.format(H.disc)],["Nebenkosten 3 %","CHF "+nf2.format(H.nk)],["Total exkl. MWST","CHF "+nf2.format(H.net)],["MWST 8,1 %","CHF "+nf2.format(H.vat)],["Total inkl. MWST","CHF "+nf2.format(H.tot)]],sum:true}],{sign:true,date:sub})],
+    ["10 Auftragsanalyse und Vorgehen A3.pdf",tenderDocPdf("Auftragsanalyse und Vorgehensvorschlag",T0,[
+      {h:"Aufgabenverständnis",lines:["Das Schulhaus aus dem Jahr 1964 wird gesamtsaniert: Gebäudehülle, Haustechnik, Erdbebenertüchtigung und hindernisfreier Zugang. Die Schule bleibt während der Bauzeit in Betrieb.","Ziel: Betriebsunterbrüche minimal halten, Kosten von CHF 3,4 Mio. einhalten, Bausubstanz und Charakter erhalten."]},
+      {h:"Vorgehen",lines:["1. Zustandsaufnahme und Schadstoffuntersuchung vor dem Vorprojekt.","2. Etappierung nach Trakten, laute Arbeiten in den Schulferien.","3. Provisorien für zwei Klassenzimmer während der Etappe Ost.","4. Kostensteuerung mit Kostenvoranschlag ±10 % am Ende des Bauprojekts."]},
+      {h:"Termine",lines:["Vorprojekt und Bauprojekt: Januar bis Juli 2027","Bewilligung: August bis Oktober 2027","Ausführung in drei Etappen: Sommerferien 2028 bis Herbstferien 2029"]},
+      {h:"Risiken und Massnahmen",lines:["Schadstoffe (Asbest, PCB): frühe Untersuchung, Reserve 5 % im Kostenvoranschlag.","Laufender Schulbetrieb: Abstimmung mit Schulleitung vor jeder Etappe, Lärmplan.","Lieferfristen Fenster: Ausschreibung vorgezogen, Bestellung vor Baubeginn."]},
+      {h:"Projektorganisation",lines:["Projektleitung: "+nm(0)+", Bauleitung: "+nm(1)+", Mitarbeit Planung: "+nm(2)+".","Fachplanende nach Wahl der Bauherrschaft, Koordination durch die Gesamtleitung."]}],{a3:true})],
+    ["Eingangsbestätigung Eingabe.pdf",tenderDocPdf("Eingangsbestätigung",T0,[{table:[["Angebot von",F.name||"Beispiel Architekten GmbH"],["Eingegangen am",fdate(sub)+", 14:32 Uhr"],["Eingabefrist",fdate(ad(-2))+", 12:00 Uhr"],["Anzahl Dateien","10"],["Status","fristgerecht eingegangen"]]},{lines:["Diese Bestätigung wurde automatisch erstellt. Über den Zuschlag werden alle Anbietenden schriftlich informiert."]}])]];
+  for(const [name,blob] of files){const id=newId("f");await FDB.put(id,blob);DOCS().push({id,scope:"tender",ref:"t5",name,type:"application/pdf",size:blob.size,date:name.startsWith("Eingang")?sub:ad(-4)});}
+  saveData();
+}
 function runMigrations(){
   if(!D)return;D.mig=D.mig||{};
   if(!D.mig.ret0){D.mig.ret0=1;if(D.example){D.contracts.forEach(w=>{if(/^w\d$/.test(w.id)&&w.ret===10)w.ret=0;});if(D.settings&&D.settings.ret===10)delete D.settings.ret;}}
@@ -73,6 +138,7 @@ function runMigrations(){
   if(!D.mig.projs){D.mig.projs=1;[["Umbau Villa Seeblick","Küsnacht","Bauherrschaft Keller","Sanierung Gebäudehülle"],["Anbau Schulhaus Au","Wädenswil","Gemeinde Wädenswil","Erweiterung um 2 Klassenzimmer"]].forEach(([n,pl,cl,de])=>{if(!D.projects.some(p=>p.name===n))D.projects.push({id:newId("p"),name:n,place:pl,client:cl,desc:de,closed:true,budget:[]});});}
   if(!D.mig.closedDemo){D.mig.closedDemo=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&!D.contracts.some(w=>w.pid===pa.id))seedClosedDemo(pa);}
   if(!D.mig.closedFees){D.mig.closedFees=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&D.contracts.some(w=>w.pid===pa.id)&&!D.contracts.some(w=>w.pid===pa.id&&w.bkp==="511"))seedClosedFees(pa);}
+  if(!D.mig.subT){D.mig.subT=1;if(D.example&&window.indexedDB)seedSubmittedTender().then(render).catch(e=>console.error(e));}
   if(!D.mig.closedMail){D.mig.closedMail=1;if(D.example)[["Gemeinde Wädenswil, Bauamt","bauamt@waedenswil.example"],["Bauversicherung Zürichsee AG","schaden@bauversicherung-zs.example"]].forEach(([n,e])=>{const k=D.contractors.find(x=>x.name===n);if(k&&!k.email)k.email=e;});}
   /* signatures point to people in the office team: name and title are kept once, in the team */
   if(!D.mig.kvr){D.mig.kvr=1;const p0=D.example&&(D.projects||[]).find(p=>p.id==="p1"),b=p0&&(p0.budget||[]).find(x=>x.bkp==="285");if(b&&b.kvr==null&&b.kv===36000)b.kvr=41000;}

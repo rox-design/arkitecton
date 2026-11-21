@@ -70,7 +70,7 @@ function viewOverview(){
     <section><div class="sh"><h2>${L("Zu erledigen","To do")}</h2><span class="cnt">${nTodo}</span></div>${todo||`<div class="rows"><div class="empty">${L("Alles erledigt.","All done.")}</div></div>`}</section>
     <section id="flags"><div class="sh"><h2>${L("Mehrkosten","Extra costs")}</h2><span class="cnt">${fl.length}</span>${fl.length>1?`<span class="legend-s">${L("Total ","Total ")+chf(flSum,false)+L(", Überschneidungen einmal gezählt",", overlaps counted once")}</span>`:""}</div><div class="rows">${flagRows||`<div class="empty">${L("Keine Mehrkosten.","No extra costs.")}</div>`}</div>
       ${fl.length>3?`<button type="button" class="more" data-act="all-flags">${S.allFlags?L("Weniger anzeigen","Show less"):L("Alle anzeigen","Show all")}</button>`:""}</section>
-    ${docsBlock("project",p.id,L("Projektdokumente","Project documents"),L("Pläne, Bewilligungen, Kostenvoranschlag mit ＋ ablegen.","Store plans, permits and estimates with ＋."))}
+    ${docsGrouped("project",p.id,L("Projektdokumente","Project documents"),L("Pläne, Bewilligungen, Kostenvoranschlag mit ＋ ablegen.","Store plans, permits and estimates with ＋."))}
   </div>`;
 }
 
@@ -194,7 +194,7 @@ function viewContractor(k){
     ${ph("",esc(k.name),lead,tools)}
     ${all.length?`<div class="tabs" role="tablist"><button type="button" role="tab" data-act="ktab" data-t="konto" aria-selected="${S.ktab==="konto"}">${L("Konto","Account")}</button><button type="button" role="tab" data-act="ktab" data-t="vergleich" aria-selected="${S.ktab==="vergleich"}">${L("Offerte und Abrechnung","Offer and final account")}</button></div>`:""}
     ${body||addHere}
-    ${S.wid&&W(S.wid)&&W(S.wid).k===k.id?"":docsBlock("contractor",k.id,L("Dokumente","Documents"),L("Offerten, Werkverträge, Versicherungsnachweise mit ＋ ablegen.","Store offers, contracts and certificates with ＋."))}
+    ${S.wid&&W(S.wid)&&W(S.wid).k===k.id?"":docsGrouped("contractor",k.id,L("Dokumente","Documents"),L("Offerten, Werkverträge, Versicherungsnachweise mit ＋ ablegen.","Store offers, contracts and certificates with ＋."))}
   </div>`;
 }
 function viewBudget(){
@@ -428,7 +428,7 @@ function viewTender(t){
 
 (function(){const cur=(document.querySelector('script[src*="app.js"]')||{}).src||"";const v=(cur.match(/v=([^&]+)/)||[])[1];if(!v||location.hostname==="localhost")return;
   /* never reload while someone is entering something: a form, a scan, a panel, or a focused field. The check repeats, so the update follows once the user is idle. */
-  const busy=()=>!!(S.form||S.modal||S.sheet||S.drawer||S.fdrawer||S.kvx||S.queryOpen||(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)));
+  const busy=()=>!!(S.dscan||S.form||S.modal||S.sheet||S.drawer||S.fdrawer||S.kvx||S.queryOpen||(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)));
   const check=()=>{if(busy())return;fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(t=>{const nv=(t.match(/app\.js\?v=([^"&]+)/)||[])[1];if(nv&&nv!==v&&!busy()&&!sessionStorage.getItem("ark-up-"+nv)){sessionStorage.setItem("ark-up-"+nv,"1");location.replace(location.pathname+"?v="+nv+(SPACE?"&raum="+SPACE:"")+location.hash);}}).catch(()=>{});};
   check();document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")check();});window.addEventListener("pageshow",check);setInterval(()=>{if(document.visibilityState==="visible")check();},120000);})();
 /* the app computes due dates from «today» at load: after midnight, reload once nothing is being entered */

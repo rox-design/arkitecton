@@ -21,9 +21,33 @@ function docsBlock(scope,ref,title,hint){
   return `<section class="docs"><div class="sh"><h2>${title}</h2><span class="cnt">${list.length}</span><span class="right"><label class="ib" data-tip="${L("Dokumente hinzufügen: PDF, Word, Excel oder Bild, auch mehrere auf einmal","Add documents: PDF, Word, Excel or image, several at once")}" aria-label="${L("Dokument hinzufügen","Add document")}">${ico("plus")}<input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png" data-imp="doc" data-id="${scope}|${ref}"></label></span></div>
     ${rows?`<div class="dlist">${rows}</div>`:`<div class="empty">${hint||L("Noch keine Dokumente. PDF, Word, Excel oder Bilder mit ＋ hinzufügen.","No documents yet. Add PDF, Word, Excel or images with ＋.")}</div>`}</section>`;
 }
+/* ---------- document kinds: one document is stored once and shows wherever it belongs ----------
+   project page: everything of the project, grouped by kind; contractor page: everything of the contractor, grouped by project */
+const DKIND={wv:[["Werkvertrag","Contract"],["Werkverträge","Contracts"]],of:[["Offerte","Offer"],["Offerten","Offers"]],rr:[["Regierapport","Time report"],["Regierapporte","Time reports"]],
+  am:[["Ausmass","Measurement"],["Ausmasse","Measurements"]],ls:[["Lieferschein","Delivery note"],["Lieferscheine","Delivery notes"]],ab:[["Abnahmeprotokoll / Mängelliste","Acceptance / defects"],["Abnahmen und Mängel","Acceptance and defects"]],
+  pr:[["Bausitzungsprotokoll","Site meeting minutes"],["Protokolle","Minutes"]],br:[["Brief / Bewilligung","Letter / permit"],["Briefe und Bewilligungen","Letters and permits"]],
+  gr:[["Plan / Grundlage","Plan / basis"],["Pläne und Grundlagen","Plans and basics"]],so:[["Sonstiges","Other"],["Sonstiges","Other"]]};
+const DK_ORDER=Object.keys(DKIND),DK_WITH_K=["wv","of","rr","am","ls","ab"];
+const dkName=(k,pl)=>L(...DKIND[k||"so"][pl?1:0]);
+function guessDocKind(name){const n=String(name||"").toLowerCase();
+  return /werkvertrag|vertrag/.test(n)?"wv":/offerte|angebot|nachtrag/.test(n)?"of":/rapport|regie|stunden/.test(n)?"rr":/ausmass|massurkunde/.test(n)?"am":/lieferschein/.test(n)?"ls":/abnahme|mängel|maengel/.test(n)?"ab":/protokoll|sitzung/.test(n)?"pr":/bewilligung|brief|bauamt|verfügung|versicherung/.test(n)?"br":/plan|kostenvoranschlag|grundlage|kv/.test(n)?"gr":"so";}
+const docKind=d=>d.kind||guessDocKind(d.name);
+const docsOfProject=pid=>DOCS().filter(d=>(d.scope==="project"&&d.ref===pid)||(d.scope==="doc"&&d.pid===pid)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+const docsOfContractor=kid=>DOCS().filter(d=>(d.scope==="contractor"&&d.ref===kid)||(d.scope==="doc"&&d.kid===kid)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+function docRow(d){const v=docValid(d);return `<div class="drow"><button type="button" class="dopen" data-act="doc-open" data-id="${d.id}"><span class="dk">${esc(kindOf(d.name))}</span><span class="dn">${esc(d.name)}</span><span class="dm">${fsize(d.size||0)} · ${fdate(d.date)}${d.pages>1?" · "+d.pages+L(" Seiten"," pages"):""}${v?` · <span class="l-${v.c}">${v.t}</span>`:""}</span></button>${ib("edit",L("Bearbeiten","Edit"),`data-act="form" data-f="docvalid" data-id="${d.id}"`)}${S.confirm==="ddel:"+d.id?`<button type="button" class="ghost danger" data-act="doc-del" data-id="${d.id}">${L("Löschen?","Delete?")}</button>`:ib("trash",L("Dokument löschen","Delete document"),`data-act="ask" data-c="ddel:${d.id}"`)}</div>`;}
+/* grouped list: by kind on the project, by project on the contractor */
+function docsGrouped(scope,ref,title,hint){
+  const list=scope==="project"?docsOfProject(ref):docsOfContractor(ref);
+  let groups;
+  if(scope==="project")groups=DK_ORDER.map(k=>[dkName(k,1),list.filter(d=>docKind(d)===k)]).filter(g=>g[1].length);
+  else{const pids=[...new Set(list.map(d=>d.pid||""))];groups=pids.map(pid=>[pid&&PJ(pid)?PJ(pid).name:L("Ohne Projekt","No project"),list.filter(d=>(d.pid||"")===pid)]).sort((a,b)=>a[0]===L("Ohne Projekt","No project")?1:b[0]===L("Ohne Projekt","No project")?-1:0);}
+  const body=groups.map(([g,ds])=>`<div class="dgrp"><span>${esc(g)}</span><span class="cnt">${ds.length}</span></div><div class="dlist">${ds.map(docRow).join("")}</div>`).join("");
+  return `<section class="docs"><div class="sh"><h2>${title}</h2><span class="cnt">${list.length}</span><span class="right"><label class="ib" data-tip="${L("Dokumente hinzufügen: PDF, Word, Excel oder Bild, auch mehrere auf einmal. Auf dem Handy auch scannen mit dem Knopf unten.","Add documents: PDF, Word, Excel or image, several at once. On the phone you can also scan with the button below.")}" aria-label="${L("Dokument hinzufügen","Add document")}">${ico("plus")}<input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png" data-imp="doc" data-id="${scope}|${ref}"></label></span></div>
+    ${body||`<div class="empty">${hint}</div>`}</section>`;
+}
 async function addDocs(files,key){
   const [scope,ref]=key.split("|");let n=0;
-  for(const f of files){const id=newId("f");await FDB.put(id,f);DOCS().push({id,scope,ref,name:f.name,type:f.type,size:f.size,date:iso(TODAY)});n++;}
+  for(const f of files){const id=newId("f");await FDB.put(id,f);const d={id,scope,ref,name:f.name,type:f.type,size:f.size,date:iso(TODAY)};if(scope==="project"||scope==="contractor")d.kind=guessDocKind(f.name);DOCS().push(d);n++;}
   render();toast(n===1?L("Dokument gespeichert","Document saved"):n+L(" Dokumente gespeichert"," documents saved"));
 }
 async function openDoc(id){
@@ -138,6 +162,8 @@ function runMigrations(){
   if(!D.mig.projs){D.mig.projs=1;[["Umbau Villa Seeblick","Küsnacht","Bauherrschaft Keller","Sanierung Gebäudehülle"],["Anbau Schulhaus Au","Wädenswil","Gemeinde Wädenswil","Erweiterung um 2 Klassenzimmer"]].forEach(([n,pl,cl,de])=>{if(!D.projects.some(p=>p.name===n))D.projects.push({id:newId("p"),name:n,place:pl,client:cl,desc:de,closed:true,budget:[]});});}
   if(!D.mig.closedDemo){D.mig.closedDemo=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&!D.contracts.some(w=>w.pid===pa.id))seedClosedDemo(pa);}
   if(!D.mig.closedFees){D.mig.closedFees=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&D.contracts.some(w=>w.pid===pa.id)&&!D.contracts.some(w=>w.pid===pa.id&&w.bkp==="511"))seedClosedFees(pa);}
+  /* contractor documents get their project when the contractor works on exactly one, so they also show on that project */
+  if(!D.mig.docs2){D.mig.docs2=1;DOCS().forEach(d=>{if(d.scope!=="contractor")return;const ps=[...new Set(D.contracts.filter(w=>w.k===d.ref).map(w=>w.pid))];d.kind=d.kind||guessDocKind(d.name);if(ps.length===1){d.scope="doc";d.kid=d.ref;d.pid=ps[0];d.ref=ps[0];}});}
   if(!D.mig.subT){D.mig.subT=1;if(D.example&&window.indexedDB)seedSubmittedTender().then(render).catch(e=>console.error(e));}
   if(!D.mig.closedMail){D.mig.closedMail=1;if(D.example)[["Gemeinde Wädenswil, Bauamt","bauamt@waedenswil.example"],["Bauversicherung Zürichsee AG","schaden@bauversicherung-zs.example"]].forEach(([n,e])=>{const k=D.contractors.find(x=>x.name===n);if(k&&!k.email)k.email=e;});}
   /* signatures point to people in the office team: name and title are kept once, in the team */

@@ -208,7 +208,7 @@ const SWIPE=["ausschreibungen","uebersicht","rechnungen","handwerker","budget"];
   const main=document.getElementById("main"),b=document.createElement("button");
   b.type="button";b.className="totop";b.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>';
   document.body.appendChild(b);
-  const lab=()=>{const t=L("Nach oben","Back to top");b.setAttribute("aria-label",t);b.title=t;};
+  const lab=()=>{const t=L("Nach oben","Back to top");b.setAttribute("aria-label",t);b.title=t;};try{lab();}catch(e){b.setAttribute("aria-label","Nach oben");}
   const upd=()=>{if(!window.matchMedia("(max-width:820px)").matches){b.classList.remove("on");return;}
     const tb=document.getElementById("tabbar"),r=tb&&tb.getBoundingClientRect();
     if(r&&r.height)b.style.bottom=(innerHeight-r.top+12)+"px";

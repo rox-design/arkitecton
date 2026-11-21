@@ -994,3 +994,11 @@ details[open]:not(.site)>summary::after{transform:none}
 .dsmode .seg button{all:unset;cursor:pointer;padding:8px 18px;border-radius:999px;color:#ddd;font-size:.9rem}
 .dsmode .seg button.on{background:#f4f4f2;color:#141414}
 .sheet .dsthumbs{padding:0 0 12px}
+/* small phones (≤380px): header tools and tab labels must fit without clipping */
+@media (max-width:380px){
+  .ph .tools{gap:6px}
+  .ph .tools .seg button{padding:6px 10px!important;font-size:.84rem!important}
+  .ph .tools .ib{width:38px;height:38px}
+  .tabbar{left:8px;right:8px;padding:5px 4px}
+  .tabbar button{font-size:.6rem;letter-spacing:-.015em;min-width:0}
+}

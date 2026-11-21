@@ -39,24 +39,33 @@ function dtake(cv){const M=DS();if(!M)return;dstopCam();M.src=cv;M.quad=detectQu
 /* ---------- finding the sheet: bright paper on a darker surface ---------- */
 function detectQuad(src){
   const W=src.width,H=src.height,k=Math.min(1,360/Math.max(W,H)),w=Math.max(8,Math.round(W*k)),h=Math.max(8,Math.round(H*k));
-  const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d",{willReadFrequently:true});g.filter="blur(2px)";g.drawImage(src,0,0,w,h);
+  const c=document.createElement("canvas");c.width=w;c.height=h;const g=c.getContext("2d",{willReadFrequently:true});g.filter="blur(1px)";g.drawImage(src,0,0,w,h);
   const px=g.getImageData(0,0,w,h).data,gray=new Uint8Array(w*h),hist=new Array(256).fill(0);
   for(let i=0;i<w*h;i++){const v=(px[i*4]*299+px[i*4+1]*587+px[i*4+2]*114)/1000|0;gray[i]=v;hist[v]++;}
   /* Otsu threshold */
   let sum=0;for(let i=0;i<256;i++)sum+=i*hist[i];let sB=0,wB=0,best=0,th=128;
   for(let t=0;t<256;t++){wB+=hist[t];if(!wB)continue;const wF=w*h-wB;if(!wF)break;sB+=t*hist[t];const mB=sB/wB,mF=(sum-sB)/wF,between=wB*wF*(mB-mF)*(mB-mF);if(between>best){best=between;th=t;}}
-  /* largest bright region */
-  const lab=new Int32Array(w*h).fill(-1);let bestN=0,bestId=-1,id=0;const q=new Int32Array(w*h);
-  for(let s=0;s<w*h;s++){if(gray[s]<=th||lab[s]>=0)continue;let qh=0,qt=0,n=0;q[qt++]=s;lab[s]=id;
+  /* edges (text, the sheet border, folders) act as barriers: the sheet is the largest bright area between strong edges.
+     Otherwise a light surface touching the sheet would be counted as paper. */
+  const mag=new Float32Array(w*h),mh=new Uint32Array(256);
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x,
+    gx=gray[i-w+1]+2*gray[i+1]+gray[i+w+1]-gray[i-w-1]-2*gray[i-1]-gray[i+w-1],gy=gray[i+w-1]+2*gray[i+w]+gray[i+w+1]-gray[i-w-1]-2*gray[i-w]-gray[i-w+1];
+    const m=Math.min(255,Math.hypot(gx,gy)/4);mag[i]=m;mh[m|0]++;}
+  let acc=0,T=255;for(let t=0;t<256;t++){acc+=mh[t];if(acc>=w*h*.85){T=t;break;}}
+  const lab=new Int32Array(w*h).fill(-1),q=new Int32Array(w*h),ok=i=>gray[i]>th&&mag[i]<T;let bestN=0,bestId=-1,id=0;
+  for(let s0=0;s0<w*h;s0++){if(!ok(s0)||lab[s0]>=0)continue;let qh=0,qt=0,n=0;q[qt++]=s0;lab[s0]=id;
     while(qh<qt){const p=q[qh++];n++;const x=p%w,y=(p-x)/w;
-      if(x>0&&lab[p-1]<0&&gray[p-1]>th){lab[p-1]=id;q[qt++]=p-1;}if(x<w-1&&lab[p+1]<0&&gray[p+1]>th){lab[p+1]=id;q[qt++]=p+1;}
-      if(y>0&&lab[p-w]<0&&gray[p-w]>th){lab[p-w]=id;q[qt++]=p-w;}if(y<h-1&&lab[p+w]<0&&gray[p+w]>th){lab[p+w]=id;q[qt++]=p+w;}}
+      if(x>0&&lab[p-1]<0&&ok(p-1)){lab[p-1]=id;q[qt++]=p-1;}if(x<w-1&&lab[p+1]<0&&ok(p+1)){lab[p+1]=id;q[qt++]=p+1;}
+      if(y>0&&lab[p-w]<0&&ok(p-w)){lab[p-w]=id;q[qt++]=p-w;}if(y<h-1&&lab[p+w]<0&&ok(p+w)){lab[p+w]=id;q[qt++]=p+w;}}
     if(n>bestN){bestN=n;bestId=id;}id++;}
+  /* grow back over the sheet's own edges and text, but only a few pixels, so neighbouring light areas stay out */
+  let reg=new Uint8Array(w*h);for(let i=0;i<w*h;i++)reg[i]=lab[i]===bestId?1:0;
+  for(let r=0;r<6;r++){const nx=reg.slice();for(let i=0;i<w*h;i++){if(reg[i])continue;const x=i%w;if((x>0&&reg[i-1])||(x<w-1&&reg[i+1])||(i>=w&&reg[i-w])||(i<w*h-w&&reg[i+w]))nx[i]=1;}reg=nx;}
   const inset=()=>[[.06,.06],[.94,.06],[.94,.94],[.06,.94]].map(([a,b])=>[a*W,b*H]);
   if(bestN<w*h*.12||bestN>w*h*.97)return inset();
   /* corners: extreme points along the diagonals */
   let tl=[0,0,1e9],tr=[0,0,-1e9],br=[0,0,-1e9],bl=[0,0,1e9];
-  for(let p=0;p<w*h;p++){if(lab[p]!==bestId)continue;const x=p%w,y=(p-x)/w;
+  for(let p=0;p<w*h;p++){if(!reg[p]||gray[p]<=th)continue;const x=p%w,y=(p-x)/w;
     if(x+y<tl[2])tl=[x,y,x+y];if(x+y>br[2])br=[x,y,x+y];if(x-y>tr[2])tr=[x,y,x-y];if(x-y<bl[2])bl=[x,y,x-y];}
   return [tl,tr,br,bl].map(([x,y])=>[x/k,y/k]);
 }
@@ -139,7 +148,7 @@ function dscanAttach(){
   if(M.stage==="cam"){if(!M.err){if(dcam)dattachCam();else dstartCam();}const fi=document.getElementById("dsIn");if(fi)fi.onchange=()=>{const f=fi.files[0];fi.value="";dfromFile(f).catch(()=>toast(L("Foto konnte nicht gelesen werden.","Could not read the photo.")));};return;}
   if(M.stage!=="adjust"||!M.src)return;
   const box=document.getElementById("dsadj"),cv=document.getElementById("dsimg"),svg=document.getElementById("dssvg");if(!box||!cv)return;
-  const bw=box.clientWidth,bh=box.clientHeight,k=Math.min(bw/M.src.width,bh/M.src.height),w=Math.round(M.src.width*k),h=Math.round(M.src.height*k);
+  const bw=box.clientWidth-48,bh=box.clientHeight-48,k=Math.min(bw/M.src.width,bh/M.src.height),w=Math.round(M.src.width*k),h=Math.round(M.src.height*k);
   cv.width=w;cv.height=h;cv.style.width=w+"px";cv.style.height=h+"px";cv.getContext("2d").drawImage(M.src,0,0,w,h);
   svg.setAttribute("width",w);svg.setAttribute("height",h);svg.style.width=w+"px";svg.style.height=h+"px";
   const draw=()=>{const pts=M.quad.map(([x,y])=>[x*k,y*k]);svg.innerHTML=`<polygon points="${pts.map(p=>p.join(",")).join(" ")}" fill="rgba(37,99,235,.12)" stroke="#2563eb" stroke-width="2"/>`+pts.map((p,i)=>`<circle data-i="${i}" cx="${p[0]}" cy="${p[1]}" r="14" fill="#fff" stroke="#2563eb" stroke-width="3"/>`).join("");};

@@ -1007,4 +1007,4 @@ details[open]:not(.site)>summary::after{transform:none}
 .docs .sh .right{display:flex;gap:8px}
 .docs .dscbtn .ni{width:20px;height:20px}
 @media (min-width:821px){.docs .dscbtn{display:none}}
-@media (max-width:380px){.docs .sh .right{gap:4px}.docs .sh .ib{width:36px;height:36px}.docs .sh h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+@media (max-width:380px){.docs .sh .right{gap:4px}.docs .sh h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}

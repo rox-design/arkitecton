@@ -42,7 +42,7 @@ function renderChrome(){
   const tb=(v,l)=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${l}</span></button>`;
   const firmTabs=["buero","ausschreibungen","einstellungen"].includes(S.view);
   /* one tab bar everywhere; Home is the logo and firm name at the top */
-  document.getElementById("tabbar").innerHTML=tb("ausschreibungen",L("Ausschreibungen","Tenders"))+tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget")+`<button type="button" class="tabscan" data-act="scan-menu" aria-label="${L("Scannen: QR-Rechnung oder Dokument","Scan: QR-bill or document")}" title="${L("Scannen","Scan")}">${navIco("scan")}</button>`;
+  document.getElementById("tabbar").innerHTML=tb("ausschreibungen",L("Ausschreibungen","Tenders"))+tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget")+(S.view==="rechnungen"&&S.rtab!=="deb"?`<button type="button" class="tabscan" data-act="scan-menu" aria-label="${L("Scannen: QR-Rechnung oder Dokument","Scan: QR-bill or document")}" title="${L("Scannen","Scan")}">${navIco("scan")}</button>`:"");
   document.querySelector(".topbar").classList.toggle("is-home",S.view==="buero");void firmTabs;
   const ts=document.getElementById("topSet");if(ts){ts.innerHTML=navIco("einstellungen");ts.setAttribute("aria-label",L("Einstellungen","Settings"));ts.title=L("Einstellungen","Settings");ts.setAttribute("aria-current",S.view==="einstellungen"?"page":"false");}
 }

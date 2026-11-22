@@ -783,7 +783,7 @@ select.needs{border-color:var(--warn)}
 /* phone: back-to-top, glass like the scan button but grey */
 .totop{display:none}
 @media (max-width:820px){
-  .totop{display:flex;position:fixed;z-index:40;left:50%;transform:translate(-50%,8px);width:48px;height:48px;border-radius:50%;align-items:center;justify-content:center;padding:0;cursor:pointer;
+  .totop{display:flex;position:fixed;z-index:25;left:50%;transform:translate(-50%,8px);width:48px;height:48px;border-radius:50%;align-items:center;justify-content:center;padding:0;cursor:pointer;
     color:var(--ink);background:color-mix(in srgb,#8a8a86 26%,transparent);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);border:1px solid rgba(255,255,255,.35);box-shadow:0 6px 20px rgba(0,0,0,.12);
     opacity:0;pointer-events:none;transition:opacity .18s,transform .18s}
   .totop.on{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
@@ -1002,3 +1002,9 @@ details[open]:not(.site)>summary::after{transform:none}
   .tabbar{left:8px;right:8px;padding:5px 4px}
   .tabbar button{font-size:.6rem;letter-spacing:-.015em;min-width:0}
 }
+
+/* document scan button in document lists: phone only, the scanner is a phone feature */
+.docs .sh .right{display:flex;gap:8px}
+.docs .dscbtn .ni{width:20px;height:20px}
+@media (min-width:821px){.docs .dscbtn{display:none}}
+@media (max-width:380px){.docs .sh .right{gap:4px}.docs .sh .ib{width:36px;height:36px}.docs .sh h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}

@@ -6,7 +6,8 @@
 let dcam=null;
 const DS=()=>S.dscan;
 
-function dscanOpen(){closeAll();S.dscan={stage:"cam",pages:[],err:""};renderOverlay();}
+/* o.pid / o.kid: opened from a project or contractor document list, so the scan is filed there by default */
+function dscanOpen(o){o=o||{};closeAll();S.dscan={stage:"cam",pages:[],err:"",pid:o.pid||undefined,kid:o.kid||""};renderOverlay();}
 function dscanClose(){dstopCam();S.dscan=null;renderOverlay();}
 
 async function dstartCam(){

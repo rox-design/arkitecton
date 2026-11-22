@@ -106,7 +106,7 @@ document.addEventListener("click",e=>{
     case "bulk-open":{const all=PIx().filter(i=>i.status==="pruefen"&&live(i)),ok=all.filter(cleanInv);closeAll();S.bulk={ids:ok.map(i=>i.id),sel:ok.map(i=>i.id),rest:all.length-ok.length};renderOverlay();break;}
     case "team-go":S.mid=null;go("einstellungen");requestAnimationFrame(()=>{const t=document.getElementById("team");if(t)t.scrollIntoView({block:"start"});});break;
     case "scan-menu":closeAll();S.sheet="scan";renderOverlay();break;
-    case "dscan":dscanOpen();break;
+    case "dscan":dscanOpen({pid:el.dataset.pid,kid:el.dataset.kid});break;
     case "ds-close":dscanClose();break;
     case "ds-shoot":dshoot();break;
     case "ds-retake":{const M=DS();if(M){M.src=null;M.quad=null;M.stage="cam";renderOverlay();}break;}

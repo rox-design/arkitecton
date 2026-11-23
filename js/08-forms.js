@@ -6,12 +6,13 @@ const fld=(id,label,val,o={})=>`<div class="f${o.wide?" wide":""}"><label for="$
 function formDef(){
   if(S.form&&S.form.f==="fee") return feeFormDef(S.form);
   const F=S.form, p=P();
+  {const bd=bidFormDef(F);if(bd)return bd;}
   if(F.f==="tsrc"){const t=D.tenders.find(x=>x.id===F.id)||{},sr=t.src||{};return {title:L("Publikation","Publication"),body:
       fld("fSUrl",L("Link zur Publikation auf simap.ch","Link to the publication on simap.ch"),sr.url||"",{wide:true,ph:"https://www.simap.ch/…"})
       +fld("fSId",L("Projekt-ID auf simap.ch","Project ID on simap.ch"),sr.id||"",{wide:true,ph:L("steht in der Publikation","shown in the publication")})};}
-  if(F.f==="zk"){const t=D.tenders.find(x=>x.id===F.id)||{};if(!F.lines)F.lines=(t.zk&&t.zk.length?t.zk:[{typ:"preis",t:L(...ZKT.preis),w:""}]).map(z=>({...z}));
+  if(F.f==="zk"){const t=D.tenders.find(x=>x.id===F.id)||{},key=F.w||"zk",gek=key==="gek";if(!F.lines)F.lines=(t[key]&&t[key].length?t[key]:[gek?{typ:"ref",t:L(...ZKT.ref),w:""}:{typ:"preis",t:L(...ZKT.preis),w:""}]).map(z=>({...z}));
     const rows=F.lines.map((z,i)=>`<div class="zkline"><input id="zt${i}" aria-label="${L("Kriterium","Criterion")}" value="${esc(z.t)}" placeholder="${L("z. B. Auftragsanalyse","e.g. task analysis")}"><label class="fc"><span>${L("Gewichtung %","Weight %")}</span><input id="zw${i}" inputmode="decimal" value="${esc(z.w)}"></label><label class="fc"><span>${L("Art","Type")}</span><select id="zy${i}">${Object.keys(ZKT).map(k=>`<option value="${k}"${z.typ===k?" selected":""}>${esc(L(...ZKT[k]))}</option>`).join("")}</select></label>${F.lines.length>1?`<button type="button" class="ib sm" aria-label="${L("Zeile entfernen","Remove line")}" data-act="zk-del" data-c="${i}">${ico("trash")}</button>`:"<span></span>"}</div>`).join("");
-    return {title:L("Zuschlagskriterien","Award criteria"),body:`<div class="f wide"><span class="l">${L("Kriterien und Gewichtung gemäss Dossier","Criteria and weights as in the dossier")}</span>${rows}<button type="button" class="ghost" data-act="zk-add">${L("+ Kriterium","+ Criterion")}</button><span class="hint">${L("Die Art bestimmt, welche Tipps arkitecton zeigt. Zusammen sollten es 100 % sein.","The type decides which tips arkitecton shows. Together they should add up to 100 %.")}</span></div>`};}
+    return {title:gek?L("Gewichtete Eignungskriterien","Weighted qualification criteria"):L("Zuschlagskriterien","Award criteria"),body:`<div class="f wide"><span class="l">${L("Kriterien und Gewichtung gemäss Dossier","Criteria and weights as in the dossier")}</span>${rows}<button type="button" class="ghost" data-act="zk-add">${L("+ Kriterium","+ Criterion")}</button><span class="hint">${L("Die Art bestimmt, welche Tipps arkitecton zeigt. Zusammen sollten es 100 % sein.","The type decides which tips arkitecton shows. Together they should add up to 100 %.")}</span></div>`};}
   if(F.f==="tender"){const opt=(o,cur,all)=>(all?`<option value="">${all}</option>`:"")+Object.keys(o).map(k=>`<option value="${k}"${cur===k?" selected":""}>${esc(tx(o[k]))}</option>`).join("");
     const Y=YNOW();
     return {title:L("Ausschreibung erfassen","Add tender"),body:
@@ -20,7 +21,8 @@ function formDef(){
       +`<div class="f"><label for="fTProc">${L("Verfahren","Procedure")}</label><select id="fTProc">${opt(PROC,"sel")}</select></div>`
       +fld("fTCost",L("Bausumme in Mio. CHF","Construction cost, CHF m"),"",{mode:"decimal",ph:"z. B. 7.2"})
       +fld("fTUrl",L("Link zur Publikation auf simap.ch","Link to the publication on simap.ch"),"",{wide:true,ph:"https://www.simap.ch/…"})
-      +fld("fTDue",L("Eingabefrist","Submission deadline"),"",{type:"date",req:true})+fld("fTQDue",L("Fragefrist","Question deadline"),"",{type:"date"})
+      +fld("fTDue",L("Eingabefrist","Submission deadline"),"",{type:"date",req:true,hint:L("Beim selektiven Verfahren: Frist für den Teilnahmeantrag","Selective procedure: deadline of the request to participate")})+fld("fTQDue",L("Fragefrist","Question deadline"),"",{type:"date"})
+      +fld("fTMax",L("Höchstzahl eingeladener Büros","Max. firms invited"),"",{mode:"numeric",hint:L("Nur beim selektiven Verfahren","Selective procedure only")})
       +`<h3 class="subh" style="grid-column:1/-1;margin:10px 0 -4px">${L("Eignungskriterien","Eligibility criteria")}</h3>`
       +fld("fTRefN",L("Anzahl Referenzen","Number of references"),"2",{mode:"numeric"})+fld("fTRefSince",L("Referenzen seit (Jahr)","References since (year)"),String(Y-10),{mode:"numeric"})
       +fld("fTRefMin",L("Referenzen ab Bausumme (Mio. CHF)","References from cost (CHF m)"),"",{mode:"decimal",ph:"z. B. 2.5"})
@@ -92,7 +94,7 @@ function formHTML(){
     <div class="ohead"><h2 id="fT" style="font-size:1.125rem;font-weight:500">${esc(d.title)}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <form id="frm" class="obody" novalidate><div class="fields">${d.body}</div><span class="err" id="formErr" role="alert"></span>
     ${d.del?(S.confirm===delKey?`<button type="button" class="ghost danger" data-act="form-del">${L("Wirklich löschen?","Really delete?")}</button>`:`<button type="button" class="ghost" data-act="ask" data-c="${delKey}">${L("Löschen","Delete")}</button>`):""}</form>
-    ${d.noSubmit?"":`<div class="ofoot"><button type="submit" form="frm" class="btn primary">${L("Speichern","Save")}</button></div>`}</div>`;
+    ${d.noSubmit?"":`<div class="ofoot"><button type="submit" form="frm" class="btn primary">${d.save||L("Speichern","Save")}</button></div>`}</div>`;
 }
 const val=id=>{const e=document.getElementById(id);return e?e.value.trim():"";};
 function submitForm(){
@@ -103,6 +105,7 @@ function submitForm(){
     const fe=id?document.getElementById(id):frm?[...frm.querySelectorAll("input[required]")].find(x=>!x.value.trim()):null;
     if(fe&&fe.closest(".f")){if(e)e.textContent="";fe.setAttribute("aria-invalid","true");const s=document.createElement("span");s.className="ferr";s.setAttribute("role","alert");s.textContent=m;fe.closest(".f").appendChild(s);fe.scrollIntoView({block:"center",behavior:"smooth"});fe.focus({preventScroll:true});}
     else if(e){e.textContent=m;e.scrollIntoView({block:"nearest",behavior:"smooth"});}};
+  if(bidSubmit(F,fail))return;
   if(F.f==="project"){
     if(!val("fName")) return fail(L("Projektname fehlt.","Project name missing."));
     if(F.id){const x=D.projects.find(q=>q.id===F.id);Object.assign(x,{name:val("fName"),place:val("fPlace"),client:val("fClient"),cstreet:val("fCStreet"),czip:val("fCZip"),ccity:val("fCCity"),desc:val("fDesc"),closed:!!(document.getElementById("fClosed")||{}).checked});}
@@ -166,13 +169,13 @@ function submitForm(){
     if(amt>0){i.ded={amt:r2(amt),why};logInv(i,L("Abzug CHF ","Deduction CHF ")+nf2.format(r2(amt))+": "+why);}else if(i.ded){delete i.ded;logInv(i,L("Abzug entfernt","Deduction removed"));}
     const id=i.id;closeAll();S.drawer=id;render();return toast(amt>0?L("Abzug gespeichert","Deduction saved"):L("Abzug entfernt","Deduction removed"));}
   if(F.f==="tsrc"){const t=D.tenders.find(x=>x.id===F.id);const u=val("fSUrl");if(u&&!/^https?:\/\//i.test(u))return fail(L("Link muss mit https:// beginnen.","Link must start with https://."),"fSUrl");t.src={url:u,id:val("fSId")};closeAll();render();return toast(L("Gespeichert","Saved"));}
-  if(F.f==="zk"){const t=D.tenders.find(x=>x.id===F.id);readZk();const zk=F.lines.filter(z=>z.t.trim()).map(z=>({typ:z.typ,t:z.t.trim(),w:num(String(z.w))||0,me:z.me||""}));t.zk=zk;closeAll();render();return toast(L("Zuschlagskriterien gespeichert","Award criteria saved"));}
+  if(F.f==="zk"){const t=D.tenders.find(x=>x.id===F.id);readZk();const zk=F.lines.filter(z=>z.t.trim()).map(z=>({typ:z.typ,t:z.t.trim(),w:num(String(z.w))||0,me:z.me||""}));t[F.w||"zk"]=zk;closeAll();render();return toast(L("Kriterien gespeichert","Criteria saved"));}
   if(F.f==="tender"){if(!val("fTTitle"))return fail(L("Titel fehlt.","Title missing."),"fTTitle");
     if(!val("fTDue"))return fail(L("Eingabefrist fehlt.","Submission deadline missing."),"fTDue");
     const n=parseInt(val("fTRefN"),10)||0,since=parseInt(val("fTRefSince"),10)||YNOW()-10,min=num(val("fTRefMin"))||0,typ=document.getElementById("fTRefType").value,tag=document.getElementById("fTTeam").value,eng=document.getElementById("fTEng").checked;
     const reqs=[];if(n>0)reqs.push({k:"refs",n,since,minCost:min,pub:document.getElementById("fTRefPub").checked,types:typ?[typ]:null});if(tag)reqs.push({k:"team",tag});reqs.push({k:"disc",need:eng?["291","292"]:["291"]});
     const docs=[];if(n>0)docs.push({id:"d1",auto:"refs"});if(tag)docs.push({id:"d2",auto:"team"});docs.push({id:"d3",auto:"self"});
-    const t={id:newId("t"),title:{de:val("fTTitle"),en:val("fTTitle")},client:val("fTClient"),proc:document.getElementById("fTProc").value,phases:"31–53",cost:num(val("fTCost"))||0,qDue:val("fTQDue")||null,due:val("fTDue"),status:"neu",reqs,docs,done:{},own:true,src:val("fTUrl")?{url:val("fTUrl")}:null,zk:[]};
+    const t={id:newId("t"),title:{de:val("fTTitle"),en:val("fTTitle")},client:val("fTClient"),proc:document.getElementById("fTProc").value,phases:"31–53",cost:num(val("fTCost"))||0,qDue:val("fTQDue")||null,due:val("fTDue"),status:"neu",reqs,docs,done:{},own:true,src:val("fTUrl")?{url:val("fTUrl")}:null,zk:[]};if(t.proc==="sel")t.pq={max:parseInt(val("fTMax"),10)||null};
     D.tenders.push(t);S.ttab="verfahren";S.from=null;backTo();go("ausschreibungen");S.tid=t.id;render();return toast(L("Ausschreibung erfasst","Tender added"));}
   if(F.f==="ref"){const O=D.office,name=val("fRName");if(!name)return fail(L("Projekt fehlt.","Project missing."),"fRName");
     const cost=val("fRCost")?num(val("fRCost")):null;if(val("fRCost")&&(cost===null||cost<0))return fail(L("Bausumme als Zahl in Mio. CHF eingeben, z. B. 4.2","Enter the cost in CHF m, e.g. 4.2"),"fRCost");

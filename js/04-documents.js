@@ -16,7 +16,7 @@ const fsize=b=>b>=1048576?(b/1048576).toFixed(1).replace(".0","")+" MB":Math.max
 function docValid(d){if(!d.until)return null;const n=daysTo(d.until),gs=d.kind==="gs";return n<0?{c:"crit",t:gs?L("Garantie abgelaufen","warranty expired"):L("abgelaufen","expired")}:n<=dkWarnDays(d.kind)?gs?{c:"warn",t:L("Garantie endet in "+n+" "+dayWord(n),"warranty ends in "+n+" days")}:{c:"warn",t:L("läuft ab in "+n+" "+dayWord(n),"expires in "+n+" "+(n===1?"day":"days"))}:{c:"ok",t:L("gültig bis ","valid until ")+fdate(d.until)};}
 function docsBlock(scope,ref,title,hint){
   const rk=d=>{const v=docValid(d);return v?{crit:0,warn:1,ok:2}[v.c]:3;};
-  const list=docsFor(scope,ref).filter(d=>!d.dossier).sort((a,b)=>scope==="firm"?rk(a)-rk(b):0);
+  const list=docsFor(scope,ref).filter(d=>!d.dossier&&!d.submitted&&!d.prot).sort((a,b)=>scope==="firm"?rk(a)-rk(b):0);
   const rows=list.map(d=>{const v=docValid(d);return `<div class="drow"><button type="button" class="dopen" data-act="doc-open" data-id="${d.id}"><span class="dk">${esc(kindOf(d.name))}</span><span class="dn">${esc(d.name)}</span><span class="dm">${fsize(d.size||0)} · ${fdate(d.date)}${v?` · <span class="l-${v.c}">${v.t}</span>`:""}</span></button>${ib("edit",L("Gültigkeit","Validity"),`data-act="form" data-f="docvalid" data-id="${d.id}"`)}${S.confirm==="ddel:"+d.id?`<button type="button" class="ghost danger" data-act="doc-del" data-id="${d.id}">${L("Löschen?","Delete?")}</button>`:ib("trash",L("Dokument löschen","Delete document"),`data-act="ask" data-c="ddel:${d.id}"`)}</div>`;}).join("");
   return `<section class="docs"><div class="sh"><h2>${title}</h2><span class="cnt">${list.length}</span><span class="right"><label class="ib" data-tip="${L("Dokumente hinzufügen: PDF, Word, Excel oder Bild, auch mehrere auf einmal","Add documents: PDF, Word, Excel or image, several at once")}" aria-label="${L("Dokument hinzufügen","Add document")}">${ico("plus")}<input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png" data-imp="doc" data-id="${scope}|${ref}"></label></span></div>
     ${rows?`<div class="dlist">${rows}</div>`:`<div class="empty">${hint||L("Noch keine Dokumente. PDF, Word, Excel oder Bilder mit ＋ hinzufügen.","No documents yet. Add PDF, Word, Excel or images with ＋.")}</div>`}</section>`;
@@ -70,8 +70,8 @@ function docsGrouped(scope,ref,title,hint){
     ${body||`<div class="empty">${hint}</div>`}</section>`;
 }
 async function addDocs(files,key){
-  let [scope,ref]=key.split("|");let n=0;const dossier=scope==="tdos";if(dossier)scope="tender";
-  for(const f of files){const id=newId("f");await FDB.put(id,f);const d={id,scope,ref,name:f.name,type:f.type,size:f.size,date:iso(TODAY)};if(scope==="project"||scope==="contractor")d.kind=guessDocKind(f.name);if(dossier)d.dossier=true;DOCS().push(d);n++;}
+  let [scope,ref]=key.split("|");let n=0;const dossier=scope==="tdos",flag={tsub:{submitted:true},tsub1:{submitted:true,phase:1},tprot:{prot:true}}[scope];if(dossier||flag)scope="tender";
+  for(const f of files){const id=newId("f");await FDB.put(id,f);const d={id,scope,ref,name:f.name,type:f.type,size:f.size,date:iso(TODAY)};if(scope==="project"||scope==="contractor")d.kind=guessDocKind(f.name);if(dossier)d.dossier=true;if(flag)Object.assign(d,flag);DOCS().push(d);n++;}
   render();toast(n===1?L("Dokument gespeichert","Document saved"):n+L(" Dokumente gespeichert"," documents saved"));
 }
 async function openDoc(id){
@@ -150,7 +150,7 @@ async function seedSubmittedTender(){
   if(!D.example||!D.tenders||D.tenders.some(t=>t.id==="t5"))return;
   await libsPDF();
   const ad=n=>addDays(iso(TODAY),n),sub=ad(-3),F=D.firm||{},tm=(D.office||{}).team||[],r1=(D.office.refs||[]).find(r=>r.id==="r1"),r3=(D.office.refs||[]).find(r=>r.id==="r3");
-  const t={id:"t5",title:{de:"Gesamtsanierung Schulhaus Dorf",en:"Full refurbishment, village school"},client:"Gemeinde Rüschlikon, Liegenschaften",proc:"offen",phases:"31–53",cost:3.4,qDue:ad(-24),due:ad(-2),sub,status:"eingereicht",
+  const t={id:"t5",title:{de:"Gesamtsanierung Schulhaus Dorf",en:"Full refurbishment, village school"},client:"Gemeinde Rüschlikon, Liegenschaften",proc:"offen",phases:"31–53",cost:3.4,qDue:ad(-24),due:ad(-2),sub,status:"eingereicht",subAt:"14:32",subForm:"simap",
     reqs:[{k:"refs",n:2,since:2016,minCost:2.5,pub:true,types:["schule"]},{k:"team",tag:"pl"},{k:"disc",need:["291"]}],
     docs:[{id:"d9",de:"Angebotsformular mit Angaben zur Unternehmung",en:"Bid form with company details",file:"01 Angebotsformular.pdf"},{id:"d3",auto:"self",file:"02 Selbstdeklaration.pdf"},
       {id:"d7",de:"Nachweis Steuern und Sozialabgaben",en:"Proof of taxes and social contributions",file:"03 Nachweis Steuern und Sozialabgaben.pdf"},{id:"d8",de:"Handelsregisterauszug",en:"Commercial register extract",file:"04 Handelsregisterauszug.pdf"},
@@ -186,8 +186,8 @@ async function seedSubmittedTender(){
       {h:"Risiken und Massnahmen",lines:["Schadstoffe (Asbest, PCB): frühe Untersuchung, Reserve 5 % im Kostenvoranschlag.","Laufender Schulbetrieb: Abstimmung mit Schulleitung vor jeder Etappe, Lärmplan.","Lieferfristen Fenster: Ausschreibung vorgezogen, Bestellung vor Baubeginn."]},
       {h:"Projektorganisation",lines:["Projektleitung: "+nm(0)+", Bauleitung: "+nm(1)+", Mitarbeit Planung: "+nm(2)+".","Fachplanende nach Wahl der Bauherrschaft, Koordination durch die Gesamtleitung."]}],{a3:true})],
     ["Eingangsbestätigung Eingabe.pdf",tenderDocPdf("Eingangsbestätigung",T0,[{table:[["Angebot von",F.name||"Beispiel Architekten GmbH"],["Eingegangen am",fdate(sub)+", 14:32 Uhr"],["Eingabefrist",fdate(ad(-2))+", 12:00 Uhr"],["Anzahl Dateien","10"],["Status","fristgerecht eingegangen"]]},{lines:["Diese Bestätigung wurde automatisch erstellt. Über den Zuschlag werden alle Anbietenden schriftlich informiert."]}])]];
-  for(const [name,blob] of files){const id=newId("f");await FDB.put(id,blob);DOCS().push({id,scope:"tender",ref:"t5",name,type:"application/pdf",size:blob.size,date:name.startsWith("Eingang")?sub:ad(-4)});}
-  saveData();
+  for(const [name,blob] of files){const id=newId("f");await FDB.put(id,blob);DOCS().push({id,scope:"tender",ref:"t5",name,type:"application/pdf",size:blob.size,date:name.startsWith("Eingang")?sub:ad(-4),submitted:true});}
+  t.res={own:H.tot};saveData();
 }
 function runMigrations(){
   if(!D)return;D.mig=D.mig||{};
@@ -219,6 +219,7 @@ function runMigrations(){
       (t.reqs||[]).forEach((r,i)=>{if(!r.src)r.src=L("Dossier, Kap. 6 Eignungskriterien, EK ","Dossier, ch. 6 qualification criteria, EK ")+(i+1);});});
     if(window.indexedDB)addDossiers().then(render).catch(e=>console.error(e));}}
   if(!D.mig.subT){D.mig.subT=1;if(D.example&&window.indexedDB)seedSubmittedTender().then(render).catch(e=>console.error(e));}
+  if(!D.mig.bids){D.mig.bids=1;if(D.example&&window.indexedDB)seedBids().then(render).catch(e=>console.error(e));}
   if(!D.mig.closedMail){D.mig.closedMail=1;if(D.example)[["Gemeinde Wädenswil, Bauamt","bauamt@waedenswil.example"],["Bauversicherung Zürichsee AG","schaden@bauversicherung-zs.example"]].forEach(([n,e])=>{const k=D.contractors.find(x=>x.name===n);if(k&&!k.email)k.email=e;});}
   /* signatures point to people in the office team: name and title are kept once, in the team */
   if(!D.mig.kvr){D.mig.kvr=1;const p0=D.example&&(D.projects||[]).find(p=>p.id==="p1"),b=p0&&(p0.budget||[]).find(x=>x.bkp==="285");if(b&&b.kvr==null&&b.kv===36000)b.kvr=41000;}

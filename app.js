@@ -96,7 +96,15 @@ document.addEventListener("click",e=>{
     case "back-from":{const f=S.from;S.from=null;S.kid=null;S.wid=null;S.tid=null;S.cmpBack=null;if(f){go(f.view);document.getElementById("main").scrollTop=f.top||0;}else render();break;}
     case "back-t":S.tid=null;render();break;
     case "ttab":S.ttab=el.dataset.t;render();break;
-    case "t-status":{const t=T(id);t.status=el.dataset.s;if(t.status==="eingereicht")t.sub=iso(TODAY);render();toast(tx(TST[t.status]));break;}
+    case "t-status":{const t=T(id),s=el.dataset.s;snap();
+      /* a reset decision keeps what was submitted; reopening a selective procedure in phase 1 forgets only that submission */
+      if(s==="pq"&&t.pq){t.pq.sel=null;}if(s==="arbeit"&&t.status==="pq"&&t.pq){delete t.pq.sub;}
+      t.status=s;render();toast(tx(TST[s]),0,false,true);break;}
+    case "t-submit":openForm("tsub",id);break;
+    case "t-res":openForm("tres",id,el.dataset.w);break;
+    case "t-protmail":{const t=T(id);t.protAsked=iso(TODAY);render();location.href=protMail(t);break;}
+    case "t-link":{const t=T(id);t.link=t.link||{};t.link[el.dataset.d]=el.dataset.f;render();toast(L("Aus Büro-Unterlagen übernommen","Taken from firm documents"));break;}
+    case "t-unlink":{const t=T(id);if(t.link)delete t.link[el.dataset.d];openForm("tlink",id,el.dataset.d);break;}
     case "t-doc":{const t=T(el.dataset.t);t.done[el.dataset.d]=!t.done[el.dataset.d];render();break;}
     case "sheet":closeAll();S.sheet=el.dataset.k;renderOverlay();break;
     case "form":openForm(el.dataset.f,id,el.dataset.w);break;
@@ -118,7 +126,7 @@ document.addEventListener("click",e=>{
     case "team-go":S.mid=null;go("einstellungen");requestAnimationFrame(()=>{const t=document.getElementById("team");if(t)t.scrollIntoView({block:"start"});});break;
     case "scan-menu":closeAll();S.sheet="scan";renderOverlay();break;
     case "undo":if(undoSnap){D=JSON.parse(undoSnap.d);undoSnap=null;closeAll();saveData();render();toast(L("Rückgängig gemacht","Undone"));}break;
-    case "zk-me":{const t=D.tenders.find(x=>x.id===id),z=t&&t.zk[+el.dataset.i];if(z){z.me=z.me===el.dataset.v?"":el.dataset.v;render();}break;}
+    case "zk-me":{const t=D.tenders.find(x=>x.id===id),z=t&&(t[el.dataset.k||"zk"]||[])[+el.dataset.i];if(z){z.me=z.me===el.dataset.v?"":el.dataset.v;render();}break;}
     case "zk-add":readZk();S.form.lines.push({typ:"andere",t:"",w:""});renderOverlay();break;
     case "zk-del":readZk();S.form.lines.splice(+el.dataset.c,1);renderOverlay();break;
     case "calc-info":calcTip(el,!el.classList.contains("on"));break;

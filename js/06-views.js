@@ -33,6 +33,7 @@ function viewFirm(){
       <div class="stat"><span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung fällig","no reminder due")}</span></div>
       <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${(()=>{const o=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0),y=o.filter(x=>fitOf(x).fit==="ok").length,pa=o.filter(x=>fitOf(x).fit==="partner").length;return [y?y+" "+L("Eignung erfüllt","eligible"):"",pa?pa+" "+L("nur mit Partner","only with partner"):""].filter(Boolean).join(" · ")||L("keine passend","none suitable");})()}</span></button>
     </div>
+    ${(()=>{const tr=tenderTaskRows(),n=tenderTasks().length;return n?`<section><div class="sh"><h2>${L("Zu erledigen bei Ausschreibungen","Tender to-dos")}</h2><span class="cnt">${n}</span></div><div class="rows">${tr}</div></section>`:"";})()}
     ${FEES().length?incomeSection():""}
     <section><div class="sh"><h2>${L("Projekte","Projects")}</h2><span class="cnt">${ps.filter(x=>!x.p.closed).length}</span><span class="right">${ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"')}</span></div><div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div>${(()=>{const dn=ps.filter(x=>x.p.closed);return dn.length?`<details class="pdone hdone"><summary>${L("Abgeschlossene Projekte","Completed projects")} <span class="cnt">${dn.length}</span></summary><div class="rows">${dn.map(x=>row({act:"open-project",id:x.p.id,c:"ok",title:esc(x.p.name),meta:x.p.place?esc(x.p.place):"",amt:"",label:""})).join("")}</div></details>`:"";})()}</section>
     ${docsBlock("firm","firm",L("Unterlagen des Büros","Firm documents"),L("Handelsregister, Versicherung, AHV, Referenzen: einmal ablegen, für jede Bewerbung bereit. Mit Gültigkeit warnt arkitecton vor Ablauf.","Register extract, insurance, references: store once, ready for every bid."))}
@@ -373,18 +374,20 @@ function viewTenders(){
   if(!G[S.tfilter].length&&S.tfilter!=="open")S.tfilter="open";
   const next=active.filter(t=>fitOf(t).fit!=="no").sort((a,b)=>toDate(a.due)-toDate(b.due))[0];
   const list=G[S.tfilter].slice().sort((a,b)=>closedT(a)?toDate(b.due)-toDate(a.due):toDate(a.due)-toDate(b.due));
-  const tRow=t=>{const f=fitOf(t).fit,c=closedT(t),dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:c?"n":FIT[f].c,title:esc(tx(t.title)),meta:(c?"":(dd<0?L("vorbei","closed"):L("in "+dd+" "+dayWord(dd),"in "+dd+" "+(dd===1?"day":"days")))+" · ")+esc(t.client),amt:c?tx(TST[t.status]):fdate(t.due),label:c?"":tx(FIT[f])});};
-  const doneT=S.tfilter==="open"?closed.slice().sort((a,b)=>toDate(b.due)-toDate(a.due)):[];
-  const rows=list.map(tRow).join("")+foldRows(L("Abgeschlossen","Closed"),doneT.map(tRow).join(""),doneT.length);
+  const tRow=t=>{const f=fitOf(t).fit,c=closedT(t),dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:c?"n":FIT[f].c,title:esc(tx(t.title)),meta:(c?"":(isSel(t)?(phaseOf(t)===1?L("Teilnahmeantrag ","Request "):L("Angebot ","Bid ")):"")+(dd<0?L("vorbei","closed"):L("in "+dd+" "+dayWord(dd),"in "+dd+" "+(dd===1?"day":"days")))+" · ")+esc(t.client),amt:c?"":fdate(t.due),label:c?tx(TST[t.status]):tx(FIT[f]),lc:c?(t.status==="gewonnen"?"ok":"n"):undefined});};
+  const doneT=S.tfilter==="open"?closed.slice().sort((a,b)=>toDate(b.due)-toDate(a.due)):[],waitL=doneT.filter(waitT),endL=doneT.filter(t=>!waitT(t));
+  const rows=list.map(tRow).join("")+foldRows(L("Eingereicht, Entscheid ausstehend","Submitted, decision pending"),waitL.map(tRow).join(""),waitL.length)+foldRows(L("Abgeschlossen","Closed"),endL.map(tRow).join(""),endL.length);
+  const bs=bidStats(),bsLine=bs.n?`<div class="notice"><span class="ic ok" aria-hidden="true">✓</span><span>${L("Zuschläge: ","Awards: ")}<b>${bs.won} ${L("von","of")} ${bs.n}</b>${bs.avg!=null?L(" · Wo Sie verloren haben, lag Ihr Preis im Schnitt "," · where you lost, your price was on average ")+"<b>"+pctTxt(bs.avg)+"</b>"+L(" vom Zuschlagspreis entfernt"," from the winning price"):""}</span></div>`:"";
   const nT=n=>n===1?L("1 Verfahren","1 procedure"):n+" "+L("Verfahren","procedures");
   const TL={open:[L("Offene Verfahren","Open procedures"),String(active.length),next?L("nächste Eingabe ","next deadline ")+fdate(next.due):L("keine Frist offen","no open deadline"),""],
     ok:[L("Eignung erfüllt","Eligible"),String(G.ok.length),nT(G.ok.length),G.ok.length?" ok":""],
     partner:[L("Nur mit Partner","Only with partner"),String(G.partner.length),nT(G.partner.length),G.partner.length?" warn":""],
-    done:[L("Abgeschlossen","Closed"),String(closed.length),L("eingereicht oder verzichtet","submitted or skipped"),""]};
+    done:[L("Eingereicht und abgeschlossen","Submitted and closed"),String(closed.length),L("eingereicht, entschieden, verzichtet","submitted, decided, skipped"),""]};
   const tile=k=>{const [l,v,ss,c]=TL[k],n=G[k].length,sel=S.tfilter===k,inner=`<span class="sl">${l}</span><span class="sv${c}">${n?v:"–"}</span><span class="ss">${ss}</span>`;
     return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="tfilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   return `<div class="page">${ph("",L("Ausschreibungen","Tenders"),"",tsw+ib("plus",L("Ausschreibung erfassen","Add tender"),'data-act="form" data-f="tender"')+excelBtn("tender"))}
     <div class="stats s4">${["open","ok","partner","done"].map(tile).join("")}</div>
+    ${bsLine}
     <section><div class="sh"><h2>${TL[S.tfilter][0]}</h2><span class="cnt">${list.length}</span><span class="right">${S.tfilter==="open"?"":`<button type="button" class="ghost" data-act="tfilter" data-f="open">${L("Alle offenen anzeigen","Show all open")} (${active.length})</button>`}</span></div><div class="rows">${rows||`<div class="empty"><span>${L("Keine Verfahren.","No procedures.")}</span></div>`}</div></section>
   </div>`;
 }
@@ -415,41 +418,62 @@ function tenderSource(t,c){
     ${dos.length?`<div class="dlist">${dos.map(d=>`<div class="drow"><button type="button" class="dopen" data-act="doc-open" data-id="${d.id}"><span class="dk">${esc(kindOf(d.name))}</span><span class="dn">${esc(d.name)}</span><span class="dm">${L("Dossier","Dossier")} · ${fsize(d.size||0)} · ${fdate(d.date)}</span></button>${S.confirm==="ddel:"+d.id?`<button type="button" class="ghost danger" data-act="doc-del" data-id="${d.id}">${L("Löschen?","Delete?")}</button>`:ib("trash",L("Dokument löschen","Delete document"),`data-act="ask" data-c="ddel:${d.id}"`)}</div>`).join("")}</div>`
       :`<div class="empty">${L("Ausschreibungsunterlagen von simap.ch herunterladen und mit ＋ ablegen. Daraus stammen die Eignungs- und Zuschlagskriterien.","Download the dossier from simap.ch and add it with ＋. The criteria come from it.")}</div>`}</section>`;
 }
-/* award criteria: weight, own assessment, the biggest lever, and what earns points */
-function tenderAward(t,c){
-  const zk=t.zk||[],S_=zkSum(t);
-  const head=`<div class="sh"><h2>${L("Zuschlagskriterien","Award criteria")}</h2><span class="legend-s">${L("entscheiden, wer gewinnt","decide who wins")}</span><span class="right">${c?"":ib("edit",L("Kriterien bearbeiten","Edit criteria"),`data-act="form" data-f="zk" data-id="${t.id}"`)}</span></div>`;
-  if(!zk.length)return `<section class="zk">${head}<div class="empty">${L("Zuschlagskriterien mit Gewichtung aus dem Dossier übernehmen. Dann zeigt arkitecton, wo Sie am meisten Punkte holen.","Enter the award criteria with weights from the dossier.")}${c?"":`<button type="button" class="btn" data-act="form" data-f="zk" data-id="${t.id}">${L("Kriterien erfassen","Add criteria")}</button>`}</div></section>`;
+/* award criteria (and, in phase 1 of a selective procedure, the weighted qualification criteria): weight, own assessment, the biggest lever, and what earns points */
+function tenderAward(t,c,key){
+  key=key||"zk";const gek=key==="gek",zk=t[key]||[],S_=zkSum(t,key);
+  const title=gek?L("Gewichtete Eignungskriterien","Weighted qualification criteria"):L("Zuschlagskriterien","Award criteria")+(isSel(t)&&phaseOf(t)===1?L(" (Phase 2)"," (phase 2)"):"");
+  const sub=gek?L("entscheiden, wer zum Angebot eingeladen wird","decide who is invited to bid"):L("entscheiden, wer gewinnt","decide who wins");
+  const head=`<div class="sh"><h2>${title}</h2><span class="legend-s">${sub}</span><span class="right">${c?"":ib("edit",L("Kriterien bearbeiten","Edit criteria"),`data-act="form" data-f="zk" data-id="${t.id}" data-w="${key}"`)}</span></div>`;
+  if(!zk.length)return `<section class="zk">${head}<div class="empty">${gek?L("Gewichtete Eignungskriterien aus dem Dossier übernehmen. Sie entscheiden, ob Ihr Büro in Phase 2 kommt.","Enter the weighted qualification criteria from the dossier."):L("Zuschlagskriterien mit Gewichtung aus dem Dossier übernehmen. Dann zeigt arkitecton, wo Sie am meisten Punkte holen.","Enter the award criteria with weights from the dossier.")}${c?"":`<button type="button" class="btn" data-act="form" data-f="zk" data-id="${t.id}" data-w="${key}">${L("Kriterien erfassen","Add criteria")}</button>`}</div></section>`;
   const sum=S_.lever?`<div class="notice"><span class="ic warn" aria-hidden="true">!</span><span>${L("Grösster Hebel: ","Biggest lever: ")}<b>${esc(S_.lever.t)}</b> (${S_.lever.w} %)${S_.lever.me?" · "+L("heute ","now ")+L(ZKME[S_.lever.me][1],ZKME[S_.lever.me][2]):" · "+L("noch nicht eingeschätzt","not assessed yet")}</span></div>`:`<div class="notice"><span class="ic ok" aria-hidden="true">✓</span><span>${L("Bei allen Kriterien stark","Strong on all criteria")}</span></div>`;
   const rows=zk.map((z,i)=>`<div class="zkrow"><div class="zkh"><span class="zkn">${esc(z.t)}</span><span class="zkw">${+z.w||0} %</span></div><div class="zkbar"><i style="width:${Math.min(100,+z.w||0)}%"></i></div>
-    <div class="zkme" role="group" aria-label="${L("Eigene Einschätzung","Own assessment")}">${Object.keys(ZKME).map(k=>`<button type="button" data-act="zk-me" data-id="${t.id}" data-i="${i}" data-v="${k}" aria-pressed="${z.me===k}"${c?" disabled":""}>${L(ZKME[k][1],ZKME[k][2])}</button>`).join("")}</div>
+    <div class="zkme" role="group" aria-label="${L("Eigene Einschätzung","Own assessment")}">${Object.keys(ZKME).map(k=>`<button type="button" data-act="zk-me" data-id="${t.id}" data-k="${key}" data-i="${i}" data-v="${k}" aria-pressed="${z.me===k}"${c?" disabled":""}>${L(ZKME[k][1],ZKME[k][2])}</button>`).join("")}</div>
     <p class="zktip">${esc(zkHint(t,z))}</p></div>`).join("");
   const foot=`<div class="zkfoot"><span>${L("Gewichtung total ","Total weight ")}${S_.tot} %${S_.tot!==100?` <span class="l-warn">${L("· sollte 100 % sein","· should be 100 %")}</span>`:""}</span>${S_.pct!=null?`<span>${L("Eigene Einschätzung: ","Own assessment: ")}<b>${S_.pct} %</b> ${L("der möglichen Punkte","of possible points")}</span>`:""}</div>`;
   return `<section class="zk">${head}${sum}${rows}${foot}</section>`;
 }
+/* the two phases of a selective procedure, as a small stepper */
+function phaseBar(t){if(!isSel(t))return "";const ph=phaseOf(t),pq=t.pq||{},st=t.status;
+  const s1=pq.sel?"done":st==="nichtausg"?"stop":st==="pq"?"wait":"now",s2=!pq.sel?"later":waitT(t)||decidedT(t)?"done":"now";
+  const lab={done:L("erledigt","done"),now:L("jetzt","now"),wait:L("Auswahl ausstehend","selection pending"),stop:L("nicht ausgewählt","not selected"),later:L("nur wenn ausgewählt","only if selected")};
+  const it=(n,name,s,sub)=>`<li class="ph-${s}"><span class="pn">${s==="done"?"✓":n}</span><span><b>${name}</b><span class="res">${lab[s]}${sub?" · "+sub:""}</span></span></li>`;
+  return `<ol class="phases" aria-label="${L("Phasen","Phases")}">${it(1,L("Teilnahmeantrag","Request to participate"),s1,pq.sub?L("eingereicht ","submitted ")+fdate(pq.sub):fdate(ph===1?t.due:pq.due))}${it(2,L("Angebot","Bid"),s2,pq.sel?fdate(t.due):(pq.max?L("höchstens "+pq.max+" Büros","at most "+pq.max+" firms"):""))}</ol>`;}
 function viewTender(t){
-  const {ev,fit}=fitOf(t), docs=docsOf(t), dd=daysTo(t.due), c=closedT(t), open=docs.filter(d=>!d.done);
+  const {ev,fit}=fitOf(t), docs=docsOf(t), dd=daysTo(t.due), c=closedT(t), open=docs.filter(d=>!d.done), phs=phaseOf(t);
   const ICON={ok:"✓",warn:"!",crit:"✕"};
+  const reopen=s=>`<button type="button" class="btn" data-act="t-status" data-id="${t.id}" data-s="${s}">${L("Entscheid zurücksetzen","Reset decision")}</button>`;
   let actions="";
   if(t.status==="neu") actions=`<button type="button" class="btn" data-act="t-status" data-id="${t.id}" data-s="verzichtet">${L("Nicht teilnehmen","Skip")}</button><button type="button" class="btn primary" data-act="t-status" data-id="${t.id}" data-s="arbeit"${fit==="no"?" disabled":""}>${L("Bewerbung starten","Start bid")}</button>`;
-  else if(t.status==="arbeit") actions=`<button type="button" class="btn" data-act="t-status" data-id="${t.id}" data-s="verzichtet">${L("Nicht teilnehmen","Skip")}</button><button type="button" class="btn primary" data-act="t-status" data-id="${t.id}" data-s="eingereicht"${fit!=="no"&&!open.length?"":" disabled"}>${L("Eingereicht","Submitted")}</button>`;
+  else if(t.status==="arbeit") actions=`<button type="button" class="btn" data-act="t-status" data-id="${t.id}" data-s="verzichtet">${L("Nicht teilnehmen","Skip")}</button><button type="button" class="btn primary" data-act="t-submit" data-id="${t.id}"${fit!=="no"&&!open.length?"":" disabled"}>${phs===1?L("Teilnahmeantrag eingereicht …","Request submitted …"):L("Angebot eingereicht …","Bid submitted …")}</button>`;
+  else if(t.status==="pq") actions=`<button type="button" class="btn" data-act="t-status" data-id="${t.id}" data-s="arbeit">${L("Wieder öffnen","Reopen")}</button><button type="button" class="btn" data-act="t-res" data-id="${t.id}" data-w="nsel">${L("Nicht ausgewählt","Not selected")}</button><button type="button" class="btn primary" data-act="t-res" data-id="${t.id}" data-w="sel">${L("Ausgewählt","Selected")}</button>`;
+  else if(t.status==="eingereicht") actions=`<button type="button" class="btn" data-act="t-status" data-id="${t.id}" data-s="arbeit">${L("Wieder öffnen","Reopen")}</button><button type="button" class="btn" data-act="t-res" data-id="${t.id}" data-w="lost">${L("Kein Zuschlag","Not awarded")}</button><button type="button" class="btn primary" data-act="t-res" data-id="${t.id}" data-w="won">${L("Zuschlag erhalten","Contract awarded")}</button>`;
+  else if(t.status==="nichtausg") actions=reopen("pq");
+  else if(decidedT(t)) actions=reopen("eingereicht");
   else actions=`<button type="button" class="btn" data-act="t-status" data-id="${t.id}" data-s="arbeit">${L("Wieder öffnen","Reopen")}</button>`;
+  const subLine=t.status==="pq"?L("am ","on ")+fdate((t.pq||{}).sub)+L(" · Auswahl ausstehend"," · selection pending"):t.status==="eingereicht"&&t.sub?L("am ","on ")+fdate(t.sub)+L(" · Entscheid ausstehend"," · decision pending"):c?(t.sub?L("eingereicht am ","submitted on ")+fdate(t.sub):fdate(t.due)):fdate(t.due)+" · "+(!t.qDue?L("keine Fragefrist","no question deadline"):daysTo(t.qDue)<0?L("Fragefrist abgelaufen","question period over"):L("Fragen bis","questions by")+" "+fdate(t.qDue));
+  const docLi=d=>{if(d.linked)return `<li><span class="ic ${d.lc==="crit"?"crit":d.lc==="warn"?"warn":"ok"}" aria-hidden="true">${d.lc==="crit"?"✕":d.lc==="warn"?"!":"✓"}</span><span>${esc(d.t)}<span class="res">${esc(d.sub)}</span>${c?"":`<button type="button" class="ghost link" data-act="t-unlink" data-id="${t.id}" data-d="${d.id}">${L("Andere wählen","Choose another")}</button>`}</span><button type="button" class="ghost tfile" data-act="doc-open" data-id="${d.linked.id}">${L("Öffnen","Open")}</button></li>`;
+    const pick=!c&&!d.auto&&!d.done&&docsFor("firm","firm").length&&(d.sugg||!/honorar|angebot|offerte|analyse|vorgehen|a3|preis|formular/i.test(d.t))?(d.sugg?`<button type="button" class="ghost link" data-act="t-link" data-id="${t.id}" data-d="${d.id}" data-f="${d.sugg.id}">${L("Übernehmen: ","Use: ")+esc(d.sugg.name)}</button>`:`<button type="button" class="ghost link" data-act="form" data-f="tlink" data-id="${t.id}" data-w="${d.id}">${L("Aus Büro-Unterlagen wählen","Choose from firm documents")}</button>`):"";
+    return `<li>${d.auto?`<span class="ic ${d.done?"ok":"crit"}" aria-hidden="true">${d.done?"✓":"✕"}</span>`:`<input type="checkbox" id="doc-${d.id}" data-act="t-doc" data-t="${t.id}" data-d="${d.id}"${d.done?" checked":""}${c?" disabled":""}>`}<span><label${d.auto?"":` for="doc-${d.id}"`}>${esc(d.t)}</label>${d.sub?`<span class="res">${d.auto&&d.done?L("Automatisch: ","Automatic: "):""}${esc(d.sub)}</span>`:""}${pick}</span>${d.file?`<button type="button" class="ghost tfile" data-act="doc-open" data-id="${d.file.id}">${L("Öffnen","Open")}</button>`:""}</li>`;};
+  const hint=t.status==="arbeit"&&!c?(fit==="no"?`<span class="act-hint">${L("Eignung nicht erfüllt","Not eligible")}</span>`:open.length?`<span class="act-hint">${L("Noch ","Still ")+open.length+" "+(open.length===1?L("Unterlage offen","document open"):L("Unterlagen offen","documents open"))}</span>`:""):"";
   return `<div class="page">
     ${backBtn("back-t",L("Ausschreibungen","Tenders"))}
-    ${ph(esc(t.client)+" · "+L("Beispiel","Example"),esc(tx(t.title)),tx(PROC[t.proc])+" · SIA "+t.phases,excelBtn("t:"+t.id))}
+    ${ph(esc(t.client)+(t.own?"":" · "+L("Beispiel","Example")),esc(tx(t.title)),tx(PROC[t.proc]||PROC.offen)+" · SIA "+t.phases,excelBtn("t:"+t.id))}
+    ${phaseBar(t)}
     <div class="stats">
-      <div class="stat"><span class="sl">${L("Eingabe","Submission")}</span><span class="sv${!c&&dd<=14?" warn":""}">${c?tx(TST[t.status]):dd<0?L("vorbei","closed"):L("in "+dd+" "+dayWord(dd),"in "+dd+" "+(dd===1?"day":"days"))}</span><span class="ss">${t.status==="eingereicht"&&t.sub?L("am ","on ")+fdate(t.sub)+L(" · Entscheid ausstehend"," · decision pending"):fdate(t.due)+" · "+(daysTo(t.qDue)<0?L("Fragefrist abgelaufen","question period over"):L("Fragen bis","questions by")+" "+fdate(t.qDue))}</span></div>
+      <div class="stat"><span class="sl">${phs===1?L("Teilnahmeantrag","Request to participate"):L("Eingabe","Submission")}</span><span class="sv${!c&&dd<=7?(dd<=2?" crit":" warn"):""}">${c?tx(TST[t.status]):dd<0?L("vorbei","closed"):dd===0?L("heute","today"):L("in "+dd+" "+dayWord(dd),"in "+dd+" "+(dd===1?"day":"days"))}</span><span class="ss">${subLine}</span></div>
       <div class="stat"><span class="sl">${L("Eignung","Eligibility")}</span><span class="sv ${FIT[fit].c}">${tx(FIT[fit])}</span><span class="ss">${ev.filter(e=>e.s==="ok").length} ${L("von","of")} ${ev.length} ${L("Kriterien","criteria")}</span></div>
       <div class="stat"><span class="sl">${L("Baukosten","Construction cost")}</span><span class="sv">${mio(t.cost)}</span><span class="ss">BKP 291</span></div>
     </div>
+    ${tenderAfter(t)}
     ${tenderSource(t,c)}
     <div class="cols">
       <section><div class="sh"><h2>${L("Eignung","Eligibility")}</h2><span class="legend-s">${L("muss erfüllt sein","must be met")}</span></div><ul class="checks">${ev.map((e,ix)=>`<li><span class="ic ${e.s}" aria-hidden="true">${ICON[e.s]}</span><span>${esc(e.t)}<span class="res">${esc(e.res)}</span>${t.reqs[ix]&&t.reqs[ix].src?`<span class="src2">${L("Quelle: ","Source: ")}${esc(t.reqs[ix].src)}</span>`:""}</span></li>`).join("")}</ul></section>
-      <section><div class="sh"><h2>${L("Unterlagen","Documents")}</h2><span class="cnt">${docs.length-open.length}/${docs.length}</span>${docs.some(d=>!d.auto)&&!c?`<span class="legend-s">${L("Kästchen selbst abhaken","Tick the boxes yourself")}</span>`:""}</div><ul class="checks">${docs.map(d=>`<li>${d.auto?`<span class="ic ${d.done?"ok":"crit"}" aria-hidden="true">${d.done?"✓":"✕"}</span>`:`<input type="checkbox" id="doc-${d.id}" data-act="t-doc" data-t="${t.id}" data-d="${d.id}"${d.done?" checked":""}${c?" disabled":""}>`}<label${d.auto?"":` for="doc-${d.id}"`}>${esc(d.t)}${d.sub?`<span class="res">${d.auto&&d.done?L("Automatisch: ","Automatic: "):""}${esc(d.sub)}</span>`:""}</label>${d.file?`<button type="button" class="ghost tfile" data-act="doc-open" data-id="${d.file.id}">${L("Öffnen","Open")}</button>`:""}</li>`).join("")}</ul></section>
+      <section><div class="sh"><h2>${L("Unterlagen","Documents")}</h2><span class="cnt">${docs.length-open.length}/${docs.length}</span>${docs.some(d=>!d.auto)&&!c?`<span class="legend-s">${L("abhaken oder aus Büro-Unterlagen übernehmen","tick, or take from firm documents")}</span>`:""}</div><ul class="checks tdocs">${docs.map(docLi).join("")}</ul></section>
     </div>
+    ${phs===1?tenderAward(t,c,"gek"):""}
     ${tenderAward(t,c)}
     ${docsBlock("tender",t.id,L("Dateien","Files"),L("Ausschreibungsunterlagen, Fragen und Antworten, eigene Entwürfe mit ＋ ablegen.","Store tender documents and drafts with ＋."))}
-    <div class="bar-actions">${t.status==="arbeit"&&!c?(fit==="no"?`<span class="act-hint">${L("Eignung nicht erfüllt","Not eligible")}</span>`:open.length?`<span class="act-hint">${L("Noch ","Still ")+open.length+" "+(open.length===1?L("Unterlage offen","document open"):L("Unterlagen offen","documents open"))}</span>`:""):""}${actions}</div>
+    <div class="bar-actions">${hint}${actions}</div>
   </div>`;
 }
 

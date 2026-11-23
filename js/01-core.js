@@ -49,8 +49,8 @@ const startY=m=>Math.min(...(m.career||[]).map(c=>c.from).concat([YNOW()]));
 const mTags=m=>{const t=[];if((m.extra||[]).includes("blfa"))t.push("bl");if((m.extra||[]).includes("pub")&&roleYears(m,"pl")>0)t.push("pl");return t;};
 const yrs=n=>n===1?L("1 Jahr","1 year"):n+" "+L("Jahre","years");
 const RTYPE={schule:{de:"Schulbauten",en:"School buildings"},instandsetzung:{de:"Instandsetzung",en:"Refurbishment"},wohnen:{de:"Wohnbauten",en:"Housing"}};
-const PROC={sel:{de:"Selektiv, Präqualifikation",en:"Selective, prequalification"},offen:{de:"Offenes Verfahren",en:"Open procedure"}};
-const TST={neu:{de:"Neu",en:"New",c:"acc"},arbeit:{de:"In Arbeit",en:"In progress",c:"warn"},eingereicht:{de:"Eingereicht",en:"Submitted",c:"ok"},verzichtet:{de:"Verzichtet",en:"Declined",c:"n"}};
+const PROC={sel:{de:"Selektives Verfahren (2 Phasen)",en:"Selective procedure (2 phases)"},offen:{de:"Offenes Verfahren",en:"Open procedure"},einl:{de:"Einladungsverfahren",en:"Invitation procedure"}};
+const TST={neu:{de:"Neu",en:"New",c:"acc"},arbeit:{de:"In Arbeit",en:"In progress",c:"warn"},eingereicht:{de:"Eingereicht",en:"Submitted",c:"ok"},verzichtet:{de:"Verzichtet",en:"Declined",c:"n"},pq:{de:"Teilnahmeantrag eingereicht",en:"Request submitted",c:"ok"},gewonnen:{de:"Zuschlag erhalten",en:"Contract awarded",c:"ok"},verloren:{de:"Kein Zuschlag",en:"Not awarded",c:"n"},nichtausg:{de:"Nicht ausgewählt",en:"Not selected",c:"n"}};
 const FIT={ok:{de:"Erfüllt",en:"Eligible",c:"ok"},partner:{de:"Nur mit Partner",en:"Only with partner",c:"warn"},no:{de:"Nicht erfüllt",en:"Not eligible",c:"crit"},nodata:{de:"Büroprofil fehlt",en:"Office profile missing",c:"n"}};
 const STATUS={pruefen:{de:"Zu prüfen",en:"To check",c:"warn"},rueckfrage:{de:"Rückfrage",en:"Query open",c:"crit"},frei:{de:"Freigegeben",en:"Approved",c:"acc"},bezahlt:{de:"Bezahlt",en:"Paid",c:"ok"},ersetzt:{de:"Ersetzt",en:"Replaced",c:"n"}};
 

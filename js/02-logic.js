@@ -127,7 +127,7 @@ function missingTasks(){
 
 /* ---------- tenders ---------- */
 const mio=n=>"CHF "+nfq.format(n)+" Mio.";
-const closedT=t=>t.status==="eingereicht"||t.status==="verzichtet";
+const closedT=t=>t.status!=="neu"&&t.status!=="arbeit";
 const discName=d=>"BKP "+d+" "+tx(DISC[d]);
 /* award criteria (Zuschlagskriterien): weight in %, the office's own assessment, and a hint where points come from */
 const ZKT={preis:["Preis / Honorar","Price / fee"],analyse:["Auftragsanalyse und Vorgehen","Task analysis and approach"],team:["Schlüsselpersonen","Key persons"],ref:["Referenzen","References"],andere:["Weiteres","Other"]};
@@ -140,7 +140,7 @@ function zkHint(t,z){
   if(z.typ==="preis")return L("Honorar je Phase nachvollziehbar aufbauen. Die Preisformel steht im Dossier: Wie stark ein tieferer Preis zählt, hängt davon ab.","Build the fee per phase; the price formula in the dossier decides how much a lower price counts.");
   return L("Was hier verlangt wird, steht im Dossier.","See the dossier for what is required.");
 }
-function zkSum(t){const zk=t.zk||[],tot=zk.reduce((a,z)=>a+(+z.w||0),0);
+function zkSum(t,key){const zk=t[key||"zk"]||[],tot=zk.reduce((a,z)=>a+(+z.w||0),0);
   const rated=zk.filter(z=>z.me),pts=rated.reduce((a,z)=>a+(+z.w||0)*ZKME[z.me][0],0),rw=rated.reduce((a,z)=>a+(+z.w||0),0);
   const lever=zk.filter(z=>z.me!=="s").sort((a,b)=>(+b.w||0)-(+a.w||0))[0]||null;
   return {tot,rated:rated.length,pct:rw?Math.round(pts/rw*100):null,lever};}
@@ -170,6 +170,7 @@ function docsOf(t){
     if(d.auto==="refs"){const e=ev.find(x=>x.k==="refs"),ok=!!e&&e.s==="ok";return {id:d.id,auto:true,done:ok,t:L("Referenzblätter","Reference sheets"),sub:ok?e.refs.map(x=>tx(x)).join(", "):L("Zu wenig passende Referenzen","Not enough matching references")};}
     if(d.auto==="team"){const m=D.office.team.filter(x=>mTags(x).length);return {id:d.id,auto:true,done:m.length>0,t:L("Schlüsselpersonen","Key people"),sub:m.map(x=>esc(x.name)+" ("+(curRole(x)?tx(ROLES[curRole(x)]):"")+")").join(", ")};}
     if(d.auto==="self")return {id:d.id,auto:false,done:!!t.done[d.id],t:L("Selbstdeklaration","Self-declaration"),sub:t.done[d.id]?L("Unterschrieben","Signed"):L("Vorausgefüllt, unterschreiben","Pre-filled, sign it")};
-    return {id:d.id,auto:false,done:!!t.done[d.id],t:tx(d),sub:""};
+    const lf=linkedDoc(t,d.id);if(lf){const v=docValid(lf);return {id:d.id,auto:false,linked:lf,done:!v||v.c!=="crit",lc:v?v.c:"ok",t:tx(d),sub:L("Aus Büro-Unterlagen: ","From firm documents: ")+lf.name+(v?" · "+v.t:"")};}
+    return {id:d.id,auto:false,done:!!t.done[d.id],t:tx(d),sub:"",sugg:!t.done[d.id]?firmMatch(tx(d)):null};
   }
 }

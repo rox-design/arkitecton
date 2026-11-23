@@ -49,7 +49,7 @@ function drawerHTML(i){
       ${i.repl&&INV(i.repl)?`<div class="notice"><span class="ic info" aria-hidden="true">i</span><span>${L("Ersetzt durch Rechnung ","Replaced by invoice ")}<button type="button" class="ghost link" data-act="open-inv" data-id="${i.repl}">${esc(INV(i.repl).no)}</button>. ${L("Zählt nicht mehr.","No longer counted.")}</span></div>`:""}
       ${i.replaces&&INV(i.replaces)?`<div class="notice"><span class="ic info" aria-hidden="true">i</span><span>${L("Ersetzt Rechnung ","Replaces invoice ")}<button type="button" class="ghost link" data-act="open-inv" data-id="${i.replaces}">${esc(INV(i.replaces).no)}</button></span></div>`:""}
       ${issues.length?`<ul class="checks" style="border-top:1px solid var(--line)">${issues.map(li).join("")}</ul>`:`<div class="notice"><span class="ic ok" aria-hidden="true">✓</span><span>${L("Alle Prüfungen in Ordnung","All checks passed")}</span></div>`}
-      <div class="calc"><span>${L("Rechnung","Invoice")}</span><span class="r">${nf2.format(i.gross)}</span>${i.ded&&i.ded.amt?`<span>${L("Abzug","Deduction")} <span class="sp">· ${esc(i.ded.why)}</span></span><span class="r">− ${nf2.format(i.ded.amt)}</span>`:""}<span>${retLine[0]}</span><span class="r">${retLine[1]}</span><span class="sum">${L("Auszahlung","Payout")}</span><span class="r sum">${chf(payout(i))}</span></div>
+      ${payCalc(i,ret)}
       ${invDocRow(i)}
       <div>
         ${oks.length&&issues.length?`<details><summary>${L("Weitere Prüfungen: ","Other checks: ")}${oks.length} ${L("in Ordnung","passed")}</summary><div class="in"><ul class="checks">${oks.map(li).join("")}</ul></div></details>`:""}
@@ -186,6 +186,19 @@ function wrapCapture(title,body,foot){
     <div class="ohead"><h2 id="mT" style="font-size:1.125rem;font-weight:500">${title}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <div class="obody">${body}</div>${foot?`<div class="ofoot">${foot}</div>`:""}</div>`;
 }
+/* where a value came from: ✦ erkannt = read from the QR code or matched to existing data, ✦ bitte prüfen = guessed or missing.
+   The architect then only checks the fields that need it. */
+const srcTag=ok=>`<span class="src ${ok?"ok":"chk"}">${ico("spark")}${ok?L("erkannt","recognised"):L("bitte prüfen","please check")}</span>`;
+/* payout as a small calculation: operator, line, amount, and an ⓘ that explains each line (tap on the phone) */
+function payCalc(i,ret){
+  const rows=[["",L("Rechnungsbetrag","Invoice amount"),i.gross,"gross",L("Betrag gemäss Rechnung des Handwerkers, inkl. MwSt.","Amount as invoiced by the contractor, incl. VAT.")]];
+  if(i.ded&&i.ded.amt)rows.push(["−",L("Abzug","Deduction")+(i.ded.why?` <span class="sp">· ${esc(i.ded.why)}</span>`:""),i.ded.amt,"ded",L("Von Ihnen erfasster Abzug, z.B. für Mängel, Skonto oder nicht erbrachte Leistung.","Deduction you recorded, e.g. for defects or discount.")]);
+  if(i.type==="akonto")rows.push(["−",L("Rückbehalt ","Retention ")+invPct(i)+"%",ret,"ret",invPct(i)?L("Gemäss Werkvertrag wird dieser Anteil jeder Akontozahlung zurückbehalten und mit der Schlussrechnung ausbezahlt.","Per contract this share is held back and paid with the final invoice."):L("Im Werkvertrag ist kein Rückbehalt vereinbart.","No retention agreed in the contract.")]);
+  else if(i.type==="schluss")rows.push(["+",L("Freigabe Rückbehalt","Retention released"),-ret,"ret",L("Mit der Schlussrechnung wird der bisher zurückbehaltene Betrag ausbezahlt.","With the final invoice the retention held so far is paid out.")]);
+  const open=S.calcInfo,ib_=(k,t)=>`<button type="button" class="cinfo${open===k?" on":""}" data-act="calc-info" data-k="${k}" aria-expanded="${open===k}" aria-label="${L("Erklärung","Explanation")}">ⓘ</button>`;
+  const line=([op,lb,v,k,t])=>`<span class="op">${op}</span><span>${lb}${ib_(k,t)}</span><span class="r">${nf2.format(Math.abs(v||0))}</span>${open===k?`<span class="cexp">${t}</span>`:""}`;
+  return `<div class="calc calc3">${rows.map(line).join("")}<div class="csum"><span class="op">=</span><span>${L("Auszahlung","Payout")}${ib_("pay",L("Dieser Betrag wird an den Handwerker überwiesen.","This amount is paid to the contractor."))}</span><span class="r">${chf(payout(i))}</span>${open==="pay"?`<span class="cexp">${L("Dieser Betrag wird an den Handwerker überwiesen.","This amount is paid to the contractor.")}</span>`:""}</div></div>`;
+}
 function captureHTML(){
   const M=S.modal,d=M.data;let body="",foot="",title=L("QR scannen","Scan QR");
   const RO=M.rep&&INV(M.rep),RK=RO&&K(W(RO.w).k);
@@ -218,18 +231,20 @@ function captureHTML(){
         const qAdr=[d.street,[d.zip,d.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
         const adrHint=!R.k?L("Neuer Handwerker, wird angelegt","New contractor, will be added"):(!R.k.street&&qAdr)?L("Fehlt beim Handwerker, wird übernommen","Missing for this contractor, will be added"):"";
         const projs=D.projects.filter(p=>!p.closed||p.id===M.pid);
-        return repNote+`<div class="fields">
-        <div class="f wide"><span class="l">${L("Von","From")}</span><span class="v">${esc(R.k?R.k.name:d.name)}</span></div>
+        const st=[!!R.k,true,M.pidSrc!=="none",!!R.w,!!G.type||!!d.typeSel,!!d.amount&&!d.fx,!!d.no,!!d.dateSrc,!!d.dueSrc],nOk=st.filter(Boolean).length,nChk=st.length-nOk;
+        const sum=`<div class="srcsum">${ico("spark")}<span>${L(nOk+" Angaben erkannt",nOk+" details recognised")}${nChk?L(" · "+nChk+" bitte prüfen"," · "+nChk+" please check"):L(" · alles erkannt"," · all recognised")}</span></div>`;
+        return repNote+sum+`<div class="fields">
+        <div class="f wide"><span class="l">${L("Von","From")}${srcTag(!!R.k)}</span><span class="v">${esc(R.k?R.k.name:d.name)}</span></div>
         <div class="f wide"><span class="l">${L("Adresse","Address")}</span><span class="v">${qAdr?esc(qAdr):"–"}</span>${adrHint?`<span class="hint">${adrHint}</span>`:""}</div>
-        <div class="f wide"><span class="l">IBAN</span><span class="v">${esc(d.iban)}</span></div>
-        <div class="f wide"><label for="capProj">${L("Projekt","Project")}</label>${projs.length>1?`<select id="capProj" class="${M.pidSrc==="none"?"needs":""}">${projs.map(p=>`<option value="${p.id}"${p.id===M.pid?" selected":""}>${esc(p.name)}${p.place?" · "+esc(p.place):""}</option>`).join("")}</select>`:`<span class="v">${esc(P().name)}</span>`}${pidHint(M)?`<span class="hint${M.pidSrc==="none"?" warn":""}">${pidHint(M)}</span>`:""}</div>
-        ${R.w?`<div class="f wide"><span class="l">${L("Werkvertrag","Contract")}</span><span class="v">BKP ${R.w.bkp} ${esc(bName(R.w.bkp))}${R.w.sum?" · "+chf(R.w.sum,false):""}</span></div>`
-          :`<div class="f wide"><label for="capBkp">BKP</label><select id="capBkp">${bkpOptions(d.bkpSel||guessBkp(d))}</select><span class="hint">${L("Noch kein Werkvertrag in diesem Projekt. Die Summe können Sie später ergänzen.","No contract in this project yet. You can add the sum later.")}</span></div>`}
-        <div class="f"><label for="capType">${L("Art","Type")}</label><select id="capType"><option value="akonto"${so("akonto")}>${L("Akonto ","Progress payment ")+nAk}</option><option value="schluss"${so("schluss")}>${L("Schlussrechnung","Final invoice")}</option><option value="regie"${so("regie")}>${L("Regie","Time & materials")}</option></select></div>
-        <div class="f"><label for="capAmt">${L("Betrag CHF","Amount CHF")}</label><input id="capAmt" class="amt" inputmode="decimal" value="${d.amount?nf2.format(d.amount):""}">${d.fx?`<span class="hint l-warn">${L("Rechnung in ","Invoice in ")+esc(d.fx.cur)+" "+nf2.format(d.fx.amount)+L(". arkitecton rechnet in CHF: Betrag in CHF eintragen.",". arkitecton works in CHF: enter the amount in CHF.")}</span>`:""}</div>
-        <div class="f wide"><label for="capNo">${L("Rechnungsnummer","Invoice number")}</label><input id="capNo" value="${esc(d.no||"")}" placeholder="${L("Von der Rechnung abtippen","Type from the invoice")}">${d.no?"":`<span class="hint">${L("Diese Rechnung hat keine Nummer im QR-Code.","This invoice has no number in its QR code.")}</span>`}</div>
-        <div class="f"><span class="l">${L("Rechnungsdatum","Invoice date")}</span><span class="v">${fdate(d.date)}</span>${d.dateSrc?"":`<span class="hint">${L("Heute, nicht im QR-Code","Today, not in QR code")}</span>`}</div>
-        <div class="f"><span class="l">${L("Zahlbar bis","Due")}</span><span class="v">${fdate(d.due)}</span>${d.dueSrc?"":`<span class="hint">${L(SET().term+" Tage angenommen",SET().term+" days assumed")}</span>`}</div>
+        <div class="f wide"><span class="l">IBAN${srcTag(true)}</span><span class="v">${esc(d.iban)}</span></div>
+        <div class="f wide"><label for="capProj">${L("Projekt","Project")}${srcTag(M.pidSrc!=="none")}</label>${projs.length>1?`<select id="capProj" class="${M.pidSrc==="none"?"needs":""}">${projs.map(p=>`<option value="${p.id}"${p.id===M.pid?" selected":""}>${esc(p.name)}${p.place?" · "+esc(p.place):""}</option>`).join("")}</select>`:`<span class="v">${esc(P().name)}</span>`}${pidHint(M)?`<span class="hint${M.pidSrc==="none"?" warn":""}">${pidHint(M)}</span>`:""}</div>
+        ${R.w?`<div class="f wide"><span class="l">${L("Werkvertrag","Contract")}${srcTag(true)}</span><span class="v">BKP ${R.w.bkp} ${esc(bName(R.w.bkp))}${R.w.sum?" · "+chf(R.w.sum,false):""}</span></div>`
+          :`<div class="f wide"><label for="capBkp">BKP${srcTag(false)}</label><select id="capBkp">${bkpOptions(d.bkpSel||guessBkp(d))}</select><span class="hint">${L("Noch kein Werkvertrag in diesem Projekt. Die Summe können Sie später ergänzen.","No contract in this project yet. You can add the sum later.")}</span></div>`}
+        <div class="f"><label for="capType">${L("Art","Type")}${srcTag(!!G.type&&!d.typeSel||!!d.typeSel)}</label><select id="capType"><option value="akonto"${so("akonto")}>${L("Akonto ","Progress payment ")+nAk}</option><option value="schluss"${so("schluss")}>${L("Schlussrechnung","Final invoice")}</option><option value="regie"${so("regie")}>${L("Regie","Time & materials")}</option></select></div>
+        <div class="f"><label for="capAmt">${L("Betrag CHF","Amount CHF")}${srcTag(!!d.amount&&!d.fx)}</label><input id="capAmt" class="amt" inputmode="decimal" value="${d.amount?nf2.format(d.amount):""}">${d.fx?`<span class="hint l-warn">${L("Rechnung in ","Invoice in ")+esc(d.fx.cur)+" "+nf2.format(d.fx.amount)+L(". arkitecton rechnet in CHF: Betrag in CHF eintragen.",". arkitecton works in CHF: enter the amount in CHF.")}</span>`:""}</div>
+        <div class="f wide"><label for="capNo">${L("Rechnungsnummer","Invoice number")}${srcTag(!!d.no)}</label><input id="capNo" value="${esc(d.no||"")}" placeholder="${L("Von der Rechnung abtippen","Type from the invoice")}">${d.no?"":`<span class="hint">${L("Diese Rechnung hat keine Nummer im QR-Code.","This invoice has no number in its QR code.")}</span>`}</div>
+        <div class="f"><span class="l">${L("Rechnungsdatum","Invoice date")}${srcTag(!!d.dateSrc)}</span><span class="v">${fdate(d.date)}</span>${d.dateSrc?"":`<span class="hint">${L("Heute, nicht im QR-Code","Today, not in QR code")}</span>`}</div>
+        <div class="f"><span class="l">${L("Zahlbar bis","Due")}${srcTag(!!d.dueSrc)}</span><span class="v">${fdate(d.due)}</span>${d.dueSrc?"":`<span class="hint">${L(SET().term+" Tage angenommen",SET().term+" days assumed")}</span>`}</div>
         ${M.err?`<span class="err f wide">${esc(M.err)}</span>`:""}</div>`;});
       foot=`<button type="button" class="btn primary" data-act="confirm-capture">${L("Übernehmen","Add invoice")}</button>`;
     }
@@ -268,7 +283,7 @@ function confirmCapture(){
   const moved=S.modal.pid&&S.modal.pid!==D.pid;if(S.modal.pid)D.pid=S.modal.pid;
   const r=saveCapture(d,{type:(document.getElementById("capType")||{}).value||"akonto",bkp:(document.getElementById("capBkp")||{}).value,rep:S.modal.rep,file:S.modal.file});
   if(r.dup){S.modal.step=3;logDup();return renderOverlay();}
-  S.done={id:r.ni.id,items:r.items};S.modal=null;S.drawer=r.ni.id;S.queryOpen=false;render();
+  S.done={id:r.ni.id,items:r.items};S.modal=null;S.drawer=r.ni.id;S.flash={ids:[r.ni.id],until:Date.now()+8000};S.queryOpen=false;render();
   if(moved)toast(L("Im Projekt ","Filed in ")+P().name);
 }
 /* files one invoice in the current project (D.pid); shared by single and batch capture */
@@ -338,10 +353,10 @@ function batchHTML(M){
 }
 function batchSave(){
   const B=S.modal&&S.modal.batch;if(!B)return;
-  const cnt={},home=D.pid;let n=0;
-  B.sel.map(x=>B.items[x]).forEach(it=>{const r=withP(it.pid,()=>saveCapture(it.d,{type:it.type,bkp:it.bkp,file:it.fileObj}));if(r.ni){n++;cnt[it.pid]=(cnt[it.pid]||0)+1;}});
+  const cnt={},home=D.pid,ids=[];let n=0;
+  B.sel.map(x=>B.items[x]).forEach(it=>{const r=withP(it.pid,()=>saveCapture(it.d,{type:it.type,bkp:it.bkp,file:it.fileObj}));if(r.ni){n++;ids.push(r.ni.id);cnt[it.pid]=(cnt[it.pid]||0)+1;}});
   const pids=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]);
-  closeAll();D.pid=pids[0]||home;S.view="rechnungen";S.rtab="kred";S.filter="pruefen";render();
+  closeAll();D.pid=pids[0]||home;S.view="rechnungen";S.rtab="kred";S.filter="pruefen";S.flash={ids,until:Date.now()+4000};render();
   toast((n===1?L("1 Rechnung erfasst","1 invoice added"):n+L(" Rechnungen erfasst"," invoices added"))+(pids.length>1?L(" in "," in ")+pids.length+L(" Projekten"," projects"):"")+L(" · jetzt prüfen"," · check now"));
 }
 function logDup(){const M=S.modal;if(!M||M.logged||!M.data)return;M.logged=true;D.events.unshift({pid:D.pid,c:"crit",t:M.data.name,m:L("Doppelrechnung verhindert","duplicate prevented"),chf:M.data.amount,act:"nav",v:"rechnungen"});}
@@ -360,10 +375,12 @@ function bulkHTML(){
 }
 function bulkApprove(){
   const list=S.bulk.sel.map(INV).filter(i=>i&&cleanInv(i));if(!list.length)return;
+  snap();
   list.forEach(i=>{i.status="frei";i.rel=iso(TODAY);ensureVno(i);logInv(i,L("Freigegeben (gemeinsam)","Approved (together)"));});
   const sum=r2(list.reduce((a,i)=>a+payout(i),0));
   closeAll();S.filter="frei";render();
-  toast((list.length===1?L("1 Rechnung freigegeben","1 invoice approved"):list.length+L(" Rechnungen freigegeben"," invoices approved"))+" · "+chf(sum));
+  S.flash={ids:list.map(i=>i.id),until:Date.now()+4000};render();
+  toast((list.length===1?L("1 Rechnung freigegeben","1 invoice approved"):list.length+L(" Rechnungen freigegeben"," invoices approved"))+" · "+chf(sum),0,0,1);
 }
 
 /* ---------- the invoice file and its approval stamp (visum) ---------- */

@@ -48,6 +48,8 @@ function renderChrome(){
 }
 const ph=(eyebrow,title,lead,tools)=>`<header class="ph">${P()&&eyebrow===esc(P().name)?`<button type="button" class="eyebrow pname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${eyebrow}<span class="cv" aria-hidden="true">⌄</span></button>`:`<span class="eyebrow">${eyebrow}</span>`}<h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;
 const ICO={
+spark:'<path d="M12 3.5c.5 3.6 1.9 5 5.5 5.5-3.6.5-5 1.9-5.5 5.5-.5-3.6-1.9-5-5.5-5.5 3.6-.5 5-1.9 5.5-5.5Z"/><path d="M18.5 14.5c.2 1.4.8 2 2.2 2.2-1.4.2-2 .8-2.2 2.2-.2-1.4-.8-2-2.2-2.2 1.4-.2 2-.8 2.2-2.2Z"/>',
+undo:'<path d="M9 7 4.5 11.5 9 16"/><path d="M5 11.5h9.5a5 5 0 0 1 0 10H12"/>',
 copy:'<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/>',
 share:'<path d="M12 3v12"/><path d="m7.5 7.5 4.5-4.5 4.5 4.5"/><path d="M5 12v6.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V12"/>',
 mail:'<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/>',

@@ -1008,3 +1008,30 @@ details[open]:not(.site)>summary::after{transform:none}
 .docs .dscbtn .ni{width:20px;height:20px}
 @media (min-width:821px){.docs .dscbtn{display:none}}
 @media (max-width:380px){.docs .sh .right{gap:4px}.docs .sh h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+
+/* recognised / please check tags in invoice capture */
+.src{display:inline-flex;align-items:center;gap:3px;margin-left:8px;font-size:.72rem;font-weight:500;letter-spacing:0;text-transform:none;vertical-align:1px}
+.src svg{width:12px;height:12px}
+.src.ok{color:var(--ok)}
+.src.chk{color:var(--warn)}
+.srcsum{display:flex;align-items:center;gap:8px;padding:10px 12px;margin-bottom:14px;border-radius:8px;background:color-mix(in srgb,var(--ok) 9%,transparent);font-size:.875rem}
+.srcsum svg{color:var(--ok);flex:none}
+
+/* payout calculation: operator | line | amount, ⓘ opens the explanation below the line */
+.calc3{grid-template-columns:18px 1fr auto;align-items:baseline}
+.calc3 .op{color:var(--muted);font-variant-numeric:tabular-nums}
+.calc3 .cinfo{border:0;background:none;color:var(--muted);padding:10px 8px;margin:-10px -6px -10px 0;font-size:.85rem;cursor:pointer;min-height:0;line-height:1}
+.calc3 .cinfo.on,.calc3 .cinfo:hover{color:var(--ink)}
+.calc3 .cexp{grid-column:2 / 4;font-size:.8125rem;color:var(--muted);margin:-2px 0 4px}
+.calc3 .csum{grid-column:1 / -1;display:grid;grid-template-columns:18px 1fr auto;align-items:baseline;gap:8px 0;margin-top:6px;padding:12px 12px;border-radius:8px;background:color-mix(in srgb,var(--ok) 10%,transparent);font-weight:500}
+.calc3 .csum .op{color:var(--ok)}
+
+/* undo inside the message */
+#toast.withundo{display:none;align-items:center;gap:14px;padding:8px 8px 8px 18px;white-space:nowrap}
+#toast.withundo.on{display:flex}
+#toast .tundo{display:inline-flex;align-items:center;gap:6px;border:0;background:color-mix(in srgb,var(--bg) 16%,transparent);color:var(--bg);font:inherit;font-weight:500;padding:8px 14px;border-radius:999px;cursor:pointer;min-height:36px}
+#toast .tundo svg{width:16px;height:16px}
+/* newly added or just changed rows light up briefly */
+.row.flash{animation:flash 4s ease-out}
+@keyframes flash{0%,35%{background:color-mix(in srgb,var(--ok) 16%,transparent)}100%{background:transparent}}
+@media (prefers-reduced-motion:reduce){.row.flash{animation:none;background:color-mix(in srgb,var(--ok) 12%,transparent)}}

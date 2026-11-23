@@ -3,9 +3,17 @@
 
 /* ---------- events ---------- */
 let toastT;
-function toast(msg,ms,hint){const t=document.getElementById("toast");if(hint)t.dataset.hint="1";else delete t.dataset.hint;t.classList.toggle("top",!!document.querySelector("#overlay.on"));t.textContent=msg;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),ms||3000);}
+/* undo: a snapshot of the data is taken right before an action that changes or deletes something.
+   Files of deleted documents are only removed once the undo is no longer possible. */
+let undoSnap=null;
+function snap(){undoCommit();undoSnap={d:JSON.stringify(D),files:[]};}
+function undoCommit(){if(undoSnap){undoSnap.files.forEach(f=>FDB.del(f));undoSnap=null;}}
+function fileDel(id){if(undoSnap)undoSnap.files.push(id);else FDB.del(id);}
+function toast(msg,ms,hint,undo){const t=document.getElementById("toast");if(hint)t.dataset.hint="1";else delete t.dataset.hint;t.classList.toggle("top",!!document.querySelector("#overlay.on"));
+  if(undo&&undoSnap){t.innerHTML=`<span>${esc(msg)}</span><button type="button" class="tundo" data-act="undo">${ico("undo")}${L("Rückgängig","Undo")}</button>`;t.classList.add("withundo");}else{t.textContent=msg;t.classList.remove("withundo");}
+  t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>{t.classList.remove("on");if(undo)undoCommit();},ms||(undo?7000:3000));}
 async function copy(text,ok){try{await navigator.clipboard.writeText(text);toast(ok);}catch(e){toast(L("Kopieren nicht möglich","Copy failed"));}}
-function closeAll(){stopCam();dstopCam();S.dscan=null;S.bulk=null;S.kvx=null;S.fdrawer=null;S.drawer=null;S.modal=null;S.sheet=null;S.form=null;S.formErr="";S.confirm=null;S.queryOpen=false;S.done=null;}
+function closeAll(){S.calcInfo=null;stopCam();dstopCam();S.dscan=null;S.bulk=null;S.kvx=null;S.fdrawer=null;S.drawer=null;S.modal=null;S.sheet=null;S.form=null;S.formErr="";S.confirm=null;S.queryOpen=false;S.done=null;}
 const startView=v=>{S.from=null;S.kid=null;S.wid=null;S.tid=null;S.mid=null;S.cmpBack=null;
   if(v==="rechnungen"){S.rtab="kred";S.filter="pruefen";S.ffilter="open";}
   if(v==="handwerker")S.kfilter="";if(v==="budget")S.bfilter="";if(v==="ausschreibungen"){S.ttab="verfahren";S.tfilter="open";S.pfilter="refs";}};
@@ -59,13 +67,13 @@ document.addEventListener("click",e=>{
     case "open-fee":closeAll();S.fdrawer=id;renderOverlay();break;
     case "fee-addline":readFeeLines();S.form.lines.push({t:"",q:1,u:L("pauschal","lump sum"),p:""});keepFeeFields(()=>renderOverlay());break;
     case "fee-delline":readFeeLines();S.form.lines.splice(+el.dataset.c,1);keepFeeFields(()=>renderOverlay());break;
-    case "fee-paid":{const f=FE(id);f.paid=iso(TODAY);logInv(f,L("Zahlung eingegangen","Payment received"));render();toast(L("Als bezahlt markiert","Marked as paid"));break;}
+    case "fee-paid":{snap();const f=FE(id);f.paid=iso(TODAY);logInv(f,L("Zahlung eingegangen","Payment received"));render();toast(L("Als bezahlt markiert","Marked as paid"),0,0,1);break;}
     case "fee-unpaid":{const f=FE(id);f.paid=null;logInv(f,L("Zahlung zurückgenommen","Payment undone"));render();break;}
     case "pay-pdf":{const i=INV(id);payPDF(i).then(()=>{if(!(i.log||[]).some(x=>x.t===L("Zahlungsempfehlung erstellt","Payment recommendation created"))){logInv(i,L("Zahlungsempfehlung erstellt","Payment recommendation created"));saveData();renderOverlay();}toast(L("Zahlungsempfehlung für die Bauherrschaft erstellt","Payment recommendation for the client created"));}).catch(()=>toast(L("PDF konnte nicht erstellt werden","Could not create the PDF")));break;}
     case "fee-pdf":{const f=FE(id);feePDF(f,0).then(()=>{if(!(f.log||[]).some(x=>x.t===L("PDF erstellt","PDF created"))){logInv(f,L("PDF erstellt","PDF created"));render();}}).catch(()=>toast(L("PDF konnte nicht erstellt werden","Could not create PDF")));break;}
     case "fee-remind":{const f=FE(id),n=remDue(f);if(!n)break;feePDF(f,n).then(()=>{(f.rem=f.rem||[]).push({n,d:iso(TODAY)});logInv(f,remName(n)+L(" erstellt"," created"));render();toast(remName(n)+L(" erstellt"," created"));}).catch(()=>toast(L("PDF konnte nicht erstellt werden","Could not create PDF")));break;}
     case "fee-demo":{addDemoFees();render();toast(L("3 Beispielrechnungen angelegt","3 example invoices added"));break;}
-    case "fee-del":{D.fees=FEES().filter(x=>x.id!==id);closeAll();render();toast(L("Rechnung gelöscht","Invoice deleted"));break;}
+    case "fee-del":{snap();D.fees=FEES().filter(x=>x.id!==id);closeAll();render();toast(L("Rechnung gelöscht","Invoice deleted"),0,0,1);break;}
     case "logo-del":readFirmForm();delete D.firm.logo;renderOverlay();break;
     case "jump-flags":{S.allFlags=true;render();const f=document.getElementById("flags");if(f)f.scrollIntoView({behavior:"smooth",block:"start"});break;}
     case "all-flags":S.allFlags=!S.allFlags;render();break;
@@ -99,13 +107,15 @@ document.addEventListener("click",e=>{
     case "ask":S.confirm=el.dataset.c;if(/^ddel:/.test(S.confirm)||!S.sheet)render();else renderOverlay();break;
     case "notice-ok":D.noticeOk=1;render();break;
     case "doc-open":openDoc(el.dataset.id);break;
-    case "doc-del":{const id=el.dataset.id;D.docs=DOCS().filter(d=>d.id!==id);S.confirm=null;FDB.del(id);render();toast(L("Dokument gelöscht","Document deleted"));break;}
+    case "doc-del":{snap();const id=el.dataset.id;D.docs=DOCS().filter(d=>d.id!==id);S.confirm=null;fileDel(id);render();toast(L("Dokument gelöscht","Document deleted"),0,0,1);break;}
     case "reset-ex":closeAll();clearFiles().then(()=>{D=seedExample();runMigrations();S.view="uebersicht";S.kid=null;S.tid=null;render();toast(L("Beispieldaten geladen","Example data loaded"));});break;
     case "reset-all":closeAll();clearFiles().then(()=>{try{localStorage.removeItem(KEY);}catch(err){}D=null;render();});break;
     case "close":{const back=S.form&&S.form.back;closeAll();if(back&&INV(back))S.drawer=back;render();break;}
     case "bulk-open":{const all=PIx().filter(i=>i.status==="pruefen"&&live(i)),ok=all.filter(cleanInv);closeAll();S.bulk={ids:ok.map(i=>i.id),sel:ok.map(i=>i.id),rest:all.length-ok.length};renderOverlay();break;}
     case "team-go":S.mid=null;go("einstellungen");requestAnimationFrame(()=>{const t=document.getElementById("team");if(t)t.scrollIntoView({block:"start"});});break;
     case "scan-menu":closeAll();S.sheet="scan";renderOverlay();break;
+    case "undo":if(undoSnap){D=JSON.parse(undoSnap.d);undoSnap=null;closeAll();saveData();render();toast(L("Rückgängig gemacht","Undone"));}break;
+    case "calc-info":S.calcInfo=S.calcInfo===el.dataset.k?null:el.dataset.k;renderOverlay();break;
     case "dscan":dscanOpen({pid:el.dataset.pid,kid:el.dataset.kid});break;
     case "ds-close":dscanClose();break;
     case "ds-shoot":dshoot();break;
@@ -120,11 +130,11 @@ document.addEventListener("click",e=>{
     case "bulk-tog":{const B=S.bulk;if(!B)break;B.sel=B.sel.includes(id)?B.sel.filter(x=>x!==id):B.sel.concat(id);renderOverlay();break;}
     case "bulk-approve":bulkApprove();break;
     case "visum-pdf":visumPDF(INV(id)).then(()=>toast(L("Rechnung mit Visum gespeichert","Invoice with approval stamp saved"))).catch(e=>{console.error(e);toast(L("PDF nicht möglich.","PDF failed."));});break;
-    case "approve":{const i=INV(id);i.status="frei";i.rel=iso(TODAY);ensureVno(i);logInv(i,L("Freigegeben","Approved"));S.done=null;S.queryOpen=false;render();toast(L("Freigegeben · ","Approved · ")+chf(payout(i)));break;}
+    case "approve":{snap();const i=INV(id);i.status="frei";i.rel=iso(TODAY);ensureVno(i);logInv(i,L("Freigegeben","Approved"));S.done=null;S.queryOpen=false;render();toast(L("Freigegeben · ","Approved · ")+chf(payout(i)),0,0,1);break;}
     case "unapprove":{const i=INV(id);i.status="pruefen";logInv(i,L("Freigabe zurückgenommen","Approval undone"));render();break;}
-    case "paid":{const i=INV(id);i.status="bezahlt";logInv(i,L("Bezahlt","Paid"));render();toast(L("Bezahlt","Paid"));break;}
+    case "paid":{snap();const i=INV(id);i.status="bezahlt";logInv(i,L("Bezahlt","Paid"));render();toast(L("Als bezahlt markiert","Marked as paid"),0,0,1);break;}
     case "inv-unpaid":{const i=INV(id);i.status="frei";logInv(i,L("Zahlung zurückgenommen","Payment undone"));render();toast(L("Wieder freigegeben, nicht bezahlt","Back to approved, not paid"));break;}
-    case "del-inv":D.invoices=D.invoices.filter(x=>x.id!==id);DOCS().filter(d=>d.scope==="inv"&&d.ref===id).forEach(d=>FDB.del(d.id));D.docs=DOCS().filter(d=>!(d.scope==="inv"&&d.ref===id));closeAll();render();toast(L("Rechnung gelöscht","Invoice deleted"));break;
+    case "del-inv":snap();D.invoices=D.invoices.filter(x=>x.id!==id);DOCS().filter(d=>d.scope==="inv"&&d.ref===id).forEach(d=>fileDel(d.id));D.docs=DOCS().filter(d=>!(d.scope==="inv"&&d.ref===id));closeAll();render();toast(L("Rechnung gelöscht","Invoice deleted"),0,0,1);break;
     case "query":S.queryOpen=true;renderOverlay();{const q=document.getElementById("qtext");if(q)q.scrollIntoView({block:"nearest"});}break;
     case "copy-query":{const q=document.getElementById("qtext");copy(q?q.value:"",L("Kopiert","Copied"));break;}
     case "share-query":{const q=document.getElementById("qtext"),inv=D.invoices.find(x=>x.id===id);navigator.share({title:L("Rechnung ","Invoice ")+(inv?inv.no:""),text:q?q.value:""}).catch(()=>{});break;}

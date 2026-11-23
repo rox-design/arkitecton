@@ -191,14 +191,14 @@ function submitForm(){
     backTo();render();return toast(L("Gespeichert","Saved"));}
 }
 function formDelete(){
-  const F=S.form;
+  snap();const F=S.form;
   if(F.f==="ref"){D.office.refs=D.office.refs.filter(r=>r.id!==F.id);D.projects.forEach(p=>{if(p.refId===F.id)delete p.refId;});}
   if(F.f==="person"){D.office.team=D.office.team.filter(m=>m.id!==F.id);S.mid=null;}
   if(F.f==="career"){const m=D.office.team.find(x=>x.id===F.id);if(m)m.career.splice(+F.w,1);}
   if(F.f==="contractor"){D.contractors=D.contractors.filter(k=>k.id!==F.id);S.kid=null;}
   if(F.f==="contract"){const w=W(F.w);D.contracts=D.contracts.filter(x=>x!==w);S.wid=null;}
   if(F.f==="kv"){const p=P();p.budget=p.budget.filter(b=>b.bkp!==F.id);}
-  closeAll();render();toast(L("Gelöscht","Deleted"));
+  closeAll();render();toast(L("Gelöscht","Deleted"),0,0,1);
 }
 
 /* ---------- sheets: Excel, projects, data ---------- */

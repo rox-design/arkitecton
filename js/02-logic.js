@@ -58,7 +58,8 @@ const dueText=dd=>dd<0?L("seit "+(-dd)+" "+dayWord(-dd)+" überfällig","overdue
 const dueTone=dd=>dd<0?"crit":dd<=7?"warn":"n";
 const subTitle=t=>`<h3 class="subh">${t}</h3>`;
 const foldRows=(title,html,n)=>n?`<details class="pdone hdone"><summary>${title} <span class="cnt">${n}</span></summary><div class="rows">${html}</div></details>`:"";
-const row=o=>`<button type="button" class="row" data-act="${o.act}"${o.id?` data-id="${o.id}"`:""}${o.v?` data-v="${o.v}"`:""}>${dot(o.c)}<span class="rt">${o.title}</span><span class="rm">${o.meta||""}</span><span class="ra">${o.amt||""}</span><span class="rl l-${o.lc||o.c}">${o.label||""}</span></button>`;
+const isFlash=id=>!!(id&&S.flash&&Date.now()<S.flash.until&&S.flash.ids.includes(id));
+const row=o=>`<button type="button" class="row${isFlash(o.id)?" flash":""}" data-act="${o.act}"${o.id?` data-id="${o.id}"`:""}${o.v?` data-v="${o.v}"`:""}>${dot(o.c)}<span class="rt">${o.title}</span><span class="rm">${o.meta||""}</span><span class="ra">${o.amt||""}</span><span class="rl l-${o.lc||o.c}">${o.label||""}</span></button>`;
 
 function compare(w){
   if(!w||!w.offer) return null;

@@ -34,7 +34,7 @@ function tenderTasks(){
     if(t.status==="eingereicht"&&!tFiles(t,"prot").length&&!t.protAsked)add(t,"n",L("Offertöffnungsprotokoll verlangen","Request the opening minutes"),L("Preise der anderen","prices of the others"));
     const r=t.res||{},ae=appealEnd(t.status==="nichtausg"?(t.pq||{}).at:r.at);
     if((t.status==="verloren"||t.status==="nichtausg")&&ae&&daysTo(ae)>=0)add(t,"warn",L("Beschwerdefrist läuft","Appeal period running"),L("bis ","until ")+fdate(ae));
-    if(t.status==="gewonnen"&&ae&&daysTo(ae)>=0)add(t,"n",L("Vertrag erst nach Ablauf der Beschwerdefrist","Contract only after the appeal period"),L("ab ","from ")+fdate(addDays(ae,1)));
+    if(t.status==="gewonnen"&&ae&&daysTo(ae)>=0)add(t,"n",L("Zuschlag wird verbindlich, noch keine Arbeit beginnen","Award becomes binding, do not start work yet"),L("am ","on ")+fdate(addDays(ae,1)));
   });
   return out.sort((a,b)=>({crit:0,warn:1,n:2}[a.c]-{crit:0,warn:1,n:2}[b.c]));
 }
@@ -70,7 +70,8 @@ function tenderAfter(t){
   return `<section class="after docs"><div class="sh"><h2>${L("Nach der Eingabe","After submitting")}</h2></div><ul class="checks asteps">${steps.join("")}</ul></section>`;
 }
 function appealLine(t,at,won){const ae=appealEnd(at);if(!ae)return "";const n=daysTo(ae);
-  return `<p class="res">${won?L("Den Vertrag erst nach Ablauf der Beschwerdefrist unterschreiben: ","Sign the contract only after the appeal period: ")+fdate(ae):L("Beschwerdefrist bis ","Appeal period until ")+fdate(ae)}${n>=0?" ("+(n===0?L("heute","today"):L("noch "+n+" "+dayWord(n),n+" days left"))+")":" ("+L("abgelaufen","over")+")"}. ${L("Massgebend ist die Rechtsmittelbelehrung in der Verfügung.","The notice in the decision is binding.")}</p>`;}
+  if(won)return `<p class="res">${n>=0?L("Zuschlag wird verbindlich am ","Award becomes binding on ")+fdate(addDays(ae,1))+L(", wenn keine Beschwerde eingeht (Frist bis ",", if no appeal is filed (period until ")+fdate(ae)+L("). Bis dahin noch keine Arbeit beginnen.","). Do not start work before."):L("Zuschlag verbindlich seit ","Award binding since ")+fdate(addDays(ae,1))+L(", sofern keine Beschwerde eingegangen ist.",", unless an appeal was filed.")} ${L("Massgebend ist die Rechtsmittelbelehrung in der Verfügung.","The notice in the decision is binding.")}</p>`;
+  return `<p class="res">${L("Beschwerdefrist bis ","Appeal period until ")+fdate(ae)}${n>=0?" ("+(n===0?L("heute","today"):L("noch "+n+" "+dayWord(n),n+" days left"))+")":" ("+L("abgelaufen","over")+")"}. ${L("Massgebend ist die Rechtsmittelbelehrung in der Verfügung.","The notice in the decision is binding.")}</p>`;}
 function resultTable(t){const r=tRes(t),f=v=>v?chf(v,false):"–";
   if(!r.own&&!r.win&&!r.low&&!r.n)return `<p class="res">${L("Zahlen aus dem Offertöffnungsprotokoll und der Zuschlagspublikation erfassen. So sehen Sie mit der Zeit, wo Ihr Büro preislich liegt.","Enter the figures from the minutes and the award notice.")}</p><button type="button" class="btn sm" data-act="t-res" data-id="${t.id}" data-w="edit">${L("Zahlen erfassen","Enter figures")}</button>`;
   const rows=[[L("Ihr Preis","Your price"),f(r.own)],[L("Tiefster Preis","Lowest price"),f(r.low)+(r.dLow!=null&&r.dLow!==0?` <span class="l-${r.dLow>0?"warn":"ok"}">${L("Sie ","you ")+pctTxt(r.dLow)}</span>`:"")]]
@@ -86,7 +87,7 @@ function resultTile(t){
   const sl=p1?L("Auswahl","Selection"):L("Zuschlag","Award");
   let sv,c="",ss;
   if(pending){sv=L("ausstehend","pending");ss=(p1?L("Mitteilung meist per Verfügung","Usually notified by decision"):L("Entscheid kommt per E-Mail oder Post","Decision comes by e-mail or post"))+L(" · erfassen"," · record");}
-  else if(t.status==="gewonnen"){sv=L("Erhalten","Awarded");c=" ok";ss=(at?L("Verfügung vom ","Decision of ")+fdate(at):"")+(open?L(" · Vertrag ab "," · contract from ")+fdate(addDays(ae,1)):"");}
+  else if(t.status==="gewonnen"){sv=L("Erhalten","Awarded");c=" ok";ss=(at?L("Verfügung vom ","Decision of ")+fdate(at):"")+(open?L(" · verbindlich ab "," · binding from ")+fdate(addDays(ae,1)):"");}
   else{sv=p1?L("Nein","No"):L("Nicht erhalten","Not awarded");ss=[!p1&&r.winner?L("an ","to ")+esc(r.winner):"",open?L("Beschwerde bis ","appeal until ")+fdate(ae):at?L("Verfügung vom ","decision of ")+fdate(at):""].filter(Boolean).join(" · ");}
   return `<button type="button" class="stat" data-act="${pending?"form":"t-after"}" data-f="tres" data-id="${t.id}" data-w="pick"><span class="sl">${sl}</span><span class="sv${c}">${sv}</span><span class="ss">${ss}</span></button>`;
 }

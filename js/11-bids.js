@@ -22,23 +22,41 @@ const FIRMKEYS=[/handelsregister/i,/betreibung/i,/haftpflicht|versicherung/i,/ah
 function firmMatch(label){const fd=docsFor("firm","firm");for(const re of FIRMKEYS){if(re.test(label)){const m=fd.find(x=>re.test(x.name));if(m)return m;}}return null;}
 function linkedDoc(t,id){const k=(t.link||{})[id];return k?DOCS().find(x=>x.id===k)||null:null;}
 
+/* signatures: what the tender asks for, and whether the office can deliver it (ZertES; collective signing needs two) */
+const SIGREQ={qes:["Qualifizierte elektronische Signatur (QES)","Qualified electronic signature (QES)"],scan:["Scan, von Hand unterschrieben","Scan of a handwritten signature"],papier:["Von Hand auf Papier","Handwritten on paper"]};
+const SECO_CSP="https://www.seco.admin.ch/de/csp-elektronische-signatur";
+const qesPeople=()=>(((D.office||{}).team)||[]).filter(m=>(m.extra||[]).includes("qes"));
+const sigNeed=()=>(D.firm||{}).sigRule==="kollektiv2"?2:1;
+function sigCheck(t){if(t.sig!=="qes")return null;const q=qesPeople(),need=sigNeed(),nm=q.map(m=>m.name).join(L(" und "," and "));
+  if(q.length>=need)return {c:"ok",t:L("Unterschreiben können ","Can sign: ")+nm+(need===2?L(" (kollektiv zu zweien)"," (two signatures)"):"")+"."};
+  if(!q.length)return {c:"crit",t:L("Niemand im Büro hat eine QES. Die Identifikation beim Anbieter braucht einige Tage Vorlauf.","Nobody in the office has a QES. Getting one takes a few days.")};
+  return {c:"warn",t:L("Ihr Büro zeichnet kollektiv zu zweien, aber nur "+nm+" hat eine QES. Es braucht eine zweite Person mit QES.","Your office signs jointly by two, but only "+nm+" has a QES. A second person is needed.")};}
+function sigBlock(t,c){
+  const head=`<div class="sigrow"><span class="sl2">${L("Verlangte Unterschrift","Required signature")}</span><span>${t.sig?esc(L(...SIGREQ[t.sig])):`<span class="muted">${L("noch nicht erfasst, steht in den Unterlagen im Kapitel «Einreichung»","not entered yet, see the chapter on submission")}</span>`}</span></div>`;
+  const k=!c&&sigCheck(t);if(!k)return head;
+  return head+`<div class="notice"><span class="ic ${k.c}" aria-hidden="true">${k.c==="ok"?"✓":"!"}</span><span>${k.t}${k.c==="ok"?"":` ${L("Wer eine hat, im Büroprofil bei der Person «QES» ankreuzen.","Tick «QES» at the person in the office profile.")} <a class="srclink" href="${SECO_CSP}" target="_blank" rel="noopener">${L("Anerkannte Anbieter","Recognised providers")} ↗</a>`}</span></div>`;}
+
 /* tasks of the office around tenders, shown on the start page */
 function tenderTasks(){
-  const out=[],add=(t,c,title,label,o={})=>out.push(Object.assign({t,c,title,label},o));
+  const out=[],gaps=[],add=(t,c,title,label,o={})=>out.push(Object.assign({t,c,title,label},o));
   D.tenders.forEach(t=>{
     const dd=daysTo(t.due),qd=t.qDue?daysTo(t.qDue):-1;
     if((t.status==="neu"||t.status==="arbeit")&&fitOf(t).fit!=="no"){
       if(dd>=0&&dd<=7)add(t,dd<=2?"crit":"warn",bidName(t)+L(" einreichen"," to submit"),dd===0?L("heute","today"):L("in "+dd+" "+dayWord(dd),"in "+dd+" "+(dd===1?"day":"days")));
-      if(t.status==="arbeit"&&qd>=0&&qd<=3)add(t,"warn",L("Fragen stellen","Ask questions"),L("bis ","until ")+fdate(t.qDue));}
+      if(t.status==="arbeit"&&qd>=0&&qd<=3)add(t,"warn",L("Fragen stellen","Ask questions"),L("bis ","until ")+fdate(t.qDue));
+      const k=sigCheck(t);if(k&&k.c!=="ok"&&dd>=0)gaps.push([t,k]);}
     if(waitT(t)&&!tFiles(t,"submitted").length)add(t,"warn",L("Eingereichte Dateien ablegen","File the submitted documents"),L("simap löscht sie","simap deletes them"));
     if(t.status==="eingereicht"&&!tFiles(t,"prot").length&&!t.protAsked)add(t,"n",L("Offertöffnungsprotokoll verlangen","Request the opening minutes"),L("Preise der anderen","prices of the others"));
     const r=t.res||{},ae=appealEnd(t.status==="nichtausg"?(t.pq||{}).at:r.at);
     if((t.status==="verloren"||t.status==="nichtausg")&&ae&&daysTo(ae)>=0)add(t,"warn",L("Beschwerdefrist läuft","Appeal period running"),L("bis ","until ")+fdate(ae));
     if(t.status==="gewonnen"&&ae&&daysTo(ae)>=0)add(t,"n",L("Zuschlag wird verbindlich, noch keine Arbeit beginnen","Award becomes binding, do not start work yet"),L("am ","on ")+fdate(addDays(ae,1)));
   });
+  /* a missing QES is one task for the office, not one per tender */
+  if(gaps.length){gaps.sort((a,b)=>toDate(a[0].due)-toDate(b[0].due));const [t,k]=gaps[0],n=gaps.length;
+    add(t,k.c,k.c==="crit"?L("QES fehlt im Büro","No QES in the office"):L("Zweite QES fehlt","Second QES missing"),L("bis ","by ")+fdate(t.due),{meta:n===1?tx(t.title):L(n+" Ausschreibungen verlangen eine QES",n+" tenders require a QES")});}
   return out.sort((a,b)=>({crit:0,warn:1,n:2}[a.c]-{crit:0,warn:1,n:2}[b.c]));
 }
-function tenderTaskRows(){return tenderTasks().map(x=>row({act:"open-t",id:x.t.id,c:x.c,title:esc(x.title),meta:esc(tx(x.t.title)),amt:"",label:x.label,lc:x.c})).join("");}
+function tenderTaskRows(){return tenderTasks().map(x=>row({act:"open-t",id:x.t.id,c:x.c,title:esc(x.title),meta:esc(x.meta||tx(x.t.title)),amt:"",label:x.label,lc:x.c})).join("");}
 
 /* the steps after the submission: what was submitted, the opening minutes, the decision, the appeal deadline, and the comparison */
 function tenderAfter(t){
@@ -103,8 +121,9 @@ function bidFormDef(F){
       +(p1?"":fld("fSubP",L("Ihr Preis in CHF (Honorar inkl. MWST)","Your price in CHF (fee incl. VAT)"),(t.res||{}).own||"",{wide:true,mode:"decimal",hint:L("Für den Vergleich nach dem Zuschlag.","For the comparison after the award.")}))
       +`<div class="f wide"><span class="l">${L("Vor dem Einreichen prüfen","Check before submitting")}</span>
         <label class="chk"><input type="checkbox" id="fC1"> ${L("Die gewählte Form ist laut Unterlagen zugelassen","The chosen form is allowed by the documents")}</label>
-        <label class="chk"><input type="checkbox" id="fC2"> ${L("Unterschriften gültig: online jede zu unterschreibende Datei mit qualifizierter elektronischer Signatur (QES), auf Papier von Hand","Signatures valid: online each file to be signed with a qualified electronic signature (QES), on paper by hand")}</label>
-        <a class="srclink" href="https://www.validator.admin.ch" target="_blank" rel="noopener">${L("Signatur prüfen auf validator.admin.ch","Check a signature on validator.admin.ch")} ↗</a></div>`};}
+        <label class="chk"><input type="checkbox" id="fC2"> ${(t.sig==="qes"?L("Jede zu unterschreibende Datei mit QES signiert und geprüft","Each file to be signed has a checked QES"):t.sig==="scan"?L("Unterschriebene Seiten von Hand unterschrieben und eingescannt","Signed pages signed by hand and scanned"):t.sig==="papier"?L("Von Hand unterschrieben","Signed by hand"):L("Unterschriften gültig: online jede zu unterschreibende Datei mit qualifizierter elektronischer Signatur (QES), auf Papier von Hand","Signatures valid: online each file to be signed with a QES, on paper by hand"))+(sigNeed()===2?L(", von zwei zeichnungsberechtigten Personen (kollektiv zu zweien)",", by two authorised persons"):"")}</label>
+        ${t.sig==="scan"||t.sig==="papier"?"":`<a class="srclink" href="https://www.validator.admin.ch" target="_blank" rel="noopener">${L("Signatur prüfen auf validator.admin.ch","Check a signature on validator.admin.ch")} ↗</a>`}</div>`
+      +(()=>{const k=sigCheck(t);return k&&k.c!=="ok"?`<div class="f wide"><div class="notice"><span class="ic ${k.c}" aria-hidden="true">!</span><span>${k.t}</span></div></div>`:"";})()};}
   if(F.f==="tres"){const w=F.w||"edit";
     if(w==="pick"){const p1=t.status==="pq",b=(x,lab,pr)=>`<button type="button" class="btn${pr?" primary":""}" data-act="t-res" data-id="${t.id}" data-w="${x}">${lab}</button>`;
       return {title:p1?L("Auswahl erfassen","Record selection"):L("Zuschlag erfassen","Record the award"),noSubmit:true,body:`<div class="f wide"><p class="hint">${p1?L("Was steht in der Mitteilung der Vergabestelle?","What does the notice say?"):L("Was steht in der Verfügung der Vergabestelle?","What does the decision say?")}</p><div class="pickres">${p1?b("nsel",L("Nicht ausgewählt","Not selected"))+b("sel",L("Ausgewählt","Selected"),true):b("lost",L("Kein Zuschlag","Not awarded"))+b("won",L("Zuschlag erhalten","Contract awarded"),true)}</div></div>`};}
@@ -158,15 +177,15 @@ async function seedBids(){
   const ad=n=>addDays(iso(TODAY),n),T=D.tenders,F=(D.firm||{}).name||"Beispiel Architekten GmbH";
   const pdf=async(ref,name,lines,date,flag)=>{const b=samplePdf(lines.concat(["","Beispieldokument, fiktive Daten."]));const id=newId("f");await FDB.put(id,b);DOCS().push(Object.assign({id,scope:"tender",ref,name,type:"application/pdf",size:b.size,date},flag));};
   const base={phases:"31–53",reqs:[{k:"refs",n:1,since:2016,minCost:1,pub:true,types:null},{k:"team",tag:"pl"},{k:"disc",need:["291"]}],docs:[{id:"d1",auto:"refs"},{id:"d2",auto:"team"},{id:"d3",auto:"self"}],done:{d3:true},src:{url:"https://www.simap.ch",id:L("Beispiel","Example")}};
-  if(!T.some(t=>t.id==="t7")){T.push(Object.assign({},base,{id:"t7",title:{de:"Erweiterung Feuerwehrgebäude",en:"Fire station extension"},client:"Gemeinde Thalwil",proc:"offen",cost:2.6,qDue:ad(-92),due:ad(-70),sub:ad(-71),subAt:"16:10",subForm:"simap",status:"verloren",
+  if(!T.some(t=>t.id==="t7")){T.push(Object.assign({},base,{id:"t7",title:{de:"Erweiterung Feuerwehrgebäude",en:"Fire station extension"},client:"Gemeinde Thalwil",proc:"offen",cost:2.6,sig:"qes",qDue:ad(-92),due:ad(-70),sub:ad(-71),subAt:"16:10",subForm:"simap",status:"verloren",
       res:{at:ad(-12),winner:"Atelier Brändli Architekten AG",win:286400,own:311900,low:279800,n:7,rank:3},zk:[{typ:"preis",t:L(...ZKT.preis),w:40,me:"m"},{typ:"analyse",t:L(...ZKT.analyse),w:35,me:"m"},{typ:"ref",t:L(...ZKT.ref),w:25,me:"s"}]}));
     await pdf("t7","Angebot Feuerwehrgebäude komplett.pdf",["Angebot","Erweiterung Feuerwehrgebaeude",F,"Honorar CHF 311'900 inkl. MWST"],ad(-71),{submitted:true});
     await pdf("t7","Eingangsbestätigung simap.pdf",["Eingangsbestaetigung","Eingegangen "+fdate(ad(-71))+", 16:10 Uhr"],ad(-71),{submitted:true});
     await pdf("t7","Offertöffnungsprotokoll.pdf",["Offertoeffnungsprotokoll","Erweiterung Feuerwehrgebaeude, Gemeinde Thalwil","7 Angebote, Gesamtpreise inkl. MWST:","1. CHF 279'800  2. CHF 286'400  3. CHF 311'900 ("+F+")","4. CHF 318'000  5. CHF 325'700  6. CHF 341'200  7. CHF 362'900"],ad(-60),{prot:true});}
-  if(!T.some(t=>t.id==="t8")){T.push(Object.assign({},base,{id:"t8",title:{de:"Sanierung Werkhof",en:"Depot refurbishment"},client:"Gemeinde Horgen",proc:"einl",cost:1.4,qDue:ad(-150),due:ad(-130),sub:ad(-131),subAt:"11:45",subForm:"post",status:"gewonnen",
+  if(!T.some(t=>t.id==="t8")){T.push(Object.assign({},base,{id:"t8",title:{de:"Sanierung Werkhof",en:"Depot refurbishment"},client:"Gemeinde Horgen",proc:"einl",cost:1.4,sig:"papier",qDue:ad(-150),due:ad(-130),sub:ad(-131),subAt:"11:45",subForm:"post",status:"gewonnen",
       res:{at:ad(-95),winner:F,win:184300,own:184300,low:176900,n:5,rank:2}}));
     await pdf("t8","Angebot Werkhof (Scan).pdf",["Angebot","Sanierung Werkhof",F],ad(-131),{submitted:true});}
-  if(!T.some(t=>t.id==="t6")){T.push(Object.assign({},base,{id:"t6",title:{de:"Neubau Alterszentrum",en:"New retirement centre"},client:"Stadt Adliswil",proc:"sel",cost:18.5,qDue:ad(2),due:ad(6),status:"arbeit",
+  if(!T.some(t=>t.id==="t6")){T.push(Object.assign({},base,{id:"t6",title:{de:"Neubau Alterszentrum",en:"New retirement centre"},client:"Stadt Adliswil",proc:"sel",cost:18.5,qDue:ad(2),due:ad(6),status:"arbeit",sig:"qes",
       pq:{sub:ad(-40),subAt:"10:05",form:"simap",sel:true,at:ad(-9),due:ad(-38),qDue:ad(-50),max:5},
       reqs:[{k:"refs",n:2,since:2014,minCost:2.5,pub:true,types:null},{k:"team",tag:"pl"},{k:"disc",need:["291"]}],
       docs:[{id:"d1",auto:"refs"},{id:"d2",auto:"team"},{id:"d3",auto:"self"},{id:"d8",de:"Handelsregisterauszug",en:"Commercial register extract"},{id:"d11",de:"Nachweis Berufshaftpflichtversicherung",en:"Professional liability insurance"},{id:"d6",de:"Honorarofferte (Honorarparameter SIA 102)",en:"Fee offer (SIA 102 parameters)"}],done:{d3:true},

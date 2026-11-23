@@ -1121,3 +1121,7 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 .tdocs li>span{min-width:0;overflow-wrap:anywhere;hyphens:auto}
 .pickres{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 @media (max-width:380px){.pickres{grid-template-columns:1fr}}
+.sigrow{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;margin-top:12px;font-size:.9375rem}
+.sigrow .sl2{color:var(--muted);font-size:.875rem}
+.tsrc .notice{margin-top:10px}
+.muted{color:var(--muted)}

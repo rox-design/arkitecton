@@ -40,7 +40,7 @@ const STD_BKP=[["211","Baumeisterarbeiten","Building shell works"],["214","Monta
 const EX_BKP_EXTRA=[["112","Abbrüche","Demolition",18000],["421","Gärtnerarbeiten","Garden works",38000],["511","Bewilligungen, Baugespann, Gebühren","Permits, fees",12500],["531","Bauzeitversicherungen","Construction insurance",6500]];
 const DISC={"291":{de:"Architektur/Baumanagement",en:"Architecture/construction management"},"292":{de:"Bauingenieurwesen",en:"Structural engineering"}};
 const ROLES={inhaber:{de:"Inhaber",en:"Owner"},pl:{de:"Projektleiter",en:"Project lead"},bl:{de:"Bauleiter",en:"Site manager"},arch:{de:"Architekt",en:"Architect"},zeich:{de:"Zeichner",en:"Draughtsman"}};
-const XQ={blfa:{de:"Bauleiter mit eidg. Fachausweis",en:"Site manager, federal certificate"},pub:{de:"Erfahrung öffentliche Bauten",en:"Public buildings experience"},sia:{de:"SIA-Mitglied",en:"SIA member"},rega:{de:"REG A",en:"REG A"}};
+const XQ={blfa:{de:"Bauleiter mit eidg. Fachausweis",en:"Site manager, federal certificate"},pub:{de:"Erfahrung öffentliche Bauten",en:"Public buildings experience"},sia:{de:"SIA-Mitglied",en:"SIA member"},rega:{de:"REG A",en:"REG A"},qes:{de:"Qualifizierte elektronische Signatur (QES)",en:"Qualified electronic signature (QES)"}};
 const YNOW=()=>TODAY.getFullYear();
 const spanY=c=>Math.max(1,(c.to||YNOW())-c.from+1);
 const roleYears=(m,r)=>(m.career||[]).filter(c=>!r||c.role===r).reduce((a,c)=>a+spanY(c),0);

@@ -150,7 +150,7 @@ async function seedSubmittedTender(){
   if(!D.example||!D.tenders||D.tenders.some(t=>t.id==="t5"))return;
   await libsPDF();
   const ad=n=>addDays(iso(TODAY),n),sub=ad(-3),F=D.firm||{},tm=(D.office||{}).team||[],r1=(D.office.refs||[]).find(r=>r.id==="r1"),r3=(D.office.refs||[]).find(r=>r.id==="r3");
-  const t={id:"t5",title:{de:"Gesamtsanierung Schulhaus Dorf",en:"Full refurbishment, village school"},client:"Gemeinde Rüschlikon, Liegenschaften",proc:"offen",phases:"31–53",cost:3.4,qDue:ad(-24),due:ad(-2),sub,status:"eingereicht",subAt:"14:32",subForm:"simap",
+  const t={id:"t5",title:{de:"Gesamtsanierung Schulhaus Dorf",en:"Full refurbishment, village school"},client:"Gemeinde Rüschlikon, Liegenschaften",proc:"offen",phases:"31–53",cost:3.4,qDue:ad(-24),due:ad(-2),sub,status:"eingereicht",subAt:"14:32",subForm:"simap",sig:"qes",
     reqs:[{k:"refs",n:2,since:2016,minCost:2.5,pub:true,types:["schule"]},{k:"team",tag:"pl"},{k:"disc",need:["291"]}],
     docs:[{id:"d9",de:"Angebotsformular mit Angaben zur Unternehmung",en:"Bid form with company details",file:"01 Angebotsformular.pdf"},{id:"d3",auto:"self",file:"02 Selbstdeklaration.pdf"},
       {id:"d7",de:"Nachweis Steuern und Sozialabgaben",en:"Proof of taxes and social contributions",file:"03 Nachweis Steuern und Sozialabgaben.pdf"},{id:"d8",de:"Handelsregisterauszug",en:"Commercial register extract",file:"04 Handelsregisterauszug.pdf"},
@@ -219,6 +219,8 @@ function runMigrations(){
       (t.reqs||[]).forEach((r,i)=>{if(!r.src)r.src=L("Dossier, Kap. 6 Eignungskriterien, EK ","Dossier, ch. 6 qualification criteria, EK ")+(i+1);});});
     if(window.indexedDB)addDossiers().then(render).catch(e=>console.error(e));}}
   if(!D.mig.subT){D.mig.subT=1;if(D.example&&window.indexedDB)seedSubmittedTender().then(render).catch(e=>console.error(e));}
+  if(!D.mig.sig){D.mig.sig=1;if(D.example){D.firm.sigRule=D.firm.sigRule||"kollektiv2";const m1=((D.office||{}).team||[])[0];if(m1){m1.extra=m1.extra||[];if(!m1.extra.includes("qes"))m1.extra.push("qes");}
+    const S_={t1:"qes",t2:"qes",t3:"scan",t4:"qes",t5:"qes",t6:"qes",t7:"qes",t8:"papier"};(D.tenders||[]).forEach(t=>{if(!t.sig&&S_[t.id])t.sig=S_[t.id];});}}
   if(!D.mig.bids){D.mig.bids=1;if(D.example&&window.indexedDB)seedBids().then(render).catch(e=>console.error(e));}
   if(!D.mig.closedMail){D.mig.closedMail=1;if(D.example)[["Gemeinde Wädenswil, Bauamt","bauamt@waedenswil.example"],["Bauversicherung Zürichsee AG","schaden@bauversicherung-zs.example"]].forEach(([n,e])=>{const k=D.contractors.find(x=>x.name===n);if(k&&!k.email)k.email=e;});}
   /* signatures point to people in the office team: name and title are kept once, in the team */
@@ -310,7 +312,7 @@ function feeFormDef(F){
   return {title:f?L("Honorarrechnung bearbeiten","Edit fee invoice"):L("Neue Honorarrechnung","New fee invoice"),body};
 }
 function keepFeeFields(fn){const keep=["fNo","fDate","fTitle"].map(i=>[i,val(i)]),vat=(document.getElementById("fVatSel")||{}).value;fn();keep.forEach(([i,v])=>{const e=document.getElementById(i);if(e)e.value=v;});const c=document.getElementById("fVatSel");if(c&&vat!=null)c.value=vat;feeCalcUpdate();}
-function readFirmForm(){if(!S.form||S.form.f!=="firm")return;const g=i=>val(i);Object.assign(S.form,{tmp:{fName:g("fName"),fStreet:g("fStreet"),fZip:g("fZip"),fCity:g("fCity"),fIban:g("fIban"),fEmail:g("fEmail"),fPhone:g("fPhone"),fVatNo:g("fVatNo"),fVat:(document.getElementById("fVat")||{}).checked}});}
+function readFirmForm(){if(!S.form||S.form.f!=="firm")return;const g=i=>val(i);Object.assign(S.form,{tmp:{fName:g("fName"),fStreet:g("fStreet"),fZip:g("fZip"),fCity:g("fCity"),fIban:g("fIban"),fEmail:g("fEmail"),fPhone:g("fPhone"),fVatNo:g("fVatNo"),fVat:(document.getElementById("fVat")||{}).checked,fSigRule:g("fSigRule")}});}
 function readFeeLines(){const F=S.form;if(!F||!F.lines)return;F.lines=F.lines.map((l,i)=>({t:val("lt"+i),q:val("lq"+i),u:val("lu"+i),p:val("lp"+i)}));}
 function feeCalcUpdate(){
   const F=S.form;if(!F||F.f!=="fee")return;readFeeLines();

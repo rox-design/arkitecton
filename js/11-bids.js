@@ -43,21 +43,24 @@ const crewRole=c=>CREWR[c.role]?L(...CREWR[c.role]):(c.t||L("Rolle","Role"));
 const crewMember=c=>c.m?(((D.office||{}).team)||[]).find(x=>x.id===c.m)||null:null;
 const crewName=c=>{const m=crewMember(c);return m?m.name+(c.pct?" ("+c.pct+" %)":""):L("offen","open");};
 /* the same person planned in other open tenders */
-function crewElsewhere(t,mid){return D.tenders.filter(x=>x!==t&&(x.status==="neu"||x.status==="arbeit")&&(x.crew||[]).some(c=>c.m===mid));}
+/* tenders that can still bind people: in preparation, or submitted with the decision pending */
+const bindsT=x=>x.status==="neu"||x.status==="arbeit"||x.status==="eingereicht"||x.status==="pq";
+function crewElsewhere(t,mid){return D.tenders.filter(x=>x!==t&&bindsT(x)&&(x.crew||[]).some(c=>c.m===mid));}
 const memberInfo=m=>{const cr=curRole(m),y=cr?roleYears(m,cr):roleYears(m);return [cr?tx(ROLES[cr]):"",y?yrs(y):"",(m.extra||[]).includes("blfa")?L("eidg. Fachausweis","federal certificate"):"",(m.extra||[]).includes("qes")?"QES":""].filter(Boolean).join(" · ");};
 /* workload of one person over this and the other open tenders */
 function crewLoad(t,mid){const here=crewOf(t).filter(c=>c.m===mid),oth=crewElsewhere(t,mid).map(x=>[x,(x.crew||[]).filter(c=>c.m===mid)]);
   const sum=a=>a.reduce((s,c)=>s+(c.pct||0),0),tot=sum(here)+oth.reduce((s,[,cs])=>s+sum(cs),0);
-  return {here:sum(here),oth,tot,known:here.concat(...oth.map(o=>o[1])).some(c=>c.pct)};}
+  const all=here.concat(...oth.map(o=>o[1]));
+  return {here:sum(here),hereMiss:here.some(c=>!c.pct),oth,tot,known:all.some(c=>c.pct),miss:all.filter(c=>!c.pct).length};}
 function crewBlock(t,c){
   const cr=crewOf(t),set=cr.filter(x=>x.m).length;
   const rows=cr.map((x,i)=>{const m=crewMember(x),oth=m?crewElsewhere(t,m.id):[];
     const ld=m&&oth.length?crewLoad(t,m.id):null,hot=ld&&ld.tot>100;
-    return row({act:"form",id:t.id,c:m?(hot?"crit":oth.length?"warn":"ok"):"n",title:esc(crewRole(x)),meta:m?esc(m.name)+" · "+esc(memberInfo(m)):L("noch niemand zugewiesen","nobody assigned yet"),amt:x.pct?x.pct+" %":"",label:ld?(ld.known?L("zusammen ","total ")+ld.tot+" %":L("auch bei "+oth.length+" anderen","also in "+oth.length+" others")):m?"":L("zuweisen","assign"),lc:hot?"crit":ld?"warn":"acc"}).replace('data-act="form"',`data-act="form" data-f="crew"${c?" disabled":""}`);}).join("");
+    return row({act:"form",id:t.id,c:m?(hot?"crit":"ok"):"n",title:esc(crewRole(x)),meta:m?esc(m.name)+" · "+esc(memberInfo(m)):L("noch niemand zugewiesen","nobody assigned yet"),amt:x.pct?x.pct+" %":"",label:ld?(ld.known?(ld.miss?L("mind. ","at least "):L("geplant ","planned "))+ld.tot+" %":L("auch bei "+oth.length+" anderen","also in "+oth.length+" others")):m?"":L("zuweisen","assign"),lc:hot?"crit":ld?"n":"acc"}).replace('data-act="form"',`data-act="form" data-f="crew"${c?" disabled":""}`);}).join("");
   const seen={},over=cr.map(crewMember).filter(m=>m&&!seen[m.id]&&(seen[m.id]=1)).map(m=>[m,crewLoad(t,m.id)]).filter(([,l])=>l.oth.length);
-  const pc=v=>v?v+" %":L("ohne Pensum","no workload");
+  const pc=(v,miss)=>v?v+" %":L("ohne Pensum","no workload");const wait=x=>waitT(x)?L(" (Entscheid offen)"," (decision pending)"):"";
   return `<section class="crew"><div class="sh"><h2>${L("Team für diese Ausschreibung","Team for this tender")}</h2><span class="cnt">${set}/${cr.length}</span><span class="right">${c?"":ib("edit",L("Team bearbeiten","Edit team"),`data-act="form" data-f="crew" data-id="${t.id}"`)}</span></div>
-    <div class="rows">${rows}</div>${over.length?`<ul class="load">${over.map(([m,l])=>`<li><b>${esc(m.name)}</b>: ${L("hier ","here ")+pc(l.here)}, ${l.oth.map(([x,cs])=>esc(tx(x.title))+" "+pc(cs.reduce((a,c)=>a+(c.pct||0),0))).join(", ")}${l.known?` · <span class="l-${l.tot>100?"crit":"n"}">${L("zusammen ","total ")+l.tot+" %"}${l.tot>100?L(", überbucht",", overbooked"):""}</span>`:""}</li>`).join("")}</ul>`:""}</section>`;
+    <div class="rows">${rows}</div>${over.length?`<ul class="load">${over.map(([m,l])=>`<li><b>${esc(m.name)}</b>: ${L("hier ","here ")+pc(l.here)}, ${l.oth.map(([x,cs])=>esc(tx(x.title))+wait(x)+" "+pc(cs.reduce((a,c)=>a+(c.pct||0),0))).join(", ")}${l.known?` · <span class="l-${l.tot>100?"crit":"n"}">${(l.miss?L("mindestens ","at least "):L("geplant ","planned "))+l.tot+" %"}${l.miss?", "+l.miss+" "+(l.miss===1?L("Pensum fehlt","workload missing"):L("Pensen fehlen","workloads missing")):""}${l.tot>100?L(", überbucht",", overbooked"):""}</span>`:""}</li>`).join("")}</ul><p class="zktip">${L("Geplant heisst: falls alle Zuschläge kommen. Laufende Projekte sind nicht eingerechnet.","Planned means: if every award comes. Running projects are not included.")}</p>`:""}</section>`;
 }
 
 /* tasks of the office around tenders, shown on the start page */

@@ -1064,3 +1064,28 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 .calc3,.calc3 .csum{row-gap:0}
 .calc3>span:not(.cexp){padding:4px 0}
 .calc3 .csum{margin-top:10px}
+
+/* tender: source and award criteria */
+.tsrc .tsrow{padding:10px 0 4px}
+.srclink{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.src2{display:block;font-size:.75rem;color:var(--muted);margin-top:2px}
+.zk .notice{margin:12px 0 4px}
+.zkrow{padding:14px 0;border-bottom:1px solid var(--line)}
+.zkh{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.zkn{font-weight:500}
+.zkw{font-variant-numeric:tabular-nums;color:var(--muted)}
+.zkbar{height:4px;border-radius:2px;background:var(--line);margin:8px 0 10px;overflow:hidden}
+.zkbar i{display:block;height:100%;background:var(--ink)}
+.zkme{display:inline-flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:999px}
+.zkme button{all:unset;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:.8125rem;color:var(--muted);min-height:20px}
+.zkme button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.zkme button:disabled{cursor:default;opacity:.6}
+.zktip{margin:10px 0 0;font-size:.8125rem;color:var(--muted);line-height:1.45}
+.zkfoot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 16px;padding-top:12px;font-size:.875rem;color:var(--muted)}
+.zkfoot b{color:var(--ink);font-weight:500}
+.zkline{display:grid;grid-template-columns:minmax(0,1fr) 96px 150px 34px;gap:8px 12px;align-items:end;padding:8px 0;border-bottom:1px solid var(--line)}
+.zkline .fc{display:block;font-size:inherit;color:inherit}
+.zkline .fc>span{display:block;font-size:.75rem;color:var(--muted);margin-bottom:2px}
+.zkline .fc input,.zkline .fc select{width:100%;box-sizing:border-box}
+@media (max-width:820px){.zkline{grid-template-columns:96px minmax(0,1fr) 40px;grid-template-areas:"t t x" "w y y"}.zkline>input{grid-area:t}.zkline>label:nth-of-type(1){grid-area:w}.zkline>label:nth-of-type(2){grid-area:y}.zkline>:last-child{grid-area:x;justify-self:end}}
+@media (max-width:820px){.zkme button{padding:9px 14px}}

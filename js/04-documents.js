@@ -16,7 +16,7 @@ const fsize=b=>b>=1048576?(b/1048576).toFixed(1).replace(".0","")+" MB":Math.max
 function docValid(d){if(!d.until)return null;const n=daysTo(d.until),gs=d.kind==="gs";return n<0?{c:"crit",t:gs?L("Garantie abgelaufen","warranty expired"):L("abgelaufen","expired")}:n<=dkWarnDays(d.kind)?gs?{c:"warn",t:L("Garantie endet in "+n+" "+dayWord(n),"warranty ends in "+n+" days")}:{c:"warn",t:L("läuft ab in "+n+" "+dayWord(n),"expires in "+n+" "+(n===1?"day":"days"))}:{c:"ok",t:L("gültig bis ","valid until ")+fdate(d.until)};}
 function docsBlock(scope,ref,title,hint){
   const rk=d=>{const v=docValid(d);return v?{crit:0,warn:1,ok:2}[v.c]:3;};
-  const list=docsFor(scope,ref).sort((a,b)=>scope==="firm"?rk(a)-rk(b):0);
+  const list=docsFor(scope,ref).filter(d=>!d.dossier).sort((a,b)=>scope==="firm"?rk(a)-rk(b):0);
   const rows=list.map(d=>{const v=docValid(d);return `<div class="drow"><button type="button" class="dopen" data-act="doc-open" data-id="${d.id}"><span class="dk">${esc(kindOf(d.name))}</span><span class="dn">${esc(d.name)}</span><span class="dm">${fsize(d.size||0)} · ${fdate(d.date)}${v?` · <span class="l-${v.c}">${v.t}</span>`:""}</span></button>${ib("edit",L("Gültigkeit","Validity"),`data-act="form" data-f="docvalid" data-id="${d.id}"`)}${S.confirm==="ddel:"+d.id?`<button type="button" class="ghost danger" data-act="doc-del" data-id="${d.id}">${L("Löschen?","Delete?")}</button>`:ib("trash",L("Dokument löschen","Delete document"),`data-act="ask" data-c="ddel:${d.id}"`)}</div>`;}).join("");
   return `<section class="docs"><div class="sh"><h2>${title}</h2><span class="cnt">${list.length}</span><span class="right"><label class="ib" data-tip="${L("Dokumente hinzufügen: PDF, Word, Excel oder Bild, auch mehrere auf einmal","Add documents: PDF, Word, Excel or image, several at once")}" aria-label="${L("Dokument hinzufügen","Add document")}">${ico("plus")}<input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png" data-imp="doc" data-id="${scope}|${ref}"></label></span></div>
     ${rows?`<div class="dlist">${rows}</div>`:`<div class="empty">${hint||L("Noch keine Dokumente. PDF, Word, Excel oder Bilder mit ＋ hinzufügen.","No documents yet. Add PDF, Word, Excel or images with ＋.")}</div>`}</section>`;
@@ -70,8 +70,8 @@ function docsGrouped(scope,ref,title,hint){
     ${body||`<div class="empty">${hint}</div>`}</section>`;
 }
 async function addDocs(files,key){
-  const [scope,ref]=key.split("|");let n=0;
-  for(const f of files){const id=newId("f");await FDB.put(id,f);const d={id,scope,ref,name:f.name,type:f.type,size:f.size,date:iso(TODAY)};if(scope==="project"||scope==="contractor")d.kind=guessDocKind(f.name);DOCS().push(d);n++;}
+  let [scope,ref]=key.split("|");let n=0;const dossier=scope==="tdos";if(dossier)scope="tender";
+  for(const f of files){const id=newId("f");await FDB.put(id,f);const d={id,scope,ref,name:f.name,type:f.type,size:f.size,date:iso(TODAY)};if(scope==="project"||scope==="contractor")d.kind=guessDocKind(f.name);if(dossier)d.dossier=true;DOCS().push(d);n++;}
   render();toast(n===1?L("Dokument gespeichert","Document saved"):n+L(" Dokumente gespeichert"," documents saved"));
 }
 async function openDoc(id){
@@ -91,6 +91,15 @@ function samplePdf(lines){
   return new Blob([out],{type:"application/pdf"});
 }
 /* example: a warranty bond running out and an insurance certificate, so the deadlines show under «Zu erledigen» */
+/* example: a tender dossier PDF for two tenders, with qualification and award criteria as in a real dossier */
+async function addDossiers(){
+  for(const t of (D.tenders||[]).filter(x=>["t1","t2"].includes(x.id))){
+    if(DOCS().some(d=>d.scope==="tender"&&d.ref===t.id&&d.dossier))continue;
+    const lines=["Ausschreibungsunterlagen",tx(t.title),t.client||"","","6 Eignungskriterien"].concat((t.reqs||[]).map((r,i)=>"EK "+(i+1)+": "+evalReq(r).t),["","7 Zuschlagskriterien"],(t.zk||[]).map((z,i)=>"ZK "+(i+1)+": "+z.t+" "+z.w+" %"));
+    const b=samplePdf(lines.concat(["","Beispieldokument, fiktive Daten."]));const id=newId("f");await FDB.put(id,b);
+    DOCS().push({id,scope:"tender",ref:t.id,dossier:true,name:"Ausschreibungsunterlagen "+tx(t.title)+".pdf",type:"application/pdf",size:b.size,date:addDays(iso(TODAY),-10)});}
+  saveData();
+}
 async function addDocs3(){
   const ad=n=>addDays(iso(TODAY),n),p1=D.projects.find(p=>p.id==="p1")||D.projects[0];if(!p1)return;
   const onP=nm=>D.contractors.find(c=>c.name.startsWith(nm)&&D.contracts.some(w=>w.k===c.id&&w.pid===p1.id))||D.contractors.find(c=>D.contracts.some(w=>w.k===c.id&&w.pid===p1.id));
@@ -202,6 +211,13 @@ function runMigrations(){
   if(!D.mig.docs2){D.mig.docs2=1;DOCS().forEach(d=>{if(d.scope!=="contractor")return;const ps=[...new Set(D.contracts.filter(w=>w.k===d.ref).map(w=>w.pid))];d.kind=d.kind||guessDocKind(d.name);if(ps.length===1){d.scope="doc";d.kid=d.ref;d.pid=ps[0];d.ref=ps[0];}});}
   if(!D.mig.docs3){D.mig.docs3=1;DOCS().forEach(d=>{if(d.kind==="br"&&/baugesuch|bewilligung|auflage/i.test(d.name))d.kind="bw";});
     if(D.example&&window.indexedDB)addDocs3().then(render).catch(e=>console.error(e));}
+  if(!D.mig.tzk){D.mig.tzk=1;if(D.example){
+    const Z={t1:[["analyse",35],["team",25],["ref",15],["preis",25]],t2:[["analyse",30],["team",20],["ref",20],["preis",30]],t3:[["analyse",40],["team",20],["ref",10],["preis",30]],t4:[["analyse",30],["team",30],["ref",20],["preis",20]]};
+    const ME={t1:["m","s","s","m"],t2:["s","s","m","w"]};
+    (D.tenders||[]).forEach(t=>{if(!t.src)t.src={url:"https://www.simap.ch",id:L("Beispiel","Example")};
+      if(!t.zk&&Z[t.id])t.zk=Z[t.id].map(([typ,w],i)=>({typ,t:L(...ZKT[typ]),w,me:(ME[t.id]||[])[i]||""}));
+      (t.reqs||[]).forEach((r,i)=>{if(!r.src)r.src=L("Dossier, Kap. 6 Eignungskriterien, EK ","Dossier, ch. 6 qualification criteria, EK ")+(i+1);});});
+    if(window.indexedDB)addDossiers().then(render).catch(e=>console.error(e));}}
   if(!D.mig.subT){D.mig.subT=1;if(D.example&&window.indexedDB)seedSubmittedTender().then(render).catch(e=>console.error(e));}
   if(!D.mig.closedMail){D.mig.closedMail=1;if(D.example)[["Gemeinde Wädenswil, Bauamt","bauamt@waedenswil.example"],["Bauversicherung Zürichsee AG","schaden@bauversicherung-zs.example"]].forEach(([n,e])=>{const k=D.contractors.find(x=>x.name===n);if(k&&!k.email)k.email=e;});}
   /* signatures point to people in the office team: name and title are kept once, in the team */

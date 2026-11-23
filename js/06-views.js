@@ -406,6 +406,27 @@ function viewPerson(m,tsw){
   </div>`;
 }
 
+/* where the tender comes from: the publication on simap.ch and the downloaded dossier, from which the criteria are taken */
+function tenderSource(t,c){
+  const src=t.src||{},dos=docsFor("tender",t.id).filter(d=>d.dossier);
+  const link=src.url?`<a class="srclink" href="${esc(src.url)}" target="_blank" rel="noopener">${L("Publikation auf simap.ch","Publication on simap.ch")}${src.id?` · ${L("Projekt-ID ","Project ID ")}${esc(src.id)}`:""} ↗</a>`:`<span class="muted">${L("Noch kein Link zur Publikation","No link to the publication yet")}</span>`;
+  return `<section class="tsrc docs"><div class="sh"><h2>${L("Ausschreibung","Tender")}</h2><span class="right">${c?"":ib("edit",L("Link bearbeiten","Edit link"),`data-act="form" data-f="tsrc" data-id="${t.id}"`)}<label class="ib" data-tip="${L("Ausschreibungsunterlagen (Dossier) als PDF ablegen","Add the tender dossier as PDF")}" aria-label="${L("Dossier ablegen","Add dossier")}">${ico("plus")}<input type="file" multiple accept=".pdf,.doc,.docx,.zip" data-imp="doc" data-id="tdos|${t.id}"></label></span></div>
+    <div class="tsrow">${link}</div>
+    ${dos.length?`<div class="dlist">${dos.map(d=>`<div class="drow"><button type="button" class="dopen" data-act="doc-open" data-id="${d.id}"><span class="dk">${esc(kindOf(d.name))}</span><span class="dn">${esc(d.name)}</span><span class="dm">${L("Dossier","Dossier")} · ${fsize(d.size||0)} · ${fdate(d.date)}</span></button>${S.confirm==="ddel:"+d.id?`<button type="button" class="ghost danger" data-act="doc-del" data-id="${d.id}">${L("Löschen?","Delete?")}</button>`:ib("trash",L("Dokument löschen","Delete document"),`data-act="ask" data-c="ddel:${d.id}"`)}</div>`).join("")}</div>`
+      :`<div class="empty">${L("Ausschreibungsunterlagen von simap.ch herunterladen und mit ＋ ablegen. Daraus stammen die Eignungs- und Zuschlagskriterien.","Download the dossier from simap.ch and add it with ＋. The criteria come from it.")}</div>`}</section>`;
+}
+/* award criteria: weight, own assessment, the biggest lever, and what earns points */
+function tenderAward(t,c){
+  const zk=t.zk||[],S_=zkSum(t);
+  const head=`<div class="sh"><h2>${L("Zuschlagskriterien","Award criteria")}</h2><span class="legend-s">${L("entscheiden, wer gewinnt","decide who wins")}</span><span class="right">${c?"":ib("edit",L("Kriterien bearbeiten","Edit criteria"),`data-act="form" data-f="zk" data-id="${t.id}"`)}</span></div>`;
+  if(!zk.length)return `<section class="zk">${head}<div class="empty">${L("Zuschlagskriterien mit Gewichtung aus dem Dossier übernehmen. Dann zeigt arkitecton, wo Sie am meisten Punkte holen.","Enter the award criteria with weights from the dossier.")}${c?"":`<button type="button" class="btn" data-act="form" data-f="zk" data-id="${t.id}">${L("Kriterien erfassen","Add criteria")}</button>`}</div></section>`;
+  const sum=S_.lever?`<div class="notice"><span class="ic warn" aria-hidden="true">!</span><span>${L("Grösster Hebel: ","Biggest lever: ")}<b>${esc(S_.lever.t)}</b> (${S_.lever.w} %)${S_.lever.me?" · "+L("heute ","now ")+L(ZKME[S_.lever.me][1],ZKME[S_.lever.me][2]):" · "+L("noch nicht eingeschätzt","not assessed yet")}</span></div>`:`<div class="notice"><span class="ic ok" aria-hidden="true">✓</span><span>${L("Bei allen Kriterien stark","Strong on all criteria")}</span></div>`;
+  const rows=zk.map((z,i)=>`<div class="zkrow"><div class="zkh"><span class="zkn">${esc(z.t)}</span><span class="zkw">${+z.w||0} %</span></div><div class="zkbar"><i style="width:${Math.min(100,+z.w||0)}%"></i></div>
+    <div class="zkme" role="group" aria-label="${L("Eigene Einschätzung","Own assessment")}">${Object.keys(ZKME).map(k=>`<button type="button" data-act="zk-me" data-id="${t.id}" data-i="${i}" data-v="${k}" aria-pressed="${z.me===k}"${c?" disabled":""}>${L(ZKME[k][1],ZKME[k][2])}</button>`).join("")}</div>
+    <p class="zktip">${esc(zkHint(t,z))}</p></div>`).join("");
+  const foot=`<div class="zkfoot"><span>${L("Gewichtung total ","Total weight ")}${S_.tot} %${S_.tot!==100?` <span class="l-warn">${L("· sollte 100 % sein","· should be 100 %")}</span>`:""}</span>${S_.pct!=null?`<span>${L("Eigene Einschätzung: ","Own assessment: ")}<b>${S_.pct} %</b> ${L("der möglichen Punkte","of possible points")}</span>`:""}</div>`;
+  return `<section class="zk">${head}${sum}${rows}${foot}</section>`;
+}
 function viewTender(t){
   const {ev,fit}=fitOf(t), docs=docsOf(t), dd=daysTo(t.due), c=closedT(t), open=docs.filter(d=>!d.done);
   const ICON={ok:"✓",warn:"!",crit:"✕"};
@@ -421,10 +442,12 @@ function viewTender(t){
       <div class="stat"><span class="sl">${L("Eignung","Eligibility")}</span><span class="sv ${FIT[fit].c}">${tx(FIT[fit])}</span><span class="ss">${ev.filter(e=>e.s==="ok").length} ${L("von","of")} ${ev.length} ${L("Kriterien","criteria")}</span></div>
       <div class="stat"><span class="sl">${L("Baukosten","Construction cost")}</span><span class="sv">${mio(t.cost)}</span><span class="ss">BKP 291</span></div>
     </div>
+    ${tenderSource(t,c)}
     <div class="cols">
-      <section><div class="sh"><h2>${L("Eignung","Eligibility")}</h2></div><ul class="checks">${ev.map(e=>`<li><span class="ic ${e.s}" aria-hidden="true">${ICON[e.s]}</span><span>${esc(e.t)}<span class="res">${esc(e.res)}</span></span></li>`).join("")}</ul></section>
+      <section><div class="sh"><h2>${L("Eignung","Eligibility")}</h2><span class="legend-s">${L("muss erfüllt sein","must be met")}</span></div><ul class="checks">${ev.map((e,ix)=>`<li><span class="ic ${e.s}" aria-hidden="true">${ICON[e.s]}</span><span>${esc(e.t)}<span class="res">${esc(e.res)}</span>${t.reqs[ix]&&t.reqs[ix].src?`<span class="src2">${L("Quelle: ","Source: ")}${esc(t.reqs[ix].src)}</span>`:""}</span></li>`).join("")}</ul></section>
       <section><div class="sh"><h2>${L("Unterlagen","Documents")}</h2><span class="cnt">${docs.length-open.length}/${docs.length}</span>${docs.some(d=>!d.auto)&&!c?`<span class="legend-s">${L("Kästchen selbst abhaken","Tick the boxes yourself")}</span>`:""}</div><ul class="checks">${docs.map(d=>`<li>${d.auto?`<span class="ic ${d.done?"ok":"crit"}" aria-hidden="true">${d.done?"✓":"✕"}</span>`:`<input type="checkbox" id="doc-${d.id}" data-act="t-doc" data-t="${t.id}" data-d="${d.id}"${d.done?" checked":""}${c?" disabled":""}>`}<label${d.auto?"":` for="doc-${d.id}"`}>${esc(d.t)}${d.sub?`<span class="res">${d.auto&&d.done?L("Automatisch: ","Automatic: "):""}${esc(d.sub)}</span>`:""}</label>${d.file?`<button type="button" class="ghost tfile" data-act="doc-open" data-id="${d.file.id}">${L("Öffnen","Open")}</button>`:""}</li>`).join("")}</ul></section>
     </div>
+    ${tenderAward(t,c)}
     ${docsBlock("tender",t.id,L("Dateien","Files"),L("Ausschreibungsunterlagen, Fragen und Antworten, eigene Entwürfe mit ＋ ablegen.","Store tender documents and drafts with ＋."))}
     <div class="bar-actions">${t.status==="arbeit"&&!c?(fit==="no"?`<span class="act-hint">${L("Eignung nicht erfüllt","Not eligible")}</span>`:open.length?`<span class="act-hint">${L("Noch ","Still ")+open.length+" "+(open.length===1?L("Unterlage offen","document open"):L("Unterlagen offen","documents open"))}</span>`:""):""}${actions}</div>
   </div>`;

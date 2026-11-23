@@ -118,6 +118,9 @@ document.addEventListener("click",e=>{
     case "team-go":S.mid=null;go("einstellungen");requestAnimationFrame(()=>{const t=document.getElementById("team");if(t)t.scrollIntoView({block:"start"});});break;
     case "scan-menu":closeAll();S.sheet="scan";renderOverlay();break;
     case "undo":if(undoSnap){D=JSON.parse(undoSnap.d);undoSnap=null;closeAll();saveData();render();toast(L("Rückgängig gemacht","Undone"));}break;
+    case "zk-me":{const t=D.tenders.find(x=>x.id===id),z=t&&t.zk[+el.dataset.i];if(z){z.me=z.me===el.dataset.v?"":el.dataset.v;render();}break;}
+    case "zk-add":readZk();S.form.lines.push({typ:"andere",t:"",w:""});renderOverlay();break;
+    case "zk-del":readZk();S.form.lines.splice(+el.dataset.c,1);renderOverlay();break;
     case "calc-info":calcTip(el,!el.classList.contains("on"));break;
     case "dscan":dscanOpen({pid:el.dataset.pid,kid:el.dataset.kid});break;
     case "ds-close":dscanClose();break;

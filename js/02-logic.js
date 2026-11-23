@@ -129,6 +129,21 @@ function missingTasks(){
 const mio=n=>"CHF "+nfq.format(n)+" Mio.";
 const closedT=t=>t.status==="eingereicht"||t.status==="verzichtet";
 const discName=d=>"BKP "+d+" "+tx(DISC[d]);
+/* award criteria (Zuschlagskriterien): weight in %, the office's own assessment, and a hint where points come from */
+const ZKT={preis:["Preis / Honorar","Price / fee"],analyse:["Auftragsanalyse und Vorgehen","Task analysis and approach"],team:["Schlüsselpersonen","Key persons"],ref:["Referenzen","References"],andere:["Weiteres","Other"]};
+const ZKME={s:[1,"stark","strong"],m:[.6,"mittel","medium"],w:[.25,"schwach","weak"]};
+function zkHint(t,z){
+  if(z.typ==="ref"){const r=(t.reqs||[]).find(x=>x.k==="refs");const ev=r?evalReq(r):null;const names=ev&&ev.refs&&ev.refs.length?ev.refs.map(x=>tx(x)).join(", "):D.office.refs.filter(x=>!x.running).slice(0,2).map(x=>tx(x)).join(", ");
+    return L("Referenzen wählen, die in Art, Grösse und Bauherrschaft möglichst genau passen","Choose references that match type, size and client")+(names?L(". Passend: ",". Matching: ")+names:"")+".";}
+  if(z.typ==="team"){const m=D.office.team.slice(0,2).map(x=>x.name+(x.qual?" ("+x.qual+")":"")).join(", ");return L("Schlüsselpersonen mit Erfahrung bei ähnlichen Bauten nennen und ihre Rolle im Projekt klar beschreiben","Name key persons with similar experience and their role")+(m?L(". Im Team: ",". In the team: ")+m:"")+".";}
+  if(z.typ==="analyse")return L("Die Aufgabe in eigenen Worten wiedergeben, Risiken und Vorgehen konkret auf dieses Projekt beziehen, nicht allgemein.","Restate the task, address risks and approach specifically for this project.");
+  if(z.typ==="preis")return L("Honorar je Phase nachvollziehbar aufbauen. Die Preisformel steht im Dossier: Wie stark ein tieferer Preis zählt, hängt davon ab.","Build the fee per phase; the price formula in the dossier decides how much a lower price counts.");
+  return L("Was hier verlangt wird, steht im Dossier.","See the dossier for what is required.");
+}
+function zkSum(t){const zk=t.zk||[],tot=zk.reduce((a,z)=>a+(+z.w||0),0);
+  const rated=zk.filter(z=>z.me),pts=rated.reduce((a,z)=>a+(+z.w||0)*ZKME[z.me][0],0),rw=rated.reduce((a,z)=>a+(+z.w||0),0);
+  const lever=zk.filter(z=>z.me!=="s").sort((a,b)=>(+b.w||0)-(+a.w||0))[0]||null;
+  return {tot,rated:rated.length,pct:rw?Math.round(pts/rw*100):null,lever};}
 function evalReq(r){
   const O=D.office;
   if(r.k==="refs"){

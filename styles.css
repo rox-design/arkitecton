@@ -1125,3 +1125,4 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 .sigrow .sl2{color:var(--muted);font-size:.875rem}
 .tsrc .notice{margin-top:10px}
 .muted{color:var(--muted)}
+@media (max-width:600px){.ph:has(.tools>:nth-child(3)){grid-template-columns:1fr;gap:12px}}

@@ -2,7 +2,7 @@
 "use strict";
 
 /* ---------- chrome ---------- */
-const VIEWS=["buero","uebersicht","rechnungen","handwerker","budget","ausschreibungen","einstellungen"];
+const VIEWS=["buero","uebersicht","rechnungen","handwerker","budget","ausschreibungen","profil","einstellungen"];
 const NAV_ICO={
 buero:'<path d="M4 10.5 12 4l8 6.5V20H4Z"/><path d="M10 20v-5h4v5"/>',
 uebersicht:'<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
@@ -10,6 +10,7 @@ rechnungen:'<path d="M6.5 3h8l3.5 3.5V21h-11.5Z"/><path d="M14 3v4h4"/><path d="
 handwerker:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20.5c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/>',
 budget:'<path d="M4 20h16"/><path d="M7 20v-6"/><path d="M12 20V8"/><path d="M17 20v-9"/>',
 ausschreibungen:'<path d="M6 21V4"/><path d="M6 4h11l-2 4 2 4H6"/>',
+profil:'<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16.2c.6-1.7 1.8-2.5 3.2-2.5s2.6.8 3.2 2.5"/><path d="M14.5 10h3.5M14.5 13.5h3.5"/>',
 einstellungen:'<g stroke-width="1.35"><path d="M4 6.5h2.4M10.6 6.5H20"/><circle cx="8.5" cy="6.5" r="2.1"/><path d="M4 12h9.4M17.6 12H20"/><circle cx="15.5" cy="12" r="2.1"/><path d="M4 17.5h4.9M13.1 17.5H20"/><circle cx="11" cy="17.5" r="2.1"/></g>',
 scan:'<path d="M3.5 7.5v-3a1 1 0 0 1 1-1h3"/><path d="M16.5 3.5h3a1 1 0 0 1 1 1v3"/><path d="M20.5 16.5v3a1 1 0 0 1-1 1h-3"/><path d="M7.5 20.5h-3a1 1 0 0 1-1-1v-3"/><rect x="7" y="7" width="4" height="4" rx=".6"/><rect x="13" y="7" width="4" height="4" rx=".6"/><rect x="7" y="13" width="4" height="4" rx=".6"/><path d="M13.5 13.5h1.2v1.2h-1.2zM16 16h1v1h-1zM13.5 16.3h.9"/>',
 pin:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9 4.5v15"/>'};
@@ -19,12 +20,12 @@ const NAV_MORE=()=>({uebersicht:L("Projekt bearbeiten, Kostenübersicht","Edit p
 function navRow(v,extra=""){const pl=NAV_PLUS()[v],mo=NAV_MORE()[v];
   return `<div class="nrow" style="--na:${(pl?24:0)+(mo?24:0)}px"><button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span>${extra}</button><span class="nact">${pl?`<button type="button" class="na" data-act="${pl[0]}"${pl[1]?` data-f="${pl[1]}"`:""} data-tip="${pl[2]}" aria-label="${pl[2]}">+</button>`:""}${mo?`<button type="button" class="na" data-act="nmore" data-v="${v}" data-tip="${mo}" aria-label="${L("Weitere Aktionen","More actions")}">···</button>`:""}</span></div>`;}
 const navIco=v=>`<svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICO[v]}</svg>`;
-const vName=v=>({buero:"Home",uebersicht:L("Projekt","Project"),rechnungen:L("Rechnungen","Invoices"),handwerker:L("Handwerker","Contractors"),budget:"Budget",ausschreibungen:L("Ausschreibungen","Tenders"),einstellungen:L("Einstellungen","Settings")})[v];
+const vName=v=>({buero:"Home",uebersicht:L("Projekt","Project"),rechnungen:L("Rechnungen","Invoices"),handwerker:L("Handwerker","Contractors"),budget:"Budget",ausschreibungen:L("Ausschreibungen","Tenders"),profil:L("Büroprofil","Office profile"),einstellungen:L("Einstellungen","Settings")})[v];
 function renderChrome(){
   document.documentElement.lang=S.lang;
   const p=P();
   const rs=document.getElementById("railScan");if(rs)rs.innerHTML=`<svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICO.scan}</svg><span>${L("QR scannen","Scan QR")}</span>`;if(rs)rs.setAttribute("aria-label",L("QR scannen","Scan QR"));
-  const firmLvl=S.view==="buero"||S.view==="ausschreibungen"||S.view==="einstellungen",tp=document.getElementById("topProj");tp.innerHTML=esc(firmLvl?(S.view!=="buero"?vName(S.view):((D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name"))):(p?p.name:L("Kein Projekt","No project")));
+  const firmLvl=S.view==="buero"||S.view==="ausschreibungen"||S.view==="profil"||S.view==="einstellungen",tp=document.getElementById("topProj");tp.innerHTML=esc(firmLvl?(S.view!=="buero"?vName(S.view):((D.firm&&D.firm.name)||L("Büroname ergänzen","Add firm name"))):(p?p.name:L("Kein Projekt","No project")));
   const sw=!firmLvl&&S.view!=="uebersicht";
   if(sw){tp.innerHTML+='<span class="cv" aria-hidden="true">⌄</span>';tp.dataset.act="sheet";tp.dataset.k="projects";tp.setAttribute("aria-haspopup","dialog");tp.title=L("Projekt wechseln","Switch project");}
   else{tp.dataset.act="home";tp.removeAttribute("aria-haspopup");tp.title="";}
@@ -38,7 +39,7 @@ function renderChrome(){
   const plist=open?activeProjects().map(x=>`<div class="nrow prow${x.id===D.pid?" cur":""}"><button type="button" data-act="pick-project" data-id="${x.id}"><span class="pi" aria-hidden="true">${x.fav?"★":"·"}</span><span>${esc(x.name)}</span></button><span class="nact"><button type="button" class="na" data-act="pmore" data-id="${x.id}" data-tip="${L("Favorit, umbenennen, Papierkorb","Favourite, rename, bin")}" aria-label="${L("Weitere Aktionen","More actions")}">···</button></span></div>`).join("")+`<div class="nrow prow"><button type="button" data-act="form-project"><span class="pi" aria-hidden="true">+</span><span>${L("Projekt erfassen","Add project")}</span></button></div>`:"";
   const tog=(cp||D.projects.length)?`<span class="chev" role="button" tabindex="0" data-act="ptoggle" aria-expanded="${open}" aria-label="${open?L("Projektliste schliessen","Close project list"):L("Alle Projekte anzeigen","Show all projects")}" data-tip="${open?L("Projektliste schliessen","Close project list"):L("Alle Projekte anzeigen","Show all projects")}">›</span>`:"";
   document.getElementById("nav").innerHTML=["uebersicht","rechnungen","handwerker","budget"].map(v=>navRow(v)).join("");void tog;void plist;
-  const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=navRow("buero")+navRow("ausschreibungen");
+  const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=navRow("buero")+navRow("ausschreibungen")+navRow("profil");
   const tb=(v,l)=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${l}</span></button>`;
   const firmTabs=["buero","ausschreibungen","einstellungen"].includes(S.view);
   /* one tab bar everywhere; Home is the logo and firm name at the top */
@@ -48,6 +49,7 @@ function renderChrome(){
 }
 const ph=(eyebrow,title,lead,tools)=>`<header class="ph">${P()&&eyebrow===esc(P().name)?`<button type="button" class="eyebrow pname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${eyebrow}<span class="cv" aria-hidden="true">⌄</span></button>`:`<span class="eyebrow">${eyebrow}</span>`}<h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;
 const ICO={
+profil:'<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16.2c.6-1.7 1.8-2.5 3.2-2.5s2.6.8 3.2 2.5"/><path d="M14.5 10h3.5M14.5 13.5h3.5"/>',
 spark:'<path d="M12 3.5c.5 3.6 1.9 5 5.5 5.5-3.6.5-5 1.9-5.5 5.5-.5-3.6-1.9-5-5.5-5.5 3.6-.5 5-1.9 5.5-5.5Z"/><path d="M18.5 14.5c.2 1.4.8 2 2.2 2.2-1.4.2-2 .8-2.2 2.2-.2-1.4-.8-2-2.2-2.2 1.4-.2 2-.8 2.2-2.2Z"/>',
 undo:'<path d="M9 7 4.5 11.5 9 16"/><path d="M5 11.5h9.5a5 5 0 0 1 0 10H12"/>',
 copy:'<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/>',

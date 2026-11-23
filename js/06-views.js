@@ -36,7 +36,8 @@ function viewFirm(){
     ${(()=>{const tr=tenderTaskRows(),n=tenderTasks().length;return n?`<section><div class="sh"><h2>${L("Zu erledigen bei Ausschreibungen","Tender to-dos")}</h2><span class="cnt">${n}</span></div><div class="rows">${tr}</div></section>`:"";})()}
     ${FEES().length?incomeSection():""}
     <section><div class="sh"><h2>${L("Projekte","Projects")}</h2><span class="cnt">${ps.filter(x=>!x.p.closed).length}</span><span class="right">${ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"')}</span></div><div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div>${(()=>{const dn=ps.filter(x=>x.p.closed);return dn.length?`<details class="pdone hdone"><summary>${L("Abgeschlossene Projekte","Completed projects")} <span class="cnt">${dn.length}</span></summary><div class="rows">${dn.map(x=>row({act:"open-project",id:x.p.id,c:"ok",title:esc(x.p.name),meta:x.p.place?esc(x.p.place):"",amt:"",label:""})).join("")}</div></details>`:"";})()}</section>
-    ${docsBlock("firm","firm",L("Unterlagen des Büros","Firm documents"),L("Handelsregister, Versicherung, AHV, Referenzen: einmal ablegen, für jede Bewerbung bereit. Mit Gültigkeit warnt arkitecton vor Ablauf.","Register extract, insurance, references: store once, ready for every bid."))}
+    ${(()=>{const O=D.office||{},fd=docsFor("firm","firm"),bad=fd.map(docValid).filter(v=>v&&v.c!=="ok"),cr=bad.some(v=>v.c==="crit");
+      return `<section><div class="sh"><h2>${L("Büroprofil","Office profile")}</h2></div><div class="rows">${row({act:"nav",v:"profil",c:bad.length?(cr?"crit":"warn"):"ok",title:L("Team, Referenzen, Unterlagen","Team, references, documents"),meta:[(O.team||[]).length+" "+L("Personen","people"),(O.refs||[]).length+" "+L("Referenzen","references"),fd.length+" "+L("Unterlagen","documents")].join(" · "),amt:"",label:bad.length?bad.length+" "+(cr?L("abgelaufen oder bald","expired or soon"):L("laufen bald ab","expiring soon")):"",lc:cr?"crit":"warn"})}</div></section>`;})()}
   </div>`;
 }
 function viewOverview(){
@@ -244,7 +245,6 @@ function trashProject(id){const p=D.projects.find(x=>x.id===id);if(!p)return;con
 function restoreTrash(tid){const e=(D.trash||[]).find(x=>x.id===tid);if(!e)return;D.projects.push(e.p);D.contracts.push(...e.contracts);D.invoices.push(...e.invoices);D.fees=(D.fees||[]).concat(e.fees);D.trash=D.trash.filter(x=>x.id!==tid);if(!D.pid)D.pid=e.p.id;}
 function setNavMode(m){try{localStorage.setItem("arkitecton:nav",m);}catch(e){}document.getElementById("app").classList.toggle("rail-min",m==="min");}
 function viewSettings(){
-  {const pm=S.mid&&D.office.team.find(m=>m.id===S.mid);if(pm)return viewPerson(pm,"");}
   const st=SET(),f=D.firm||{};
   const seg=(name,cur,opts)=>`<div class="seg" role="group">${opts.map(([v,l])=>`<button type="button" data-act="${name}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`).join("")}</div>`;
   const num=(id,v,unit,lbl)=>`<label class="setnum"><input id="${id}" data-set="${id}" inputmode="numeric" value="${v}" aria-label="${esc(lbl)}"><span>${unit}</span></label>`;
@@ -255,10 +255,9 @@ function viewSettings(){
       ${row(L("Erscheinungsbild","Appearance"),L("Automatisch folgt der Einstellung Ihres Geräts.","Automatic follows your device setting."),seg("theme-set",themeMode(),[["auto",L("Automatisch","Automatic")],["light",L("Hell","Light")],["dark",L("Dunkel","Dark")]]))}
       ${row(L("Sprache","Language"),"",seg("lang-set",S.lang,[["de","Deutsch"],["en","English"]]))}
     </section>
-    <section><div class="sh"><h2>${L("Büro","Office")}</h2></div>
-      ${row(esc(f.name||L("Büroname fehlt","Firm name missing")),[adr,f.iban?"IBAN "+fmtIban(f.iban):L("IBAN fehlt","IBAN missing"),f.vatNo||""].filter(Boolean).map(esc).join(" · "),`<button type="button" class="btn" data-act="form" data-f="firm">${L("Bearbeiten","Edit")}</button>`)}
+    <section><div class="sh"><h2>${L("Büroprofil","Office profile")}</h2></div>
+      ${row(L("Büro, Team, Referenzen, Unterlagen","Office, team, references, documents"),L("Haben einen eigenen Bereich.","Have their own section."),`<button type="button" class="btn" data-act="nav" data-v="profil">${L("Zum Büroprofil","Open office profile")}</button>`)}
     </section>
-    ${teamSection(row)}
     <section><div class="sh"><h2>${L("Standardwerte","Defaults")}</h2><span class="legend-s">${L("Gelten für neue Werkverträge und Rechnungen","Apply to new contracts and invoices")}</span></div>
       ${row(L("Rückbehalt","Retention"),L("Standard für neue Werkverträge, meist 0 %. Öffentliche Bauherren wie die Stadt behalten oft einen Rückbehalt. Pro Werkvertrag änderbar.","Default for new contracts, usually 0 %. Public clients such as the city often hold back retention. Can be changed per contract."),num("ret",st.ret,"%",L("Rückbehalt","Retention")))}
       ${row(L("Zahlungsfrist Handwerker","Contractor payment term"),L("Wenn die Rechnung kein Fälligkeitsdatum enthält.","When the invoice has no due date."),num("term",st.term,L("Tage","days"),L("Zahlungsfrist Handwerker","Contractor payment term")))}
@@ -332,42 +331,49 @@ function closePop(){if(S.pop){S.pop=null;S.pconfirm=null;renderPop();}}
 function teamSection(row){
   const O=D.office,tm=O.team||[],sg=(D.firm.signers||[]).filter(g=>g.m&&tm.some(m=>m.id===g.m));
   const signs=id=>sg.find(g=>g.m===id);
-  const mRow=m=>{const cr=curRole(m),g=signs(m.id);return `<button type="button" class="row" data-act="open-m" data-id="${m.id}">${dot(g?"ok":"n")}<span class="rt">${esc(m.name)}</span><span class="rm">${[cr?tx(ROLES[cr]):"",m.qual?esc(m.qual):""].filter(Boolean).join(" · ")}</span><span class="ra">${yrs(roleYears(m))}</span><span class="rl l-n">${g?L("unterschreibt","signs"):""}</span></button>`;};
+  const mRow=m=>{const cr=curRole(m),g=signs(m.id);return `<button type="button" class="row" data-act="open-m" data-id="${m.id}">${dot(g?"ok":"n")}<span class="rt">${esc(m.name)}</span><span class="rm">${[cr?tx(ROLES[cr]):"",m.qual?esc(m.qual):""].filter(Boolean).join(" · ")}</span><span class="ra">${yrs(roleYears(m))}</span><span class="rl l-n">${[g?L("unterschreibt","signs"):"",(m.extra||[]).includes("qes")?"QES":""].filter(Boolean).join(" · ")}</span></button>`;};
   const sgTxt=sg.map(g=>{const m=tm.find(x=>x.id===g.m);return esc(m.name)+(g.role?" ("+esc(g.role)+")":"");}).join(" · ");
   return `<section id="team"><div class="sh"><h2>${L("Team","Team")}</h2><span class="cnt">${tm.length}</span><span class="right">${ib("plus",L("Person erfassen","Add person"),'data-act="form" data-f="person"')}</span></div>
       <div class="rows">${tm.map(mRow).join("")||`<div class="empty"><span>${L("Noch niemand erfasst. Das Team braucht arkitecton für Unterschriften auf Briefen und für die Eignung bei Ausschreibungen.","Nobody yet. arkitecton uses the team for signatures on letters and for tender eligibility.")}</span></div>`}</div>
       ${row(L("Unterschriften auf Briefen","Signatures on letters"),sgTxt||L("Noch niemand festgelegt. Gilt für Zahlungsfreigabe und Kostenstand.","Nobody set yet. Used for payment release and cost status."),`<button type="button" class="btn" data-act="form" data-f="signers">${L("Festlegen","Set")}</button>`)}
     </section>`;
 }
+/* the office profile: firm data, team, references and the firm documents (bid folder), kept once and used for invoices, letters and every bid */
+function viewProfil(){
+  const O=D.office,f=D.firm||{};
+  if(S.mid&&O.team.find(m=>m.id===S.mid))return viewPerson(O.team.find(m=>m.id===S.mid),"");
+  const srow=(t,hint,ctrl)=>`<div class="setrow"><div><div class="st">${t}</div>${hint?`<div class="sh2">${hint}</div>`:""}</div><div class="sc">${ctrl}</div></div>`;
+  const adr=[f.street,[f.zip,f.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  const sugg=D.projects.filter(p=>p.closed&&!p.refId&&!(p.refSkip));
+  const G={refs:O.refs,pub:O.refs.filter(r=>r.pub),sugg};
+  if(!G[S.pfilter]||(!G[S.pfilter].length&&S.pfilter!=="refs"))S.pfilter="refs";
+  const maxC=Math.max(0,...O.refs.filter(r=>!r.running).map(r=>r.cost||0));
+  const TL={refs:[L("Referenzen","References"),O.refs.length,O.refs.length?L("grösstes Projekt ","largest project ")+mio(maxC):L("noch keine erfasst","none yet")],
+    pub:[L("Öffentliche Bauherrschaft","Public clients"),G.pub.length,L("oft verlangt bei Ausschreibungen","often required in tenders")],
+    sugg:[L("Vorschläge","Suggestions"),sugg.length,L("abgeschlossene Projekte als Referenz","completed projects as reference")]};
+  const tile=k=>{const [l,v,ss]=TL[k],n=G[k].length,sel=S.pfilter===k,inner=`<span class="sl">${l}</span><span class="sv">${v||"–"}</span><span class="ss">${ss}</span>`;
+    return n||k==="refs"?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="pfilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
+  const refRow=r=>row({act:"form",id:r.id,c:r.pub?"acc":"n",title:esc(tx(r)),meta:[esc(r.client||""),r.type&&RTYPE[r.type]?tx(RTYPE[r.type]):"",r.phases?"SIA "+esc(r.phases):""].filter(Boolean).join(" · "),amt:r.cost?mio(r.cost):"",label:r.running?L("laufend","ongoing"):String(r.year||""),lc:"n"}).replace('data-act="form"','data-act="form" data-f="ref"');
+  const sRow=p=>row({act:"form",c:"n",title:esc(p.name),meta:[esc(p.place||""),esc(p.client||"")].filter(Boolean).join(" · "),amt:"",label:L("Als Referenz übernehmen","Use as reference"),lc:"acc"}).replace('data-act="form"','data-act="form" data-f="ref" data-w="'+p.id+'"');
+  const fl=S.pfilter,list=G[fl],rows=(fl==="sugg"?list.map(sRow):list.map(refRow)).join("");
+  const sig=f.sigRule==="kollektiv2"?L("kollektiv zu zweien","jointly by two"):L("Einzelunterschrift","single signature");
+  return `<div class="page">${ph("",L("Büroprofil","Office profile"),L("Einmal pflegen: für Rechnungen, Briefe und jede Bewerbung bereit.","Keep once: ready for invoices, letters and every bid."),"")}
+    ${!O.refs.length||!O.team.length?`<div class="notice"><span class="ic warn" aria-hidden="true">!</span><span>${L("Solange Referenzen und Team fehlen, kann arkitecton die Eignung bei Ausschreibungen nicht prüfen.","As long as references and team are missing, arkitecton cannot check tender eligibility.")}</span></div>`:""}
+    <section><div class="sh"><h2>${L("Büro","Office")}</h2></div>
+      ${srow(esc(f.name||L("Büroname fehlt","Firm name missing")),[adr,f.iban?"IBAN "+fmtIban(f.iban):L("IBAN fehlt","IBAN missing"),f.vatNo||"",L("Zeichnungsberechtigung: ","Signing: ")+sig].filter(Boolean).map(esc).join(" · "),`<button type="button" class="btn" data-act="form" data-f="firm">${L("Bearbeiten","Edit")}</button>`)}
+    </section>
+    ${teamSection(srow)}
+    <section id="refs"><div class="sh"><h2>${L("Referenzen","References")}</h2><span class="cnt">${O.refs.length}</span><span class="right">${ib("plus",L("Referenz erfassen","Add reference"),'data-act="form" data-f="ref"')}</span></div>
+      <div class="stats">${["refs","pub","sugg"].map(tile).join("")}</div>
+      <div class="rows">${rows||`<div class="empty"><span>${L("Noch keine Referenzen. Mit + erfassen Sie eine, oder übernehmen Sie ein abgeschlossenes Projekt.","No references yet. Use + to add one, or take over a completed project.")}</span></div>`}</div></section>
+    ${docsBlock("firm","firm",L("Unterlagen des Büros","Firm documents"),L("Handelsregister, Versicherung, AHV, Betreibungsregister: einmal ablegen, für jede Bewerbung bereit. Mit Gültigkeit warnt arkitecton vor Ablauf.","Register extract, insurance, social security: store once, ready for every bid."))}
+  </div>`;
+}
 function viewTenders(){
   if(S.tid&&T(S.tid)) return viewTender(T(S.tid));
   const O=D.office;
-  const tsw=`<div class="seg" role="tablist"><button type="button" role="tab" data-act="ttab" data-t="verfahren" aria-selected="${S.ttab!=="profil"}">${L("Verfahren","Procedures")}</button><button type="button" role="tab" data-act="ttab" data-t="profil" aria-selected="${S.ttab==="profil"}">${L("Büroprofil","Office profile")}</button></div>`;
-  if(S.ttab==="profil"){
-    if(S.mid&&O.team.find(m=>m.id===S.mid))return viewPerson(O.team.find(m=>m.id===S.mid),tsw);
-    const sugg=D.projects.filter(p=>p.closed&&!p.refId&&!(p.refSkip));
-    const G={refs:O.refs,pub:O.refs.filter(r=>r.pub),team:O.team,sugg};
-    if(S.pfilter==="team"||!G[S.pfilter]||(!G[S.pfilter].length&&S.pfilter!=="refs"))S.pfilter="refs";
-    const maxC=Math.max(0,...O.refs.filter(r=>!r.running).map(r=>r.cost||0));
-    const TL={refs:[L("Referenzen","References"),O.refs.length,O.refs.length?L("grösstes Projekt ","largest project ")+mio(maxC):L("noch keine erfasst","none yet")],
-      pub:[L("Öffentliche Bauherrschaft","Public clients"),G.pub.length,L("oft verlangt bei Ausschreibungen","often required in tenders")],
-      team:[L("Team","Team"),O.team.length,O.team.length?L("zusammen ","together ")+yrs(O.team.reduce((a,m)=>a+roleYears(m),0))+L(" Erfahrung"," experience"):L("noch niemand erfasst","nobody yet")],
-      sugg:[L("Vorschläge","Suggestions"),sugg.length,L("abgeschlossene Projekte als Referenz","completed projects as reference")]};
-    const tile=k=>{const [l,v,ss]=TL[k],n=G[k].length,sel=S.pfilter===k,clickable=n||k==="refs"||k==="team",inner=`<span class="sl">${l}</span><span class="sv">${v||"–"}</span><span class="ss">${ss}</span>`;
-      if(k==="team")return `<button type="button" class="stat ftile" data-act="team-go" title="${L("Das Team pflegen Sie in den Einstellungen","The team is kept in the settings")}">${inner.replace('<span class="ss">','<span class="ss">'+L("in den Einstellungen · ","in the settings · "))}</button>`;
-      return clickable?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="pfilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
-    const refRow=r=>row({act:"form",id:r.id,c:r.pub?"acc":"n",title:esc(tx(r)),meta:[esc(r.client||""),r.type&&RTYPE[r.type]?tx(RTYPE[r.type]):"",r.phases?"SIA "+esc(r.phases):""].filter(Boolean).join(" · "),amt:r.cost?mio(r.cost):"",label:r.running?L("laufend","ongoing"):String(r.year||""),lc:"n"}).replace('data-act="form"','data-act="form" data-f="ref"');
-    const mRow=m=>{const cr=curRole(m);return row({act:"open-m",id:m.id,c:mTags(m).length?"ok":"n",title:esc(m.name),meta:(cr?tx(ROLES[cr]):"")+(m.qual?" · "+esc(m.qual):""),amt:yrs(roleYears(m)),label:(m.extra||[]).map(x=>XQ[x]?tx(XQ[x]):"").filter(Boolean)[0]||"",lc:"n"});};
-    const sRow=p=>row({act:"form",c:"n",title:esc(p.name),meta:[esc(p.place||""),esc(p.client||"")].filter(Boolean).join(" · "),amt:"",label:L("Als Referenz übernehmen","Use as reference"),lc:"acc"}).replace('data-act="form"','data-act="form" data-f="ref" data-w="'+p.id+'"');
-    const f=S.pfilter,list=G[f],rows=(f==="team"?list.map(mRow):f==="sugg"?list.map(sRow):list.map(refRow)).join("");
-    const plus=f==="team"?ib("plus",L("Person erfassen","Add person"),'data-act="form" data-f="person"'):ib("plus",L("Referenz erfassen","Add reference"),'data-act="form" data-f="ref"');
-    const empty=f==="team"?L("Noch niemand im Team erfasst. Mit + fügen Sie eine Person hinzu.","No team members yet. Use + to add one."):L("Noch keine Referenzen. Mit + erfassen Sie eine, oder übernehmen Sie ein abgeschlossenes Projekt.","No references yet. Use + to add one, or take over a completed project.");
-    return `<div class="page">${ph("",L("Ausschreibungen","Tenders"),"",tsw+plus+excelBtn("tender"))}
-      ${!O.refs.length||!O.team.length?`<div class="notice"><span class="ic warn" aria-hidden="true">!</span><span>${L("Solange Referenzen und Team fehlen, kann arkitecton die Eignung bei Ausschreibungen nicht prüfen.","As long as references and team are missing, arkitecton cannot check tender eligibility.")}</span></div>`:""}
-      <div class="stats s4">${["refs","pub","team","sugg"].map(tile).join("")}</div>
-      <section><div class="sh"><h2>${TL[f][0]}</h2><span class="cnt">${list.length}</span></div><div class="rows">${rows||`<div class="empty"><span>${empty}</span></div>`}</div></section>
-    </div>`;
-  }
+  const tsw=`<button type="button" class="btn" data-act="nav" data-v="profil">${L("Büroprofil","Office profile")}</button>`;
+  const noProf=!O.refs.length||!O.team.length?`<div class="notice"><span class="ic warn" aria-hidden="true">!</span><span>${L("Solange Referenzen und Team fehlen, kann arkitecton die Eignung bei Ausschreibungen nicht prüfen.","As long as references and team are missing, arkitecton cannot check tender eligibility.")} <button type="button" class="ghost link" data-act="nav" data-v="profil">${L("Im Büroprofil ergänzen","Add in the office profile")}</button></span></div>`:"";
   const active=D.tenders.filter(t=>!closedT(t)),closed=D.tenders.filter(closedT);
   const G={open:active,ok:active.filter(t=>fitOf(t).fit==="ok"),partner:active.filter(t=>fitOf(t).fit==="partner"),done:closed};
   if(!G[S.tfilter])S.tfilter="open";
@@ -387,6 +393,7 @@ function viewTenders(){
   const tile=k=>{const [l,v,ss,c]=TL[k],n=G[k].length,sel=S.tfilter===k,inner=`<span class="sl">${l}</span><span class="sv${c}">${n?v:"–"}</span><span class="ss">${ss}</span>`;
     return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="tfilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   return `<div class="page">${ph("",L("Ausschreibungen","Tenders"),"",tsw+ib("plus",L("Ausschreibung erfassen","Add tender"),'data-act="form" data-f="tender"')+excelBtn("tender"))}
+    ${noProf}
     <div class="stats s4">${["open","ok","partner","done"].map(tile).join("")}</div>
     <section><div class="sh"><h2>${S.tfilter==="done"?L("Eingereichte Verfahren","Submitted procedures"):TL[S.tfilter][0]}</h2><span class="cnt">${list.length}</span><span class="right">${S.tfilter==="open"?"":`<button type="button" class="ghost" data-act="tfilter" data-f="open">${L("Alle offenen anzeigen","Show all open")} (${active.length})</button>`}</span></div><div class="rows">${rows||`<div class="empty"><span>${L("Keine Verfahren.","No procedures.")}</span></div>`}</div></section>
   </div>`;
@@ -401,7 +408,7 @@ function viewPerson(m,tsw){
   const rows=(nowC.length?nowC:pastC.slice(0,1)).map(cRow).join("")+foldRows(L("Frühere Stationen","Earlier positions"),(nowC.length?pastC:pastC.slice(1)).map(cRow).join(""),(nowC.length?pastC:pastC.slice(1)).length);
   const xs=(m.extra||[]).filter(x=>XQ[x]);
   return `<div class="page">
-    <button type="button" class="back" data-act="back-m">← ${S.view==="einstellungen"?L("Einstellungen","Settings"):L("Büroprofil","Office profile")}</button>
+    <button type="button" class="back" data-act="back-m">← ${L("Büroprofil","Office profile")}</button>
     ${ph(L("Team","Team")+(cr?" · "+tx(ROLES[cr]):""),esc(m.name),esc(m.qual||""),ib("edit",L("Person bearbeiten","Edit person"),`data-act="form" data-f="person" data-id="${m.id}"`))}
     <div class="stats">${st(L("Berufserfahrung","Experience"),tot?yrs(tot):"–",tot?L("seit ","since ")+startY(m):L("Werdegang erfassen","add career"))}${st(L("Als Projektleiter","As project lead"),pl?yrs(pl):"–",pl?L("Projektleitung","project management"):L("keine Erfahrung erfasst","none recorded"))}${st(L("Als Bauleiter","As site manager"),bl?yrs(bl):"–",xs.includes("blfa")?tx(XQ.blfa):bl?L("Bauleitung","site management"):L("keine Erfahrung erfasst","none recorded"))}</div>
     <section><div class="sh"><h2>${L("Werdegang","Career")}</h2><span class="cnt">${car.length}</span><span class="right"><button type="button" class="ghost" data-act="form" data-f="career" data-id="${m.id}">+ ${L("Station","Position")}</button></span></div><div class="rows">${rows||`<div class="empty"><span>${L("Noch kein Werdegang. Erfassen Sie die Rollen mit Jahren, auch bei früheren Arbeitgebern.","No career yet. Add roles with years, including former employers.")}</span></div>`}</div></section>
@@ -496,6 +503,6 @@ function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]
   }
   app.style.display="";document.querySelector(".rail").style.display="";document.querySelector(".topbar").style.display="";document.getElementById("tabbar").style.display="";
   renderChrome();swipeHint();
-  document.getElementById("main").innerHTML=({buero:viewFirm,uebersicht:viewOverview,rechnungen:viewInvoices,handwerker:viewContractors,budget:viewBudget,ausschreibungen:viewTenders,einstellungen:viewSettings})[S.view]();
+  document.getElementById("main").innerHTML=({buero:viewFirm,uebersicht:viewOverview,rechnungen:viewInvoices,handwerker:viewContractors,budget:viewBudget,ausschreibungen:viewTenders,profil:viewProfil,einstellungen:viewSettings})[S.view]();
   trimRail();foldSections();renderOverlay();
 }

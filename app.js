@@ -19,7 +19,7 @@ function calcTip(btn,on){const box=btn.closest(".calc3");if(!box)return;
 function closeAll(){stopCam();dstopCam();S.dscan=null;S.bulk=null;S.kvx=null;S.fdrawer=null;S.drawer=null;S.modal=null;S.sheet=null;S.form=null;S.formErr="";S.confirm=null;S.queryOpen=false;S.done=null;}
 const startView=v=>{S.from=null;S.kid=null;S.wid=null;S.tid=null;S.mid=null;S.cmpBack=null;
   if(v==="rechnungen"){S.rtab="kred";S.filter="pruefen";S.ffilter="open";}
-  if(v==="handwerker")S.kfilter="";if(v==="budget")S.bfilter="";if(v==="ausschreibungen"){S.ttab="verfahren";S.tfilter="open";S.pfilter="refs";}};
+  if(v==="handwerker")S.kfilter="";if(v==="budget")S.bfilter="";if(v==="ausschreibungen"){S.tfilter="open";}if(v==="profil")S.pfilter="refs";};
 const fromHere=target=>{S.from=S.view!==target?{view:S.view,top:document.getElementById("main").scrollTop}:null;};
 const backBtn=(act,label)=>S.from?`<button type="button" class="back" data-act="back-from">← ${vName(S.from.view)}</button>`:`<button type="button" class="back" data-act="${act}">← ${label}</button>`;
 function go(v){if(!VIEWS.includes(v))v="uebersicht";closeAll();if(v!==S.view)S.mid=null;if(v!=="handwerker")S.cmpBack=null;S.view=v;if(v!=="handwerker")S.kid=null;if(v!=="ausschreibungen")S.tid=null;try{history.replaceState(null,"","#"+v);}catch(e){}render();document.getElementById("main").scrollTop=0;}
@@ -115,7 +115,7 @@ document.addEventListener("click",e=>{
     case "form-del":formDelete();break;
     case "open-project":D.pid=id;S.kid=null;go("uebersicht");break;
     case "home":startView("buero");go("buero");break;
-    case "pick-project":D.pid=id;closeAll();S.kid=null;if(S.view==="buero"||S.view==="ausschreibungen"||S.view==="einstellungen")go("uebersicht");else render();break;
+    case "pick-project":D.pid=id;closeAll();S.kid=null;if(S.view==="buero"||S.view==="ausschreibungen"||S.view==="profil"||S.view==="einstellungen")go("uebersicht");else render();break;
     case "ask":S.confirm=el.dataset.c;if(/^ddel:/.test(S.confirm)||!S.sheet)render();else renderOverlay();break;
     case "notice-ok":D.noticeOk=1;render();break;
     case "doc-open":openDoc(el.dataset.id);break;
@@ -124,7 +124,7 @@ document.addEventListener("click",e=>{
     case "reset-all":closeAll();clearFiles().then(()=>{try{localStorage.removeItem(KEY);}catch(err){}D=null;render();});break;
     case "close":{const back=S.form&&S.form.back;closeAll();if(back&&INV(back))S.drawer=back;render();break;}
     case "bulk-open":{const all=PIx().filter(i=>i.status==="pruefen"&&live(i)),ok=all.filter(cleanInv);closeAll();S.bulk={ids:ok.map(i=>i.id),sel:ok.map(i=>i.id),rest:all.length-ok.length};renderOverlay();break;}
-    case "team-go":S.mid=null;go("einstellungen");requestAnimationFrame(()=>{const t=document.getElementById("team");if(t)t.scrollIntoView({block:"start"});});break;
+    case "team-go":S.mid=null;go("profil");requestAnimationFrame(()=>{const t=document.getElementById("team");if(t)t.scrollIntoView({block:"start"});});break;
     case "scan-menu":closeAll();S.sheet="scan";renderOverlay();break;
     case "undo":if(undoSnap){D=JSON.parse(undoSnap.d);undoSnap=null;closeAll();saveData();render();toast(L("Rückgängig gemacht","Undone"));}break;
     case "zk-me":{const t=D.tenders.find(x=>x.id===id),z=t&&(t[el.dataset.k||"zk"]||[])[+el.dataset.i];if(z){z.me=z.me===el.dataset.v?"":el.dataset.v;render();}break;}

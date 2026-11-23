@@ -1126,12 +1126,14 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 .tsrc .notice{margin-top:10px}
 .muted{color:var(--muted)}
 @media (max-width:600px){.ph:has(.tools>:nth-child(3)){grid-template-columns:1fr;gap:12px}}
-.crewline{display:grid;grid-template-columns:1.3fr 1.7fr .7fr 40px;gap:8px 10px;align-items:end;padding:12px 0;border-bottom:1px solid var(--line)}
+.crewline{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1.7fr) minmax(0,.7fr) 40px;gap:8px 10px;align-items:end;padding:12px 0;border-bottom:1px solid var(--line)}
 .crewline .fc{display:flex;flex-direction:column;gap:4px;font-size:.8125rem;color:var(--muted);min-width:0}
 .crewline .ctx{display:none;grid-column:1/-1;order:2}
 .crewline:has(select[id^=cr] option[value=x]:checked) .ctx{display:flex}
 .crewline select,.crewline input{width:100%;min-width:0}
-@media (max-width:600px){.crewline{grid-template-columns:1fr 1fr}.crewline .ib{justify-self:end}}
+@media (max-width:600px){.crewline{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.crewline .ib{justify-self:end}}
+.crewline select{text-overflow:ellipsis;max-width:100%}
+.f.wide:has(.crewline){min-width:0}
 .crew .row[disabled]{cursor:default}
 .crew .load{list-style:none;margin:12px 0 0;padding:0;font-size:.875rem;color:var(--muted);display:grid;gap:6px}
 .crew .load b{font-weight:500;color:var(--ink)}

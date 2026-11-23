@@ -1021,7 +1021,12 @@ details[open]:not(.site)>summary::after{transform:none}
 .calc3 .op{color:var(--muted);font-variant-numeric:tabular-nums}
 .calc3 .cinfo{border:0;background:none;color:var(--muted);padding:10px 8px;margin:-10px -6px -10px 0;font-size:.85rem;cursor:pointer;min-height:0;line-height:1}
 .calc3 .cinfo.on,.calc3 .cinfo:hover{color:var(--ink)}
-.calc3 .cxl{grid-column:1 / -1;margin:8px 0 0;padding-left:18px;min-height:2.8em;font-size:.8125rem;line-height:1.4;color:var(--muted)}
+.calc3 .cexp{grid-column:2 / 4;display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .26s cubic-bezier(.4,0,.2,1),opacity .22s ease-out;font-size:.8125rem;line-height:1.4;color:var(--muted)}
+.calc3 .cexp>span{overflow:hidden;min-height:0}
+.calc3 .cexp>span::before{content:"";display:block;height:4px}
+.calc3 .cexp.on{grid-template-rows:1fr;opacity:1}
+.calc3 .csum .cexp{grid-column:2 / 4}
+@media (prefers-reduced-motion:reduce){.calc3 .cexp{transition:none}}
 .calc3 .csum{grid-column:1 / -1;display:grid;grid-template-columns:18px 1fr auto;align-items:baseline;gap:8px 0;margin-top:6px;padding:12px 12px;border-radius:8px;background:color-mix(in srgb,var(--ok) 10%,transparent);font-weight:500}
 .calc3 .csum .op{color:var(--ok)}
 
@@ -1054,3 +1059,8 @@ input[type=date]{text-align:left}
 input[type=date]::-webkit-date-and-time-value{text-align:left}
 .fline .fc{font-size:inherit;color:inherit;font-weight:inherit;letter-spacing:inherit;text-transform:none}
 .fline .fc input{font-size:inherit}
+
+/* rows of the payout calculation: spacing comes from padding, so a closed explanation takes no room at all */
+.calc3,.calc3 .csum{row-gap:0}
+.calc3>span:not(.cexp){padding:4px 0}
+.calc3 .csum{margin-top:10px}

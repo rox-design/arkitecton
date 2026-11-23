@@ -299,9 +299,9 @@ function feeFormDef(F){
   const p=P(),vat=f?f.vat:!!D.firm.vat;
   const lineRows=F.lines.map((l,i)=>`<div class="fline" data-i="${i}">
       <input class="lt" id="lt${i}" aria-label="${L("Bezeichnung","Description")}" placeholder="${L("z. B. Akonto 2, Phase Bauprojekt","e.g. progress payment 2")}" value="${esc(l.t)}">
-      <label class="fc cq"><span>${L("Menge","Qty")}</span><input class="lq" id="lq${i}" inputmode="decimal" value="${esc(l.q)}"></label>
+      <label class="fc cq"><span>${L("Menge","Qty")}</span><input class="lq" id="lq${i}" inputmode="decimal" autocomplete="off" value="${esc(l.q)}"></label>
       <label class="fc cu"><span>${L("Einheit","Unit")}</span><input class="lu" id="lu${i}" value="${esc(l.u)}"></label>
-      <label class="fc cp"><span>${L("Ansatz CHF","Rate CHF")}</span><input class="lp" id="lp${i}" inputmode="decimal" placeholder="0.00" value="${esc(l.p)}"></label>
+      <label class="fc cp"><span>${L("Ansatz CHF","Rate CHF")}</span><input class="lp" id="lp${i}" inputmode="decimal" autocomplete="off" placeholder="0.00" value="${esc(l.p)}"></label>
       ${F.lines.length>1?`<button type="button" class="ib sm" title="${L("Zeile entfernen","Remove line")}" aria-label="${L("Zeile entfernen","Remove line")}" data-act="fee-delline" data-c="${i}">${ico("trash")}</button>`:"<span></span>"}
     </div>`).join("");
   const body=fld("fNo",L("Rechnungsnummer","Invoice no."),f?f.no:nextFeeNo(),{req:true})+fld("fDate",L("Datum","Date"),f?f.date:iso(TODAY),{type:"date",req:true})

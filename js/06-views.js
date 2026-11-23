@@ -247,7 +247,7 @@ function setNavMode(m){try{localStorage.setItem("arkitecton:nav",m);}catch(e){}d
 function viewSettings(){
   const st=SET(),f=D.firm||{};
   const seg=(name,cur,opts)=>`<div class="seg" role="group">${opts.map(([v,l])=>`<button type="button" data-act="${name}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`).join("")}</div>`;
-  const num=(id,v,unit,lbl)=>`<label class="setnum"><input id="${id}" data-set="${id}" inputmode="numeric" value="${v}" aria-label="${esc(lbl)}"><span>${unit}</span></label>`;
+  const num=(id,v,unit,lbl)=>`<label class="setnum"><input id="${id}" data-set="${id}" inputmode="numeric" autocomplete="off" value="${v}" aria-label="${esc(lbl)}"><span>${unit}</span></label>`;
   const row=(t,hint,ctrl)=>`<div class="setrow"><div><div class="st">${t}</div>${hint?`<div class="sh2">${hint}</div>`:""}</div><div class="sc">${ctrl}</div></div>`;
   const adr=[f.street,[f.zip,f.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   return `<div class="page">${ph("",L("Einstellungen","Settings"),"","")}

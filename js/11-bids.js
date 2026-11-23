@@ -45,13 +45,19 @@ const crewName=c=>{const m=crewMember(c);return m?m.name+(c.pct?" ("+c.pct+" %)"
 /* the same person planned in other open tenders */
 function crewElsewhere(t,mid){return D.tenders.filter(x=>x!==t&&(x.status==="neu"||x.status==="arbeit")&&(x.crew||[]).some(c=>c.m===mid));}
 const memberInfo=m=>{const cr=curRole(m),y=cr?roleYears(m,cr):roleYears(m);return [cr?tx(ROLES[cr]):"",y?yrs(y):"",(m.extra||[]).includes("blfa")?L("eidg. Fachausweis","federal certificate"):"",(m.extra||[]).includes("qes")?"QES":""].filter(Boolean).join(" · ");};
+/* workload of one person over this and the other open tenders */
+function crewLoad(t,mid){const here=crewOf(t).filter(c=>c.m===mid),oth=crewElsewhere(t,mid).map(x=>[x,(x.crew||[]).filter(c=>c.m===mid)]);
+  const sum=a=>a.reduce((s,c)=>s+(c.pct||0),0),tot=sum(here)+oth.reduce((s,[,cs])=>s+sum(cs),0);
+  return {here:sum(here),oth,tot,known:here.concat(...oth.map(o=>o[1])).some(c=>c.pct)};}
 function crewBlock(t,c){
   const cr=crewOf(t),set=cr.filter(x=>x.m).length;
   const rows=cr.map((x,i)=>{const m=crewMember(x),oth=m?crewElsewhere(t,m.id):[];
-    return row({act:"form",id:t.id,c:m?(oth.length?"warn":"ok"):"n",title:esc(crewRole(x)),meta:m?esc(m.name)+" · "+esc(memberInfo(m)):L("noch niemand zugewiesen","nobody assigned yet"),amt:x.pct?x.pct+" %":"",label:m&&oth.length?L("auch bei "+oth.length+" anderen","also in "+oth.length+" others"):m?"":L("zuweisen","assign"),lc:m&&oth.length?"warn":"acc"}).replace('data-act="form"',`data-act="form" data-f="crew"${c?" disabled":""}`);}).join("");
-  const over=cr.map(crewMember).filter(Boolean).map(m=>[m,crewElsewhere(t,m.id)]).filter(([,o])=>o.length);
+    const ld=m&&oth.length?crewLoad(t,m.id):null,hot=ld&&ld.tot>100;
+    return row({act:"form",id:t.id,c:m?(hot?"crit":oth.length?"warn":"ok"):"n",title:esc(crewRole(x)),meta:m?esc(m.name)+" · "+esc(memberInfo(m)):L("noch niemand zugewiesen","nobody assigned yet"),amt:x.pct?x.pct+" %":"",label:ld?(ld.known?L("zusammen ","total ")+ld.tot+" %":L("auch bei "+oth.length+" anderen","also in "+oth.length+" others")):m?"":L("zuweisen","assign"),lc:hot?"crit":ld?"warn":"acc"}).replace('data-act="form"',`data-act="form" data-f="crew"${c?" disabled":""}`);}).join("");
+  const seen={},over=cr.map(crewMember).filter(m=>m&&!seen[m.id]&&(seen[m.id]=1)).map(m=>[m,crewLoad(t,m.id)]).filter(([,l])=>l.oth.length);
+  const pc=v=>v?v+" %":L("ohne Pensum","no workload");
   return `<section class="crew"><div class="sh"><h2>${L("Team für diese Ausschreibung","Team for this tender")}</h2><span class="cnt">${set}/${cr.length}</span><span class="right">${c?"":ib("edit",L("Team bearbeiten","Edit team"),`data-act="form" data-f="crew" data-id="${t.id}"`)}</span></div>
-    <div class="rows">${rows}</div>${over.length?`<p class="zktip">${over.map(([m,o])=>esc(m.name)+L(" ist auch eingeplant bei: "," is also planned for: ")+o.map(x=>esc(tx(x.title))).join(", ")).join(". ")}.</p>`:""}</section>`;
+    <div class="rows">${rows}</div>${over.length?`<ul class="load">${over.map(([m,l])=>`<li><b>${esc(m.name)}</b>: ${L("hier ","here ")+pc(l.here)}, ${l.oth.map(([x,cs])=>esc(tx(x.title))+" "+pc(cs.reduce((a,c)=>a+(c.pct||0),0))).join(", ")}${l.known?` · <span class="l-${l.tot>100?"crit":"n"}">${L("zusammen ","total ")+l.tot+" %"}${l.tot>100?L(", überbucht",", overbooked"):""}</span>`:""}</li>`).join("")}</ul>`:""}</section>`;
 }
 
 /* tasks of the office around tenders, shown on the start page */
@@ -158,9 +164,9 @@ function bidFormDef(F){
       +fld("fRRank",L("Ihr Rang beim Preis","Your price rank"),r.rank||"",{mode:"numeric",hint:L("1 = tiefster Preis. Steht im Offertöffnungsprotokoll.","1 = lowest. See the opening minutes.")})};}
   if(F.f==="crew"){if(!F.lines)F.lines=crewOf(t).map(x=>({...x}));const tm=(((D.office||{}).team)||[]);
     const rows=F.lines.map((x,i)=>`<div class="crewline"><label class="fc"><span>${L("Rolle","Role")}</span><select id="cr${i}">${Object.keys(CREWR).map(k=>`<option value="${k}"${x.role===k?" selected":""}>${esc(L(...CREWR[k]))}</option>`).join("")}<option value="x"${!CREWR[x.role]?" selected":""}>${L("Andere Rolle …","Other role …")}</option></select></label>
-      <label class="fc ctx"><span>${L("Bezeichnung der Rolle","Role name")}</span><input id="ct${i}" value="${esc(x.t||"")}" placeholder="${L("z. B. Kostenplanung","e.g. cost planning")}"></label>
+      <label class="fc ctx"><span>${L("Bezeichnung der Rolle","Role name")}</span><input id="ct${i}" autocomplete="off" value="${esc(x.t||"")}" placeholder="${L("z. B. Kostenplanung","e.g. cost planning")}"></label>
       <label class="fc"><span>${L("Person","Person")}</span><select id="cm${i}"><option value="">${L("noch offen","not yet")}</option>${tm.map(m=>`<option value="${m.id}"${x.m===m.id?" selected":""}>${esc(m.name)}${memberInfo(m)?" · "+esc(memberInfo(m)):""}</option>`).join("")}</select></label>
-      <label class="fc"><span>${L("Pensum %","Workload %")}</span><input id="cp${i}" inputmode="numeric" value="${x.pct||""}"></label>
+      <label class="fc"><span>${L("Pensum %","Workload %")}</span><input id="cp${i}" inputmode="numeric" autocomplete="off" value="${x.pct||""}"></label>
       <button type="button" class="ib sm" aria-label="${L("Rolle entfernen","Remove role")}" data-act="crew-del" data-c="${i}">${ico("trash")}</button></div>`).join("");
     return {title:L("Team für diese Ausschreibung","Team for this tender"),body:`<div class="f wide">${rows}<button type="button" class="ghost" data-act="crew-add">${L("+ Rolle","+ Role")}</button><span class="hint">${L("Personen kommen aus dem Büroprofil. Die Eignungsprüfung nimmt die zugewiesene Person.","People come from the office profile. The eligibility check uses the assigned person.")}</span></div>`};}
   if(F.f==="tlink"){const fd=docsFor("firm","firm"),cur=(t.link||{})[F.w];

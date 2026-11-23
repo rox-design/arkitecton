@@ -382,7 +382,8 @@ function viewTenders(){
     ok:[L("Eignung erfüllt","Eligible"),String(G.ok.length),nT(G.ok.length),G.ok.length?" ok":""],
     partner:[L("Nur mit Partner","Only with partner"),String(G.partner.length),nT(G.partner.length),G.partner.length?" warn":""],
     done:(()=>{const dec=D.tenders.filter(t=>t.status==="gewonnen"||t.status==="verloren"),won=dec.filter(t=>t.status==="gewonnen").length,pend=D.tenders.filter(t=>t.status==="eingereicht").length;
-      return [L("Zuschlag","Award"),dec.length?won+" "+L("von","of")+" "+dec.length:"–",(dec.length?L("erhalten","awarded"):L("noch kein Entscheid","no decision yet"))+(pend?" · "+pend+L(" ausstehend"," pending"):""),won?" ok":""];})()};
+      const lost=dec.length-won,ss=[lost?lost+" "+L("ohne Zuschlag","not awarded"):"",pend?pend+" "+L("ausstehend","pending"):""].filter(Boolean).join(" · ")||(won?nT(won):L("noch kein Entscheid","no decision yet"));
+      return [L("Zuschlag erhalten","Contract awarded"),won?String(won):"–",ss,won?" ok":""];})()};
   const tile=k=>{const [l,v,ss,c]=TL[k],n=G[k].length,sel=S.tfilter===k,inner=`<span class="sl">${l}</span><span class="sv${c}">${n?v:"–"}</span><span class="ss">${ss}</span>`;
     return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="tfilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   return `<div class="page">${ph("",L("Ausschreibungen","Tenders"),"",tsw+ib("plus",L("Ausschreibung erfassen","Add tender"),'data-act="form" data-f="tender"')+excelBtn("tender"))}

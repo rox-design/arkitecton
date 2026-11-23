@@ -374,21 +374,20 @@ function viewTenders(){
   if(!G[S.tfilter].length&&S.tfilter!=="open")S.tfilter="open";
   const next=active.filter(t=>fitOf(t).fit!=="no").sort((a,b)=>toDate(a.due)-toDate(b.due))[0];
   const list=G[S.tfilter].slice().sort((a,b)=>closedT(a)?toDate(b.due)-toDate(a.due):toDate(a.due)-toDate(b.due));
-  const tRow=t=>{const f=fitOf(t).fit,c=closedT(t),dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:c?"n":FIT[f].c,title:esc(tx(t.title)),meta:(c?"":(isSel(t)?(phaseOf(t)===1?L("Teilnahmeantrag ","Request "):L("Angebot ","Bid ")):"")+(dd<0?L("vorbei","closed"):L("in "+dd+" "+dayWord(dd),"in "+dd+" "+(dd===1?"day":"days")))+" · ")+esc(t.client),amt:c?"":fdate(t.due),label:c?tx(TST[t.status]):tx(FIT[f]),lc:c?(t.status==="gewonnen"?"ok":"n"):undefined});};
+  const tRow=t=>{const f=fitOf(t).fit,c=closedT(t),dd=daysTo(t.due);return row({act:"open-t",id:t.id,c:c?"n":FIT[f].c,title:esc(tx(t.title)),meta:(c?"":(isSel(t)?(phaseOf(t)===1?L("Teilnahmeantrag ","Request "):L("Angebot ","Bid ")):"")+(dd<0?L("vorbei","closed"):L("in "+dd+" "+dayWord(dd),"in "+dd+" "+(dd===1?"day":"days")))+" · ")+esc(t.client),amt:c?"":fdate(t.due),label:c?(t.status==="eingereicht"?L("Zuschlag ausstehend","Award pending"):t.status==="pq"?L("Auswahl ausstehend","Selection pending"):tx(TST[t.status])):tx(FIT[f]),lc:c?(t.status==="gewonnen"?"ok":"n"):undefined});};
   const doneT=S.tfilter==="open"?closed.slice().sort((a,b)=>toDate(b.due)-toDate(a.due)):[],waitL=doneT.filter(waitT),endL=doneT.filter(t=>!waitT(t));
   const rows=list.map(tRow).join("")+foldRows(L("Eingereicht, Entscheid ausstehend","Submitted, decision pending"),waitL.map(tRow).join(""),waitL.length)+foldRows(L("Abgeschlossen","Closed"),endL.map(tRow).join(""),endL.length);
-  const bs=bidStats(),bsLine=bs.n?`<div class="notice"><span class="ic ok" aria-hidden="true">✓</span><span>${L("Zuschläge: ","Awards: ")}<b>${bs.won} ${L("von","of")} ${bs.n}</b>${bs.avg!=null?L(" · Wo Sie verloren haben, lag Ihr Preis im Schnitt "," · where you lost, your price was on average ")+"<b>"+pctTxt(bs.avg)+"</b>"+L(" vom Zuschlagspreis entfernt"," from the winning price"):""}</span></div>`:"";
   const nT=n=>n===1?L("1 Verfahren","1 procedure"):n+" "+L("Verfahren","procedures");
   const TL={open:[L("Offene Verfahren","Open procedures"),String(active.length),next?L("nächste Eingabe ","next deadline ")+fdate(next.due):L("keine Frist offen","no open deadline"),""],
     ok:[L("Eignung erfüllt","Eligible"),String(G.ok.length),nT(G.ok.length),G.ok.length?" ok":""],
     partner:[L("Nur mit Partner","Only with partner"),String(G.partner.length),nT(G.partner.length),G.partner.length?" warn":""],
-    done:[L("Eingereicht und abgeschlossen","Submitted and closed"),String(closed.length),L("eingereicht, entschieden, verzichtet","submitted, decided, skipped"),""]};
+    done:(()=>{const dec=D.tenders.filter(t=>t.status==="gewonnen"||t.status==="verloren"),won=dec.filter(t=>t.status==="gewonnen").length,pend=D.tenders.filter(t=>t.status==="eingereicht").length;
+      return [L("Zuschlag","Award"),dec.length?won+" "+L("von","of")+" "+dec.length:"–",(dec.length?L("erhalten","awarded"):L("noch kein Entscheid","no decision yet"))+(pend?" · "+pend+L(" ausstehend"," pending"):""),won?" ok":""];})()};
   const tile=k=>{const [l,v,ss,c]=TL[k],n=G[k].length,sel=S.tfilter===k,inner=`<span class="sl">${l}</span><span class="sv${c}">${n?v:"–"}</span><span class="ss">${ss}</span>`;
     return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="tfilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   return `<div class="page">${ph("",L("Ausschreibungen","Tenders"),"",tsw+ib("plus",L("Ausschreibung erfassen","Add tender"),'data-act="form" data-f="tender"')+excelBtn("tender"))}
     <div class="stats s4">${["open","ok","partner","done"].map(tile).join("")}</div>
-    ${bsLine}
-    <section><div class="sh"><h2>${TL[S.tfilter][0]}</h2><span class="cnt">${list.length}</span><span class="right">${S.tfilter==="open"?"":`<button type="button" class="ghost" data-act="tfilter" data-f="open">${L("Alle offenen anzeigen","Show all open")} (${active.length})</button>`}</span></div><div class="rows">${rows||`<div class="empty"><span>${L("Keine Verfahren.","No procedures.")}</span></div>`}</div></section>
+    <section><div class="sh"><h2>${S.tfilter==="done"?L("Eingereichte Verfahren","Submitted procedures"):TL[S.tfilter][0]}</h2><span class="cnt">${list.length}</span><span class="right">${S.tfilter==="open"?"":`<button type="button" class="ghost" data-act="tfilter" data-f="open">${L("Alle offenen anzeigen","Show all open")} (${active.length})</button>`}</span></div><div class="rows">${rows||`<div class="empty"><span>${L("Keine Verfahren.","No procedures.")}</span></div>`}</div></section>
   </div>`;
 }
 

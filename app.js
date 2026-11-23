@@ -101,6 +101,7 @@ document.addEventListener("click",e=>{
       if(s==="pq"&&t.pq){t.pq.sel=null;}if(s==="arbeit"&&t.status==="pq"&&t.pq){delete t.pq.sub;}
       t.status=s;render();toast(tx(TST[s]),0,false,true);break;}
     case "t-submit":openForm("tsub",id);break;
+    case "t-after":{const a=document.querySelector(".after");if(a)a.scrollIntoView({behavior:"smooth",block:"start"});break;}
     case "t-res":openForm("tres",id,el.dataset.w);break;
     case "t-protmail":{const t=T(id);t.protAsked=iso(TODAY);render();location.href=protMail(t);break;}
     case "t-link":{const t=T(id);t.link=t.link||{};t.link[el.dataset.d]=el.dataset.f;render();toast(L("Aus Büro-Unterlagen übernommen","Taken from firm documents"));break;}

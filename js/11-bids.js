@@ -78,6 +78,18 @@ function resultTable(t){const r=tRes(t),f=v=>v?chf(v,false):"–";
     .concat([[L("Angebote","Bids"),r.n?String(r.n)+(r.rank?L(" · Ihr Rang beim Preis: "," · your price rank: ")+r.rank:""):"–"]]);
   return `<div class="rtab">${rows.map(([a,b])=>`<span>${a}</span><span>${b}</span>`).join("")}</div>`;}
 
+/* the award (or, in phase 1, the selection) at a glance: pending opens the entry, decided leads to the details */
+function resultTile(t){
+  if(!waitT(t)&&!decidedT(t))return "";
+  const p1=t.status==="pq"||t.status==="nichtausg",r=t.res||{},pending=waitT(t);
+  const at=p1?(t.pq||{}).at:r.at,ae=appealEnd(at),open=ae&&daysTo(ae)>=0;
+  const sl=p1?L("Auswahl","Selection"):L("Zuschlag","Award");
+  let sv,c="",ss;
+  if(pending){sv=L("ausstehend","pending");ss=(p1?L("Mitteilung meist per Verfügung","Usually notified by decision"):L("Entscheid kommt per E-Mail oder Post","Decision comes by e-mail or post"))+L(" · erfassen"," · record");}
+  else if(t.status==="gewonnen"){sv=L("Erhalten","Awarded");c=" ok";ss=(at?L("Verfügung vom ","Decision of ")+fdate(at):"")+(open?L(" · Vertrag ab "," · contract from ")+fdate(addDays(ae,1)):"");}
+  else{sv=p1?L("Nein","No"):L("Nicht erhalten","Not awarded");ss=[!p1&&r.winner?L("an ","to ")+esc(r.winner):"",open?L("Beschwerde bis ","appeal until ")+fdate(ae):at?L("Verfügung vom ","decision of ")+fdate(at):""].filter(Boolean).join(" · ");}
+  return `<button type="button" class="stat" data-act="${pending?"form":"t-after"}" data-f="tres" data-id="${t.id}" data-w="pick"><span class="sl">${sl}</span><span class="sv${c}">${sv}</span><span class="ss">${ss}</span></button>`;
+}
 /* forms: record the submission (with the checklist), the decision, and pick a firm document */
 function bidFormDef(F){
   const t=D.tenders.find(x=>x.id===F.id);if(!t)return null;
@@ -93,6 +105,8 @@ function bidFormDef(F){
         <label class="chk"><input type="checkbox" id="fC2"> ${L("Unterschriften gültig: online jede zu unterschreibende Datei mit qualifizierter elektronischer Signatur (QES), auf Papier von Hand","Signatures valid: online each file to be signed with a qualified electronic signature (QES), on paper by hand")}</label>
         <a class="srclink" href="https://www.validator.admin.ch" target="_blank" rel="noopener">${L("Signatur prüfen auf validator.admin.ch","Check a signature on validator.admin.ch")} ↗</a></div>`};}
   if(F.f==="tres"){const w=F.w||"edit";
+    if(w==="pick"){const p1=t.status==="pq",b=(x,lab,pr)=>`<button type="button" class="btn${pr?" primary":""}" data-act="t-res" data-id="${t.id}" data-w="${x}">${lab}</button>`;
+      return {title:p1?L("Auswahl erfassen","Record selection"):L("Zuschlag erfassen","Record the award"),noSubmit:true,body:`<div class="f wide"><p class="hint">${p1?L("Was steht in der Mitteilung der Vergabestelle?","What does the notice say?"):L("Was steht in der Verfügung der Vergabestelle?","What does the decision say?")}</p><div class="pickres">${p1?b("nsel",L("Nicht ausgewählt","Not selected"))+b("sel",L("Ausgewählt","Selected"),true):b("lost",L("Kein Zuschlag","Not awarded"))+b("won",L("Zuschlag erhalten","Contract awarded"),true)}</div></div>`};}
     if(w==="sel")return {title:L("Ausgewählt für Phase 2","Selected for phase 2"),save:L("Phase 2 starten","Start phase 2"),body:
       `<div class="f wide"><p class="hint">${L("Mit der Einladung erhalten Sie die Aufforderung zur Angebotsabgabe mit neuen Fristen und den Zuschlagskriterien.","The invitation brings new deadlines and the award criteria.")}</p></div>`
       +fld("fRAt",L("Mitteilung vom","Notice of"),iso(TODAY),{type:"date"})+fld("fRDue",L("Eingabefrist Angebot","Bid deadline"),"",{type:"date",req:true})+fld("fRQ",L("Fragefrist","Question deadline"),"",{type:"date"})};

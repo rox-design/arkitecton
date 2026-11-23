@@ -13,6 +13,14 @@ function toast(msg,ms,hint,undo){const t=document.getElementById("toast");if(hin
   if(undo&&undoSnap){t.innerHTML=`<span>${esc(msg)}</span><button type="button" class="tundo" data-act="undo">${ico("undo")}${L("Rückgängig","Undo")}</button>`;t.classList.add("withundo");}else{t.textContent=msg;t.classList.remove("withundo");}
   t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>{t.classList.remove("on");if(undo)undoCommit();},ms||(undo?7000:3000));}
 async function copy(text,ok){try{await navigator.clipboard.writeText(text);toast(ok);}catch(e){toast(L("Kopieren nicht möglich","Copy failed"));}}
+/* payout note: position the arrow under the ⓘ, close any other open note */
+function calcTip(btn,on){document.querySelectorAll(".calc3 .cinfo.on").forEach(b=>{if(b!==btn){b.classList.remove("on");b.setAttribute("aria-expanded","false");}});
+  const box=btn.closest(".clb"),n=box&&box.querySelector(".cexp");if(!n)return;
+  if(on){const bx=box.getBoundingClientRect(),r=btn.getBoundingClientRect();n.style.setProperty("--ax",Math.max(10,r.left+r.width/2-bx.left)+"px");}
+  btn.classList.toggle("on",on);btn.setAttribute("aria-expanded",on);}
+document.addEventListener("mouseover",e=>{if(!matchMedia("(hover:hover)").matches)return;const b=e.target.closest&&e.target.closest(".calc3 .cinfo");if(b)calcTip(b,true);});
+document.addEventListener("mouseout",e=>{if(!matchMedia("(hover:hover)").matches)return;const b=e.target.closest&&e.target.closest(".calc3 .cinfo");if(b&&!b.contains(e.relatedTarget))calcTip(b,false);});
+document.addEventListener("click",e=>{if(!e.target.closest(".calc3 .cinfo"))document.querySelectorAll(".calc3 .cinfo.on").forEach(b=>calcTip(b,false));},true);
 function closeAll(){stopCam();dstopCam();S.dscan=null;S.bulk=null;S.kvx=null;S.fdrawer=null;S.drawer=null;S.modal=null;S.sheet=null;S.form=null;S.formErr="";S.confirm=null;S.queryOpen=false;S.done=null;}
 const startView=v=>{S.from=null;S.kid=null;S.wid=null;S.tid=null;S.mid=null;S.cmpBack=null;
   if(v==="rechnungen"){S.rtab="kred";S.filter="pruefen";S.ffilter="open";}
@@ -115,9 +123,7 @@ document.addEventListener("click",e=>{
     case "team-go":S.mid=null;go("einstellungen");requestAnimationFrame(()=>{const t=document.getElementById("team");if(t)t.scrollIntoView({block:"start"});});break;
     case "scan-menu":closeAll();S.sheet="scan";renderOverlay();break;
     case "undo":if(undoSnap){D=JSON.parse(undoSnap.d);undoSnap=null;closeAll();saveData();render();toast(L("Rückgängig gemacht","Undone"));}break;
-    case "calc-info":{if(matchMedia("(hover:hover)").matches)break;const box=el.closest(".calc3"),k=el.dataset.k;
-      box.querySelectorAll(".cexp").forEach(x=>{const on=x.dataset.k===k&&!x.classList.contains("on");x.classList.toggle("on",on);});
-      box.querySelectorAll(".cinfo").forEach(b=>{const on=!!box.querySelector(`.cexp.on[data-k="${b.dataset.k}"]`);b.classList.toggle("on",on);b.setAttribute("aria-expanded",on);});break;}
+    case "calc-info":calcTip(el,!el.classList.contains("on"));break;
     case "dscan":dscanOpen({pid:el.dataset.pid,kid:el.dataset.kid});break;
     case "ds-close":dscanClose();break;
     case "ds-shoot":dshoot();break;
@@ -248,7 +254,7 @@ const SWIPE=["ausschreibungen","uebersicht","rechnungen","handwerker","budget"];
   const hide=()=>{clearTimeout(tm);tm=null;cur=null;tip.classList.remove("on");};
   document.addEventListener("mouseover",e=>{let t=e.target.closest("[data-tip],.ib[title],button[title],label[title]");if(t&&!t.closest(".app,#overlay"))t=null;if(t&&t.title){t.dataset.tip=t.title;t.removeAttribute("title");}if(t===cur)return;hide();if(!t||!window.matchMedia("(hover:hover)").matches)return;cur=t;
     tm=setTimeout(()=>{if(S.pop)return;tip.textContent=t.dataset.tip;tip.classList.add("on");const r=t.getBoundingClientRect(),w=tip.offsetWidth;
-      tip.style.left=Math.min(innerWidth-w-8,Math.max(8,r.left+r.width/2-w/2))+"px";const h=tip.offsetHeight;tip.style.top=(r.bottom+6+h>innerHeight-8?r.top-6-h:r.bottom+6)+"px";},t.classList.contains("cinfo")?120:380);});
+      tip.style.left=Math.min(innerWidth-w-8,Math.max(8,r.left+r.width/2-w/2))+"px";const h=tip.offsetHeight;tip.style.top=(r.bottom+6+h>innerHeight-8?r.top-6-h:r.bottom+6)+"px";},380);});
   document.addEventListener("mousedown",hide,true);document.addEventListener("scroll",hide,true);
 })();
 /* one-time hint on the phone, until the person has swiped once */

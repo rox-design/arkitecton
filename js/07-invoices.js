@@ -195,12 +195,13 @@ function payCalc(i,ret){
   if(i.ded&&i.ded.amt)rows.push(["−",L("Abzug","Deduction")+(i.ded.why?` <span class="sp">· ${esc(i.ded.why)}</span>`:""),i.ded.amt,"ded",L("Von Ihnen erfasster Abzug, z.B. für Mängel, Skonto oder nicht erbrachte Leistung.","Deduction you recorded, e.g. for defects or discount.")]);
   if(i.type==="akonto")rows.push(["−",L("Rückbehalt ","Retention ")+invPct(i)+"%",ret,"ret",invPct(i)?L("Gemäss Werkvertrag wird dieser Anteil jeder Akontozahlung zurückbehalten und mit der Schlussrechnung ausbezahlt.","Per contract this share is held back and paid with the final invoice."):L("Im Werkvertrag ist kein Rückbehalt vereinbart.","No retention agreed in the contract.")]);
   else if(i.type==="schluss")rows.push(["+",L("Freigabe Rückbehalt","Retention released"),-ret,"ret",L("Mit der Schlussrechnung wird der bisher zurückbehaltene Betrag ausbezahlt.","With the final invoice the retention held so far is paid out.")]);
-  /* hover (computer): the ⓘ shows a tooltip, nothing moves. Touch (phone): a tap opens the explanation below the line with a short slide. */
-  const ib_=(k,t)=>`<button type="button" class="cinfo" data-act="calc-info" data-k="${k}" data-tip="${esc(t.replace(/<[^>]+>/g,""))}" aria-expanded="false" aria-label="${L("Erklärung","Explanation")}">ⓘ</button>`;
-  const exp=(k,t)=>`<span class="cexp" data-k="${k}"><span>${t}</span></span>`;
-  const line=([op,lb,v,k,t])=>`<span class="op">${op}</span><span>${lb}${ib_(k,t)}</span><span class="r">${nf2.format(Math.abs(v||0))}</span>${exp(k,t)}`;
+  /* ⓘ opens a small light note with an arrow under the line: on hover on the computer, on tap on the phone.
+     It floats above the content, so nothing below moves. */
+  const ib_=k=>`<button type="button" class="cinfo" data-act="calc-info" data-k="${k}" aria-expanded="false" aria-describedby="cx-${k}" aria-label="${L("Erklärung","Explanation")}">ⓘ</button>`;
+  const exp=(k,t)=>`<span class="cexp" id="cx-${k}" role="tooltip" data-k="${k}">${t}</span>`;
+  const line=([op,lb,v,k,t])=>`<span class="op">${op}</span><span class="clb">${lb}${ib_(k)}${exp(k,t)}</span><span class="r">${nf2.format(Math.abs(v||0))}</span>`;
   const payT=L("Dieser Betrag wird an den Handwerker überwiesen.","This amount is paid to the contractor.");
-  return `<div class="calc calc3">${rows.map(line).join("")}<div class="csum"><span class="op">=</span><span>${L("Auszahlung","Payout")}${ib_("pay",payT)}</span><span class="r">${chf(payout(i))}</span>${exp("pay",payT)}</div></div>`;
+  return `<div class="calc calc3">${rows.map(line).join("")}<div class="csum"><span class="op">=</span><span class="clb">${L("Auszahlung","Payout")}${ib_("pay")}${exp("pay",payT)}</span><span class="r">${chf(payout(i))}</span></div></div>`;
 }
 function captureHTML(){
   const M=S.modal,d=M.data;let body="",foot="",title=L("QR scannen","Scan QR");

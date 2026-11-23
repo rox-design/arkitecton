@@ -13,11 +13,10 @@ function toast(msg,ms,hint,undo){const t=document.getElementById("toast");if(hin
   if(undo&&undoSnap){t.innerHTML=`<span>${esc(msg)}</span><button type="button" class="tundo" data-act="undo">${ico("undo")}${L("Rückgängig","Undo")}</button>`;t.classList.add("withundo");}else{t.textContent=msg;t.classList.remove("withundo");}
   t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>{t.classList.remove("on");if(undo)undoCommit();},ms||(undo?7000:3000));}
 async function copy(text,ok){try{await navigator.clipboard.writeText(text);toast(ok);}catch(e){toast(L("Kopieren nicht möglich","Copy failed"));}}
-/* payout note: position the arrow under the ⓘ, close any other open note */
-function calcTip(btn,on){document.querySelectorAll(".calc3 .cinfo.on").forEach(b=>{if(b!==btn){b.classList.remove("on");b.setAttribute("aria-expanded","false");}});
-  const box=btn.closest(".clb"),n=box&&box.querySelector(".cexp");if(!n)return;
-  if(on){const bx=box.getBoundingClientRect(),r=btn.getBoundingClientRect();n.style.setProperty("--ax",Math.max(10,r.left+r.width/2-bx.left)+"px");}
-  btn.classList.toggle("on",on);btn.setAttribute("aria-expanded",on);}
+/* payout explanation: swap the text of the fixed line under the payout, nothing else changes */
+function calcTip(btn,on){const box=btn.closest(".calc3");if(!box)return;const ln=box.querySelector(".cxl");
+  box.querySelectorAll(".cinfo.on").forEach(b=>b.classList.remove("on"));
+  if(on){btn.classList.add("on");ln.textContent=btn.dataset.x;ln.classList.add("on");}else{ln.textContent=ln.dataset.def;ln.classList.remove("on");}}
 document.addEventListener("mouseover",e=>{if(!matchMedia("(hover:hover)").matches)return;const b=e.target.closest&&e.target.closest(".calc3 .cinfo");if(b)calcTip(b,true);});
 document.addEventListener("mouseout",e=>{if(!matchMedia("(hover:hover)").matches)return;const b=e.target.closest&&e.target.closest(".calc3 .cinfo");if(b&&!b.contains(e.relatedTarget))calcTip(b,false);});
 document.addEventListener("click",e=>{if(!e.target.closest(".calc3 .cinfo"))document.querySelectorAll(".calc3 .cinfo.on").forEach(b=>calcTip(b,false));},true);

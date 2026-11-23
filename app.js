@@ -101,6 +101,8 @@ document.addEventListener("click",e=>{
       if(s==="pq"&&t.pq){t.pq.sel=null;}if(s==="arbeit"&&t.status==="pq"&&t.pq){delete t.pq.sub;}
       t.status=s;render();toast(tx(TST[s]),0,false,true);break;}
     case "t-submit":openForm("tsub",id);break;
+    case "crew-add":readCrew();S.form.lines.push({role:"x",t:"",m:null,pct:null});renderOverlay();break;
+    case "crew-del":readCrew();S.form.lines.splice(+el.dataset.c,1);renderOverlay();break;
     case "t-after":{const a=document.querySelector(".after");if(a)a.scrollIntoView({behavior:"smooth",block:"start"});break;}
     case "t-res":openForm("tres",id,el.dataset.w);break;
     case "t-protmail":{const t=T(id);t.protAsked=iso(TODAY);render();location.href=protMail(t);break;}

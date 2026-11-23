@@ -478,6 +478,7 @@ function viewTender(t){
       <section><div class="sh"><h2>${L("Eignung","Eligibility")}</h2><span class="legend-s">${L("muss erfüllt sein","must be met")}</span></div><ul class="checks">${ev.map((e,ix)=>`<li><span class="ic ${e.s}" aria-hidden="true">${ICON[e.s]}</span><span>${esc(e.t)}<span class="res">${esc(e.res)}</span>${t.reqs[ix]&&t.reqs[ix].src?`<span class="src2">${L("Quelle: ","Source: ")}${esc(t.reqs[ix].src)}</span>`:""}</span></li>`).join("")}</ul></section>
       <section><div class="sh"><h2>${L("Unterlagen","Documents")}</h2><span class="cnt">${docs.length-open.length}/${docs.length}</span>${docs.some(d=>!d.auto)&&!c?`<span class="legend-s">${L("abhaken oder aus Büro-Unterlagen übernehmen","tick, or take from firm documents")}</span>`:""}</div><ul class="checks tdocs">${docs.map(docLi).join("")}</ul></section>
     </div>
+    ${crewBlock(t,c)}
     ${phs===1?tenderAward(t,c,"gek"):""}
     ${tenderAward(t,c)}
     ${docsBlock("tender",t.id,L("Dateien","Files"),L("Ausschreibungsunterlagen, Fragen und Antworten, eigene Entwürfe mit ＋ ablegen.","Store tender documents and drafts with ＋."))}

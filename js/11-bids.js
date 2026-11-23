@@ -36,6 +36,24 @@ function sigBlock(t,c){
   const k=!c&&sigCheck(t);if(!k)return head;
   return head+`<div class="notice"><span class="ic ${k.c}" aria-hidden="true">${k.c==="ok"?"✓":"!"}</span><span>${k.t}${k.c==="ok"?"":` ${L("Wer eine hat, im Büroprofil bei der Person «QES» ankreuzen.","Tick «QES» at the person in the office profile.")} <a class="srclink" href="${SECO_CSP}" target="_blank" rel="noopener">${L("Anerkannte Anbieter","Recognised providers")} ↗</a>`}</span></div>`;}
 
+/* the team for one tender: roles with an assigned person and workload; the eligibility check and the key-people document read it */
+const CREWR={pl:["Projektleitung","Project lead"],stv:["Stellvertretung Projektleitung","Deputy project lead"],bl:["Bauleitung","Site management"]};
+const crewOf=t=>t.crew||[{role:"pl",m:null},{role:"stv",m:null},{role:"bl",m:null}];
+const crewRole=c=>CREWR[c.role]?L(...CREWR[c.role]):(c.t||L("Rolle","Role"));
+const crewMember=c=>c.m?(((D.office||{}).team)||[]).find(x=>x.id===c.m)||null:null;
+const crewName=c=>{const m=crewMember(c);return m?m.name+(c.pct?" ("+c.pct+" %)":""):L("offen","open");};
+/* the same person planned in other open tenders */
+function crewElsewhere(t,mid){return D.tenders.filter(x=>x!==t&&(x.status==="neu"||x.status==="arbeit")&&(x.crew||[]).some(c=>c.m===mid));}
+const memberInfo=m=>{const cr=curRole(m),y=cr?roleYears(m,cr):roleYears(m);return [cr?tx(ROLES[cr]):"",y?yrs(y):"",(m.extra||[]).includes("blfa")?L("eidg. Fachausweis","federal certificate"):"",(m.extra||[]).includes("qes")?"QES":""].filter(Boolean).join(" · ");};
+function crewBlock(t,c){
+  const cr=crewOf(t),set=cr.filter(x=>x.m).length;
+  const rows=cr.map((x,i)=>{const m=crewMember(x),oth=m?crewElsewhere(t,m.id):[];
+    return row({act:"form",id:t.id,c:m?(oth.length?"warn":"ok"):"n",title:esc(crewRole(x)),meta:m?esc(m.name)+" · "+esc(memberInfo(m)):L("noch niemand zugewiesen","nobody assigned yet"),amt:x.pct?x.pct+" %":"",label:m&&oth.length?L("auch bei "+oth.length+" anderen","also in "+oth.length+" others"):m?"":L("zuweisen","assign"),lc:m&&oth.length?"warn":"acc"}).replace('data-act="form"',`data-act="form" data-f="crew"${c?" disabled":""}`);}).join("");
+  const over=cr.map(crewMember).filter(Boolean).map(m=>[m,crewElsewhere(t,m.id)]).filter(([,o])=>o.length);
+  return `<section class="crew"><div class="sh"><h2>${L("Team für diese Ausschreibung","Team for this tender")}</h2><span class="cnt">${set}/${cr.length}</span><span class="right">${c?"":ib("edit",L("Team bearbeiten","Edit team"),`data-act="form" data-f="crew" data-id="${t.id}"`)}</span></div>
+    <div class="rows">${rows}</div>${over.length?`<p class="zktip">${over.map(([m,o])=>esc(m.name)+L(" ist auch eingeplant bei: "," is also planned for: ")+o.map(x=>esc(tx(x.title))).join(", ")).join(". ")}.</p>`:""}</section>`;
+}
+
 /* tasks of the office around tenders, shown on the start page */
 function tenderTasks(){
   const out=[],gaps=[],add=(t,c,title,label,o={})=>out.push(Object.assign({t,c,title,label},o));
@@ -138,13 +156,20 @@ function bidFormDef(F){
       +fld("fROwn",L("Ihr Preis CHF","Your price CHF"),r.own||"",{mode:"decimal"})+(won?"":fld("fRWinP",L("Zuschlagspreis CHF","Winning price CHF"),r.win||"",{mode:"decimal"}))
       +fld("fRLow",L("Tiefster Preis CHF","Lowest price CHF"),r.low||"",{mode:"decimal"})+fld("fRN",L("Anzahl Angebote","Number of bids"),r.n||"",{mode:"numeric"})
       +fld("fRRank",L("Ihr Rang beim Preis","Your price rank"),r.rank||"",{mode:"numeric",hint:L("1 = tiefster Preis. Steht im Offertöffnungsprotokoll.","1 = lowest. See the opening minutes.")})};}
+  if(F.f==="crew"){if(!F.lines)F.lines=crewOf(t).map(x=>({...x}));const tm=(((D.office||{}).team)||[]);
+    const rows=F.lines.map((x,i)=>`<div class="crewline"><label class="fc"><span>${L("Rolle","Role")}</span><select id="cr${i}">${Object.keys(CREWR).map(k=>`<option value="${k}"${x.role===k?" selected":""}>${esc(L(...CREWR[k]))}</option>`).join("")}<option value="x"${!CREWR[x.role]?" selected":""}>${L("Andere Rolle …","Other role …")}</option></select></label>
+      <label class="fc ctx"><span>${L("Bezeichnung der Rolle","Role name")}</span><input id="ct${i}" value="${esc(x.t||"")}" placeholder="${L("z. B. Kostenplanung","e.g. cost planning")}"></label>
+      <label class="fc"><span>${L("Person","Person")}</span><select id="cm${i}"><option value="">${L("noch offen","not yet")}</option>${tm.map(m=>`<option value="${m.id}"${x.m===m.id?" selected":""}>${esc(m.name)}${memberInfo(m)?" · "+esc(memberInfo(m)):""}</option>`).join("")}</select></label>
+      <label class="fc"><span>${L("Pensum %","Workload %")}</span><input id="cp${i}" inputmode="numeric" value="${x.pct||""}"></label>
+      <button type="button" class="ib sm" aria-label="${L("Rolle entfernen","Remove role")}" data-act="crew-del" data-c="${i}">${ico("trash")}</button></div>`).join("");
+    return {title:L("Team für diese Ausschreibung","Team for this tender"),body:`<div class="f wide">${rows}<button type="button" class="ghost" data-act="crew-add">${L("+ Rolle","+ Role")}</button><span class="hint">${L("Personen kommen aus dem Büroprofil. Die Eignungsprüfung nimmt die zugewiesene Person.","People come from the office profile. The eligibility check uses the assigned person.")}</span></div>`};}
   if(F.f==="tlink"){const fd=docsFor("firm","firm"),cur=(t.link||{})[F.w];
     return {title:L("Aus Büro-Unterlagen","From firm documents"),save:L("Übernehmen","Use"),body:fd.length?`<div class="f wide"><span class="l">${L("Welches Dokument gehört zu dieser Unterlage?","Which document fits?")}</span>${fd.map(d=>{const v=docValid(d);return `<label class="chk"><input type="radio" name="fLk" value="${d.id}"${cur===d.id?" checked":""}> ${esc(d.name)}${v?` <span class="l-${v.c}">· ${v.t}</span>`:""}</label>`;}).join("")}</div>`
       :`<div class="f wide"><p class="hint">${L("Noch keine Büro-Unterlagen. Auf der Startseite unter «Unterlagen des Büros» ablegen.","No firm documents yet. Add them on the start page.")}</p></div>`};}
   return null;
 }
 function bidSubmit(F,fail){
-  const t=D.tenders.find(x=>x.id===F.id);if(!t||!["tsub","tres","tlink"].includes(F.f))return false;
+  const t=D.tenders.find(x=>x.id===F.id);if(!t||!["tsub","tres","tlink","crew"].includes(F.f))return false;
   const ck=id=>!!(document.getElementById(id)||{}).checked,n=id=>num(val(id));
   if(F.f==="tsub"){if(!ck("fC1")||!ck("fC2")){fail(L("Bitte beide Punkte prüfen und abhaken.","Please check and tick both points."));return true;}
     if(!val("fSubD")){fail(L("Datum fehlt.","Date missing."),"fSubD");return true;}
@@ -162,10 +187,13 @@ function bidSubmit(F,fail){
     t.res=Object.assign(t.res||{},{at:val("fRAt"),own:own||null,low:n("fRLow")||null,n:n("fRN")||null,rank:n("fRRank")||null,winner:won?((D.firm||{}).name||""):val("fRWin"),win:won?own||null:n("fRWinP")||null});
     if(w!=="edit")t.status=won?"gewonnen":"verloren";
     closeAll();render();toast(w==="edit"?L("Gespeichert","Saved"):tx(TST[t.status]),0,false,true);return true;}
+  if(F.f==="crew"){readCrew();t.crew=F.lines.filter(x=>CREWR[x.role]||(x.t||"").trim()).map(x=>({role:x.role,t:CREWR[x.role]?undefined:x.t.trim(),m:x.m||null,pct:x.pct||null}));closeAll();render();toast(L("Team gespeichert","Team saved"));return true;}
   if(F.f==="tlink"){const r=document.querySelector('input[name="fLk"]:checked');if(!r){fail(L("Bitte ein Dokument wählen.","Please pick a document."));return true;}
     t.link=t.link||{};t.link[F.w]=r.value;closeAll();render();toast(L("Übernommen","Linked"));return true;}
   return false;
 }
+function readCrew(){const F=S.form;if(!F||!F.lines)return;const v=(id,d)=>{const e=document.getElementById(id);return e?e.value:d;};
+  F.lines=F.lines.map((x,i)=>{const r=v("cr"+i,CREWR[x.role]?x.role:"x"),o={role:r,m:v("cm"+i,x.m)||null,pct:parseInt(v("cp"+i,x.pct),10)||null};if(r==="x")o.t=v("ct"+i,x.t||"");return o;});}
 /* mail to the contracting authority asking for the opening minutes */
 function protMail(t){const F=D.firm||{},s=L("Einsicht Offertöffnungsprotokoll: ","Opening minutes: ")+tx(t.title);
   const b=L("Guten Tag\n\nWir haben für das Verfahren «"+tx(t.title)+"» am "+fdate(t.sub||iso(TODAY))+" ein Angebot eingereicht. Gestützt auf Art. 37 BöB / IVöB bitten wir um Einsicht in das Offertöffnungsprotokoll, gerne als PDF per E-Mail.\n\nBesten Dank und freundliche Grüsse\n"+(F.name||""),
@@ -173,6 +201,9 @@ function protMail(t){const F=D.firm||{},s=L("Einsicht Offertöffnungsprotokoll: 
   return "mailto:"+(t.mail||"")+"?subject="+encodeURIComponent(s)+"&body="+encodeURIComponent(b);}
 
 /* example data: a bid waiting for the decision, one lost with figures, one won, a selective procedure in phase 2, and bid documents from the firm folder */
+function seedCrews(){const tm=((D.office||{}).team)||[],id=n=>(tm[n]||{}).id||null;
+  const C={t2:[["pl",0,40],["stv",2,30],["bl",1,null]],t6:[["pl",0,60],["stv",2,40],["bl",1,50]],t1:[["pl",0,null],["stv",null,null],["bl",null,null]],t5:[["pl",0,60],["stv",2,null],["bl",1,null]]};
+  (D.tenders||[]).forEach(t=>{if(!t.crew&&C[t.id])t.crew=C[t.id].map(([role,n,pct])=>({role,m:n==null?null:id(n),pct}));});}
 async function seedBids(){
   const ad=n=>addDays(iso(TODAY),n),T=D.tenders,F=(D.firm||{}).name||"Beispiel Architekten GmbH";
   const pdf=async(ref,name,lines,date,flag)=>{const b=samplePdf(lines.concat(["","Beispieldokument, fiktive Daten."]));const id=newId("f");await FDB.put(id,b);DOCS().push(Object.assign({id,scope:"tender",ref,name,type:"application/pdf",size:b.size,date},flag));};
@@ -196,6 +227,7 @@ async function seedBids(){
   const t2=T.find(t=>t.id==="t2");if(t2){t2.pq=t2.pq||{max:5};if(!t2.gek)t2.gek=[{typ:"ref",t:L(...ZKT.ref),w:50,me:"s"},{typ:"team",t:L(...ZKT.team),w:30,me:"m"},{typ:"analyse",t:L("Auftragsverständnis (1 A4)","Understanding of the task (1 A4)"),w:20,me:""}];
     [["d8","Handelsregisterauszug","Commercial register extract"],["d11","Nachweis Berufshaftpflichtversicherung","Professional liability insurance"],["d10","Betreibungsregisterauszug (max. 3 Monate alt)","Debt enforcement extract (max. 3 months)"]].forEach(([id,de,en])=>{if(!t2.docs.some(d=>d.id===id))t2.docs.push({id,de,en});});}
   /* t5 waits for the award: its files were the submission */
+  seedCrews();
   const t5=T.find(t=>t.id==="t5");if(t5){t5.subAt=t5.subAt||"14:32";t5.subForm=t5.subForm||"simap";t5.res=t5.res||{own:399437.22};DOCS().forEach(d=>{if(d.scope==="tender"&&d.ref==="t5"&&!d.dossier)d.submitted=true;});}
   if(!docsFor("firm","firm").some(d=>/betreibung/i.test(d.name))){const b=samplePdf(["Betreibungsregisterauszug",F,"Keine Betreibungen","","Beispieldokument, fiktive Daten."]);const id=newId("f");await FDB.put(id,b);
     DOCS().push({id,scope:"firm",ref:"firm",name:"Betreibungsregisterauszug.pdf",type:"application/pdf",size:b.size,date:ad(-80),until:ad(10)});}

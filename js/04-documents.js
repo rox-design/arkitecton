@@ -221,6 +221,7 @@ function runMigrations(){
   if(!D.mig.subT){D.mig.subT=1;if(D.example&&window.indexedDB)seedSubmittedTender().then(render).catch(e=>console.error(e));}
   if(!D.mig.sig){D.mig.sig=1;if(D.example){D.firm.sigRule=D.firm.sigRule||"kollektiv2";const m1=((D.office||{}).team||[])[0];if(m1){m1.extra=m1.extra||[];if(!m1.extra.includes("qes"))m1.extra.push("qes");}
     const S_={t1:"qes",t2:"qes",t3:"scan",t4:"qes",t5:"qes",t6:"qes",t7:"qes",t8:"papier"};(D.tenders||[]).forEach(t=>{if(!t.sig&&S_[t.id])t.sig=S_[t.id];});}}
+  if(!D.mig.crew){D.mig.crew=1;if(D.example)seedCrews();}
   if(!D.mig.bids){D.mig.bids=1;if(D.example&&window.indexedDB)seedBids().then(render).catch(e=>console.error(e));}
   if(!D.mig.closedMail){D.mig.closedMail=1;if(D.example)[["Gemeinde Wädenswil, Bauamt","bauamt@waedenswil.example"],["Bauversicherung Zürichsee AG","schaden@bauversicherung-zs.example"]].forEach(([n,e])=>{const k=D.contractors.find(x=>x.name===n);if(k&&!k.email)k.email=e;});}
   /* signatures point to people in the office team: name and title are kept once, in the team */

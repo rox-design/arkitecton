@@ -135,6 +135,7 @@ const ZKME={s:[1,"stark","strong"],m:[.6,"mittel","medium"],w:[.25,"schwach","we
 function zkHint(t,z){
   if(z.typ==="ref"){const r=(t.reqs||[]).find(x=>x.k==="refs");const ev=r?evalReq(r):null;const names=ev&&ev.refs&&ev.refs.length?ev.refs.map(x=>tx(x)).join(", "):D.office.refs.filter(x=>!x.running).slice(0,2).map(x=>tx(x)).join(", ");
     return L("Referenzen wählen, die in Art, Grösse und Bauherrschaft möglichst genau passen","Choose references that match type, size and client")+(names?L(". Passend: ",". Matching: ")+names:"")+".";}
+  if(z.typ==="team"&&crewOf(t).some(c=>c.m))return L("Die zugewiesenen Personen mit Erfahrung bei ähnlichen Bauten vorstellen und ihre Rolle im Projekt klar beschreiben: ","Present the assigned people with similar experience and their role: ")+crewOf(t).filter(c=>c.m).map(c=>crewName(c)+" ("+crewRole(c)+")").join(", ")+".";
   if(z.typ==="team"){const m=D.office.team.slice(0,2).map(x=>x.name+(x.qual?" ("+x.qual+")":"")).join(", ");return L("Schlüsselpersonen mit Erfahrung bei ähnlichen Bauten nennen und ihre Rolle im Projekt klar beschreiben","Name key persons with similar experience and their role")+(m?L(". Im Team: ",". In the team: ")+m:"")+".";}
   if(z.typ==="analyse")return L("Die Aufgabe in eigenen Worten wiedergeben, Risiken und Vorgehen konkret auf dieses Projekt beziehen, nicht allgemein.","Restate the task, address risks and approach specifically for this project.");
   if(z.typ==="preis")return L("Honorar je Phase nachvollziehbar aufbauen. Die Preisformel steht im Dossier: Wie stark ein tieferer Preis zählt, hängt davon ab.","Build the fee per phase; the price formula in the dossier decides how much a lower price counts.");
@@ -144,7 +145,7 @@ function zkSum(t,key){const zk=t[key||"zk"]||[],tot=zk.reduce((a,z)=>a+(+z.w||0)
   const rated=zk.filter(z=>z.me),pts=rated.reduce((a,z)=>a+(+z.w||0)*ZKME[z.me][0],0),rw=rated.reduce((a,z)=>a+(+z.w||0),0);
   const lever=zk.filter(z=>z.me!=="s").sort((a,b)=>(+b.w||0)-(+a.w||0))[0]||null;
   return {tot,rated:rated.length,pct:rw?Math.round(pts/rw*100):null,lever};}
-function evalReq(r){
+function evalReq(r,t){
   const O=D.office;
   if(r.k==="refs"){
     const m=O.refs.filter(x=>!x.running&&x.year>=r.since&&x.cost>=r.minCost&&(!r.pub||x.pub)&&(!r.types||r.types.includes(x.type))).sort((a,b)=>b.year-a.year);
@@ -156,19 +157,22 @@ function evalReq(r){
   if(r.k==="team"){
     const lab={bl:L("Bauleiter mit eidg. Fachausweis","Site manager, federal certificate"),pl:L("Projektleiter, öffentliche Bauten","Project lead, public buildings")}[r.tag];
     const has=O.team.find(x=>mTags(x).includes(r.tag));
-    return {k:"team",s:has?"ok":"crit",t:lab,res:has?esc(has.name)+" · "+esc(has.qual)+", "+yrs(roleYears(has)):L("Fehlt im Team","Missing in the team")};
+    /* the person assigned to this role for this tender decides; without an assignment, anyone suitable in the team counts */
+    const as=t&&crewOf(t).find(c=>c.role===r.tag&&c.m),pm=as&&O.team.find(x=>x.id===as.m);
+    if(pm){const ok=mTags(pm).includes(r.tag);return {k:"team",s:ok?"ok":"crit",t:lab,res:ok?L("Zugewiesen: ","Assigned: ")+esc(pm.name)+" · "+esc(pm.qual||"")+", "+yrs(roleYears(pm)):L("Zugewiesen: ","Assigned: ")+esc(pm.name)+L(", erfüllt die Anforderung nicht",", does not meet the requirement")+(has&&has!==pm?L(". Passend wäre ",". Suitable: ")+esc(has.name):"")};}
+    return {k:"team",s:has?"ok":"crit",t:lab,res:has?esc(has.name)+" · "+esc(has.qual)+", "+yrs(roleYears(has))+(t?L(" · noch nicht zugewiesen"," · not assigned yet"):""):L("Fehlt im Team","Missing in the team")};
   }
   const miss=r.need.filter(d=>!O.disc.includes(d));
   return {k:"disc",s:miss.length?"warn":"ok",t:r.need.map(discName).join(", "),res:miss.length?L("Partner nötig: ","Partner needed: ")+miss.map(discName).join(", "):L("Im eigenen Büro","In your own office")};
 }
-function fitOf(t){const ev=t.reqs.map(evalReq);if(!D.office.refs.length||!D.office.team.length)return {ev,fit:"nodata"};return {ev,fit:ev.some(e=>e.s==="crit")?"no":ev.some(e=>e.s==="warn")?"partner":"ok"};}
+function fitOf(t){const ev=t.reqs.map(r=>evalReq(r,t));if(!D.office.refs.length||!D.office.team.length)return {ev,fit:"nodata"};return {ev,fit:ev.some(e=>e.s==="crit")?"no":ev.some(e=>e.s==="warn")?"partner":"ok"};}
 function docsOf(t){
   const ev=fitOf(t).ev;
   const fileOf=d=>d.file&&DOCS().find(x=>x.scope==="tender"&&x.ref===t.id&&x.name===d.file);
   return t.docs.map(d=>Object.assign(docItem(d),{file:fileOf(d)}));
   function docItem(d){
     if(d.auto==="refs"){const e=ev.find(x=>x.k==="refs"),ok=!!e&&e.s==="ok";return {id:d.id,auto:true,done:ok,t:L("Referenzblätter","Reference sheets"),sub:ok?e.refs.map(x=>tx(x)).join(", "):L("Zu wenig passende Referenzen","Not enough matching references")};}
-    if(d.auto==="team"){const m=D.office.team.filter(x=>mTags(x).length);return {id:d.id,auto:true,done:m.length>0,t:L("Schlüsselpersonen","Key people"),sub:m.map(x=>esc(x.name)+" ("+(curRole(x)?tx(ROLES[curRole(x)]):"")+")").join(", ")};}
+    if(d.auto==="team"){const cr=crewOf(t),miss=cr.filter(c=>!c.m);return {id:d.id,auto:true,done:cr.length>0&&!miss.length,t:L("Schlüsselpersonen","Key people"),sub:miss.length?L("Noch offen: ","Still open: ")+miss.map(crewRole).join(", "):cr.map(c=>crewRole(c)+": "+crewName(c)).join(", ")};}
     if(d.auto==="self")return {id:d.id,auto:false,done:!!t.done[d.id],t:L("Selbstdeklaration","Self-declaration"),sub:t.done[d.id]?L("Unterschrieben","Signed"):L("Vorausgefüllt, unterschreiben","Pre-filled, sign it")};
     const lf=linkedDoc(t,d.id);if(lf){const v=docValid(lf);return {id:d.id,auto:false,linked:lf,done:!v||v.c!=="crit",lc:v?v.c:"ok",t:tx(d),sub:L("Aus Büro-Unterlagen: ","From firm documents: ")+lf.name+(v?" · "+v.t:"")};}
     return {id:d.id,auto:false,done:!!t.done[d.id],t:tx(d),sub:"",sugg:!t.done[d.id]?firmMatch(tx(d)):null};

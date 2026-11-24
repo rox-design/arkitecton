@@ -1193,3 +1193,14 @@ details.inf>summary{justify-content:flex-start;gap:4px}
 .tdetail.tclosed .tsec>.sh>.sum{color:var(--muted)}
 .tnext .bar-actions:has(>.ghost:only-child){margin-top:4px}
 .tdocs li>span>.ghost.link{display:block;width:fit-content;margin-top:4px}
+/* the «i» next to a section title, and the explanation it opens */
+.ibtn{all:unset;box-sizing:border-box;cursor:pointer;width:40px;height:40px;margin:-10px -8px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.ibtn>span{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--faint);color:var(--muted);font-size:.75rem;font-weight:600;font-style:italic;font-family:Georgia,serif;display:flex;align-items:center;justify-content:center;line-height:1}
+.ibtn:hover>span,.ibtn[aria-expanded="true"]>span{border-color:var(--ink);color:var(--ink)}
+.ibtn:focus-visible{outline:2px solid var(--ink);outline-offset:-4px;border-radius:50%}
+.ibox{background:var(--hover);border-radius:10px;padding:12px 14px;margin:12px 0 4px;font-size:.875rem;line-height:1.5;color:var(--ink)}
+.ibox p{margin:0}.ibox p+p{margin-top:8px}
+.tdetail .tsec>.sh>.ibtn{grid-row:1;grid-column:2;justify-self:start;margin:-10px -8px -10px -6px}
+.tdetail .tsec>.sh>h2{overflow-wrap:break-word;hyphens:auto;-webkit-hyphens:auto}
+@media (max-width:360px){.tdetail .tsec>.sh>h2{font-size:1.0625rem}}
+@media (max-width:360px){.tdetail .tsec>.sh{column-gap:4px}.tdetail .tsec>.sh>.right .ib{width:40px;height:40px}}

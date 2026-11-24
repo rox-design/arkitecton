@@ -1,4 +1,4 @@
-/* arkitecton unit tests for the money logic and QR codes.
+/* arkitecton unit tests for the money logic, QR codes and tenders.
    Runs inside the app page (tests/run_unit.py injects this file), so it uses the app's real functions.
    Each test builds its own data set; the app's data is restored afterwards. */
 (function(){
@@ -101,6 +101,64 @@ test("KV revidiert",()=>{
   const rs=budgetRows(),t=totals(rs);
   eq(rs[0].kv,120000,"revidierter KV zählt");eq(rs[0].rest,10000,"Reserve gegen revidierten KV");yes(rs[0].rev&&!rs[1].rev,"nur 211 revidiert");
   eq(t.kv,170000,"Total revidiert");eq(t.kv0,150000,"Total ursprünglich");yes(t.rev,"Projekt hat Revision");});
+/* ---------- tenders ---------- */
+const ad=n=>addDays(iso(TODAY),n);
+const office=()=>({disc:["291"],refs:[{id:"r1",de:"Schulhaus",en:"",client:"Gemeinde",pub:true,type:"schule",year:2024,cost:6,phases:"31–53"}],
+  team:[{id:"m1",name:"Anna",qual:"Architektin",extra:["qes"],career:[{role:"pl",firm:"X",from:2018,to:null}]},
+        {id:"m2",name:"Beat",qual:"Bauleiter mit Fachausweis",extra:["blfa"],career:[{role:"bl",firm:"X",from:2015,to:null}]},
+        {id:"m3",name:"Cora",qual:"Architektin",extra:[],career:[{role:"arch",firm:"X",from:2020,to:null}]}]});
+const tender=(id,o)=>Object.assign({id,title:{de:"T "+id,en:""},client:"Gemeinde",proc:"offen",phases:"31–53",cost:5,qDue:ad(5),due:ad(20),status:"arbeit",
+  reqs:[{k:"refs",n:1,since:2016,minCost:1,pub:true,types:null},{k:"team",tag:"bl"},{k:"disc",need:["291"]}],docs:[{id:"d1",auto:"refs"},{id:"d2",auto:"team"},{id:"d3",auto:"self"}],done:{d3:true}},o||{});
+test("Ausschreibung: Eignung mit zugewiesener Person",()=>{
+  D=base();D.office=office();
+  D.tenders=[tender("t1")];eq(fitOf(D.tenders[0]).fit,"ok","ohne Zuweisung zählt jemand Passendes im Team");
+  yes(/noch nicht zugewiesen/.test(fitOf(D.tenders[0]).ev[1].res),"Hinweis: noch nicht zugewiesen");
+  D.tenders[0].crew=[{role:"pl",m:"m1"},{role:"bl",m:"m3"}];eq(fitOf(D.tenders[0]).ev[1].s,"crit","zugewiesene Person ohne Fachausweis: rot");
+  yes(/Passend wäre Beat/.test(fitOf(D.tenders[0]).ev[1].res),"nennt die passende Person");
+  D.tenders[0].crew[1].m="m2";eq(fitOf(D.tenders[0]).fit,"ok","passende Person zugewiesen: erfüllt");});
+test("Ausschreibung: Schlüsselpersonen",()=>{
+  D=base();D.office=office();const t=tender("t1",{crew:[{role:"pl",m:"m1",pct:40},{role:"stv",m:null},{role:"bl",m:"m2"}]});D.tenders=[t];
+  const d=()=>docsOf(t).find(x=>x.id==="d2");
+  eq(d().done,false,"offen, solange eine Rolle frei ist");yes(/Stellvertretung/.test(d().sub),"nennt die offene Rolle");
+  t.crew[1].m="m3";eq(d().done,true,"erledigt, wenn alle Rollen besetzt sind");yes(/Anna \(40 %\)/.test(d().sub),"Name mit Pensum");});
+test("Ausschreibung: Auslastung",()=>{
+  D=base();D.office=office();
+  D.tenders=[tender("t1",{crew:[{role:"pl",m:"m1",pct:40}]}),tender("t2",{crew:[{role:"pl",m:"m1",pct:50}]}),tender("t3",{status:"eingereicht",crew:[{role:"pl",m:"m1",pct:30}]}),
+    tender("t4",{status:"verloren",crew:[{role:"pl",m:"m1",pct:90}]}),tender("t5",{crew:[{role:"pl",m:"m1"}]})];
+  const l=crewLoad(D.tenders[0],"m1");
+  eq(l.tot,120,"40 + 50 + 30 (eingereicht zählt, verloren nicht)");eq(l.oth.length,3,"drei andere Verfahren binden die Person");eq(l.miss,1,"ein Pensum fehlt");});
+test("Ausschreibung: Unterschrift (QES)",()=>{
+  D=base();D.office=office();const t=tender("t1",{sig:"qes"});D.tenders=[t];
+  D.firm.sigRule="einzel";eq(sigCheck(t).c,"ok","Einzelunterschrift, eine QES reicht");
+  D.firm.sigRule="kollektiv2";eq(sigCheck(t).c,"warn","kollektiv zu zweien, nur eine QES");
+  D.office.team.forEach(m=>m.extra=m.extra.filter(x=>x!=="qes"));eq(sigCheck(t).c,"crit","niemand hat eine QES");
+  D.tenders.push(tender("t2",{sig:"qes",due:ad(3)}));
+  const q=tenderTasks().filter(x=>/QES/.test(x.title));eq(q.length,1,"eine Aufgabe für alle Ausschreibungen");eq(q[0].t.id,"t2","nennt die nächste Frist");
+  t.sig="scan";eq(sigCheck(t),null,"Scan verlangt: keine QES-Prüfung");});
+test("Ausschreibung: Fristen und Aufgaben",()=>{
+  D=base();D.office=office();
+  D.tenders=[tender("t1",{due:ad(2)}),tender("t2",{due:ad(7)}),tender("t3",{due:ad(8)}),tender("t4",{status:"eingereicht",sub:ad(-1)})];
+  const tk=tenderTasks(),f=id=>tk.filter(x=>x.t.id===id).map(x=>x.c+":"+x.title);
+  yes(f("t1").some(x=>x.startsWith("crit:")),"in 2 Tagen: rot");yes(f("t2").some(x=>x.startsWith("warn:")),"in 7 Tagen: orange");eq(f("t3").filter(x=>/einreichen/.test(x)).length,0,"in 8 Tagen: noch keine Aufgabe");
+  yes(f("t4").some(x=>/Offertöffnungsprotokoll/.test(x)),"nach der Eingabe: Protokoll verlangen");yes(f("t4").some(x=>/Dateien ablegen/.test(x)),"eingereichte Dateien ablegen");
+  D.tenders[3].protAsked=iso(TODAY);yes(!tenderTasks().some(x=>x.t.id==="t4"&&/Offertöffnungsprotokoll/.test(x.title)),"verlangt: Aufgabe weg");});
+test("Ausschreibung: Zuschlag und Beschwerdefrist",()=>{
+  D=base();D.office=office();
+  eq(appealEnd("2026-11-10"),"2026-11-30","20 Tage ab Verfügung");
+  const lost=tender("t1",{status:"verloren",res:{at:ad(-5),own:110000,win:100000,low:95000}}),won=tender("t2",{status:"gewonnen",res:{at:ad(-30),own:80000,win:80000}});D.tenders=[lost,won];
+  near(tRes(lost).dWin,10,"10 % über dem Zuschlagspreis");eq(tRes(won).dWin,null,"gewonnen: kein Abstand");
+  eq(bidStats().won,1,"1 gewonnen");eq(bidStats().n,2,"von 2 entschieden");
+  yes(tenderTasks().some(x=>x.t.id==="t1"&&/Beschwerdefrist/.test(x.title)),"verloren: Beschwerdefrist läuft");
+  yes(!tenderTasks().some(x=>x.t.id==="t2"),"gewonnen vor 30 Tagen: Frist vorbei, keine Aufgabe");});
+test("Ausschreibung: selektives Verfahren und Status",()=>{
+  D=base();D.office=office();const t=tender("t1",{proc:"sel"});D.tenders=[t];
+  eq(phaseOf(t),1,"Phase 1");t.pq={sel:true};eq(phaseOf(t),2,"ausgewählt: Phase 2");eq(phaseOf(tender("t2")),0,"offenes Verfahren: keine Phase");
+  ["neu","arbeit"].forEach(s=>{t.status=s;eq(closedT(t),false,s+" ist offen");});
+  ["eingereicht","pq","gewonnen","verloren","nichtausg","verzichtet"].forEach(s=>{t.status=s;eq(closedT(t),true,s+" ist abgeschlossen");});});
+test("Büro-Unterlagen passend vorschlagen",()=>{
+  D=base();D.docs=[{id:"f1",scope:"firm",ref:"firm",name:"Handelsregisterauszug.pdf"},{id:"f2",scope:"firm",ref:"firm",name:"Police Berufshaftpflicht.pdf"},{id:"f3",scope:"firm",ref:"firm",name:"AHV-Bestätigung.pdf"}];
+  eq((firmMatch("Handelsregisterauszug")||{}).id,"f1","Handelsregister");eq((firmMatch("Nachweis Berufshaftpflichtversicherung")||{}).id,"f2","Haftpflicht");
+  eq((firmMatch("Nachweis Steuern und Sozialabgaben")||{}).id,"f3","Sozialabgaben ↔ AHV");eq(firmMatch("Honorarofferte"),null,"Honorar: kein Vorschlag");});
 D=keep;
 window.__unit=results;
 })();

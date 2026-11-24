@@ -1,0 +1,42 @@
+"""Tender flow on a phone: firm documents into a bid, submit with checklist, phase 2, award, undo, team per tender, signatures."""
+import asyncio
+from playwright.async_api import async_playwright
+from common import ok,done,start
+async def main():
+  async with async_playwright() as p:
+    b=await p.chromium.launch();ctx,pg,errs=await start(b,mobile=True)
+    await pg.evaluate("go('ausschreibungen');S.tid='t2';render()");await pg.wait_for_timeout(200)
+    for d in ["d8","d11","d10"]:
+      if await pg.query_selector(f'[data-act="t-link"][data-d="{d}"]'):await pg.click(f'[data-act="t-link"][data-d="{d}"]');await pg.wait_for_timeout(100)
+    ok('Büro-Unterlagen übernommen',await pg.evaluate("Object.keys(T('t2').link||{}).length")==3)
+    ok('Abgelaufener Handelsregisterauszug bleibt offen',await pg.evaluate("!docsOf(T('t2')).find(d=>d.id==='d8').done"))
+    await pg.click('[data-act="t-unlink"][data-d="d8"]');await pg.wait_for_timeout(200)
+    ok('Auswahl aus Büro-Unterlagen',await pg.evaluate("document.querySelectorAll('input[name=fLk]').length")>0)
+    await pg.click('#overlay .x');await pg.wait_for_timeout(100)
+    for _ in range(10):
+      c=await pg.query_selector('.tdocs input[type=checkbox]:not(:checked):not(:disabled)')
+      if not c: break
+      await c.click();await pg.wait_for_timeout(150)
+    await pg.click('[data-act="t-submit"]');await pg.wait_for_timeout(200)
+    await pg.click('#overlay button[type=submit]');await pg.wait_for_timeout(150)
+    ok('Einreichen verlangt die Checkliste',await pg.evaluate("T('t2').status")=="arbeit")
+    await pg.check('#fC1');await pg.check('#fC2');await pg.click('#overlay button[type=submit]');await pg.wait_for_timeout(200)
+    ok('Teilnahmeantrag eingereicht',await pg.evaluate("T('t2').status")=="pq")
+    await pg.click('[data-act="t-res"][data-w="sel"]');await pg.wait_for_timeout(200);await pg.fill('#fRDue','2026-12-20');await pg.click('#overlay button[type=submit]');await pg.wait_for_timeout(200)
+    ok('Ausgewählt: Phase 2',await pg.evaluate("phaseOf(T('t2'))===2&&T('t2').status==='arbeit'"))
+    await pg.click('[data-act="t-submit"]');await pg.wait_for_timeout(200);await pg.fill('#fSubP','250000');await pg.check('#fC1');await pg.check('#fC2');await pg.click('#overlay button[type=submit]');await pg.wait_for_timeout(200)
+    ok('Angebot eingereicht mit Preis',await pg.evaluate("T('t2').status==='eingereicht'&&T('t2').res.own===250000"))
+    await pg.click('button.stat[data-f="tres"]');await pg.wait_for_timeout(200);await pg.click('#overlay [data-w="lost"]');await pg.wait_for_timeout(200)
+    await pg.fill('#fRWin','Muster AG');await pg.fill('#fRWinP','230000');await pg.click('#overlay button[type=submit]');await pg.wait_for_timeout(200)
+    ok('Kein Zuschlag mit Abstand',await pg.evaluate("T('t2').status==='verloren'&&Math.round(tRes(T('t2')).dWin)===9"))
+    await pg.click('#toast [data-act="undo"]');await pg.wait_for_timeout(200)
+    ok('Rückgängig',await pg.evaluate("T('t2').status")=="eingereicht")
+    await pg.evaluate("S.tid='t1';render()");await pg.wait_for_timeout(200)
+    await pg.click('.crew [data-act="form"][data-f="crew"]');await pg.wait_for_timeout(200)
+    ok('Team-Formular passt in die Breite',await pg.evaluate("Math.max(...[...document.querySelectorAll('#overlay .crewline *')].map(e=>e.getBoundingClientRect().right))")<=390)
+    await pg.select_option('#cm2',await pg.evaluate("D.office.team[2].id"));await pg.click('#overlay button[type=submit]');await pg.wait_for_timeout(200)
+    ok('Ungeeignete Bauleitung macht Eignung rot',await pg.evaluate("fitOf(T('t1')).ev.find(e=>e.k==='team').s")=="crit")
+    ok('Keine JS-Fehler',not errs,errs[:3])
+    await b.close()
+  done()
+asyncio.run(main())

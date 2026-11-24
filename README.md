@@ -22,3 +22,10 @@ Die Live-Kamera braucht HTTPS (zum Beispiel GitHub Pages) oder `localhost`.
 2. Datenbank, Anmeldung und Dateiablage (Supabase, Region Zürich)
 3. Ausschreibungen von simap.ch
 4. Zahlungsdatei (pain.001), Buchhaltungsanbindung, native App
+
+## Prüfungen
+
+Lokalen Server im Repo starten: `python3 -m http.server 8766`
+
+- `tests/check_all.sh`: Unit-Tests (Geldlogik, QR-Codes, Ausschreibungen) und Layout-Prüfung. Vor jedem Hochladen.
+- `tests/run_e2e.sh`: Abläufe im Browser (Rechnungen, Rückgängig, Ausschreibungen, Speichersicherheit, eingeschleuster Code, Barrierefreiheit, 320 px). Braucht Playwright mit Chromium.

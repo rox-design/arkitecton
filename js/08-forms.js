@@ -228,7 +228,7 @@ function sheetDef(key){
       [L("Sicherung","Backup"),[ex(L("Sicherung herunterladen","Download backup"),"backup"),im(L("Sicherung laden","Restore backup"),"backup",null,".json")]],
       [L("Neu beginnen","Start over"),[bt(c==="reset-ex"?L("Wirklich alles durch Beispieldaten ersetzen?","Really replace everything with example data?"):L("Beispieldaten laden","Load example data"),c==="reset-ex"?"reset-ex":"ask",c==="reset-ex"?null:"reset-ex",c==="reset-ex"?"danger":""),
         bt(c==="reset-all"?L("Wirklich alle Daten löschen?","Really delete all data?"):L("Alle Daten löschen","Delete all data"),c==="reset-all"?"reset-all":"ask",c==="reset-all"?null:"reset-all","danger")]]],
-      note:L("Testversion: Alle Daten und Dokumente liegen nur in diesem Browser auf diesem Gerät. Es wird nichts an einen Server gesendet. Die Sicherung enthält die Daten, aber nicht die Dokumente. Safari kann Daten löschen, wenn arkitecton länger als 7 Tage nicht geöffnet wird: Auf dem iPhone deshalb über Teilen → «Zum Home-Bildschirm» hinzufügen und regelmässig sichern.","Test version: all data and documents stay in this browser on this device. Nothing is sent to a server. The backup contains the data but not the documents. Safari may delete data if arkitecton is not opened for more than 7 days: on iPhone add it via Share → Add to Home Screen and back up regularly.")};
+      note:L("Testversion: Alle Daten und Dokumente liegen nur in diesem Browser auf diesem Gerät. Es wird nichts an einen Server gesendet. Die Sicherung enthält die Daten und alle Dokumente. Safari kann Daten löschen, wenn arkitecton länger als 7 Tage nicht geöffnet wird: Auf dem iPhone deshalb über Teilen → «Zum Home-Bildschirm» hinzufügen und regelmässig sichern.","Test version: all data and documents stay in this browser on this device. Nothing is sent to a server. The backup contains the data and all documents. Safari may delete data if arkitecton is not opened for more than 7 days: on iPhone add it via Share → Add to Home Screen and back up regularly.")};
   }
   if(key==="rechnungen") return {title:L("Weitere Aktionen","More actions"),groups:[["",[Object.assign(bt(L("Rechnung ohne QR erfassen","Add invoice without QR"),"form"),{f:"invoice"})]],[L("Herunterladen","Download"),[ex(L("Rechnungsliste","Invoice list"),"x-invoices")]]]};
   if(key==="k-add"){const inP=new Set(PC().map(w=>w.k)),others=D.contractors.filter(k=>!inP.has(k.id)&&!(k.pid===D.pid&&!D.contracts.some(w=>w.k===k.id))).sort((a,b)=>a.name.localeCompare(b.name));
@@ -356,9 +356,10 @@ async function handleImport(kind,file,id){
   if(kind==="backup"){
     try{const o=JSON.parse(await file.text());if(!o||o.v!==1||!Array.isArray(o.projects))throw new Error("format");
       ["contractors","contracts","invoices","fees","docs","tenders","events"].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[];});o.firm=o.firm||{name:""};o.seq=Math.max(+o.seq||0,100);
-      const files=o.files||{};delete o.files;await clearFiles();let nf=0;
+      /* the current state stays recoverable: documents are added, not wiped first, and the old data can be restored with Undo */
+      const files=o.files||{};delete o.files;let nf=0;
       for(const id of Object.keys(files)){try{const b=await (await fetch(files[id])).blob();await FDB.put(id,b);nf++;}catch(e){}}
-      D=o;runMigrations();S.kid=null;S.tid=null;S.view="uebersicht";render();return toast(L("Sicherung geladen","Backup restored")+(nf?" · "+nf+L(" Dokumente"," documents"):""));}
+      if(D)snap();D=o;runMigrations();saveData();S.kid=null;S.tid=null;S.view="uebersicht";render();return toast(L("Sicherung geladen","Backup restored")+(nf?" · "+nf+L(" Dokumente"," documents"):""),0,false,!!undoSnap);}
     catch(e){render();return toast(L("Keine gültige arkitecton-Sicherung","Not a valid arkitecton backup"));}
   }
   let rows;try{rows=await readRows(file);}catch(e){render();return toast(L("Datei nicht lesbar","File could not be read"));}

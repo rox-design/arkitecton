@@ -9,7 +9,9 @@ let undoSnap=null;
 function snap(){undoCommit();undoSnap={d:JSON.stringify(D),files:[]};}
 function undoCommit(){if(undoSnap){undoSnap.files.forEach(f=>FDB.del(f));undoSnap=null;}}
 function fileDel(id){if(undoSnap)undoSnap.files.push(id);else FDB.del(id);}
-function toast(msg,ms,hint,undo){const t=document.getElementById("toast");if(hint)t.dataset.hint="1";else delete t.dataset.hint;t.classList.toggle("top",!!document.querySelector("#overlay.on"));
+/* after a save was refused (another window changed the data), success messages of that same action must not appear */
+let toastLock=0;
+function toast(msg,ms,hint,undo){if(Date.now()<toastLock&&!String(msg).startsWith(L("Nicht gespeichert","Not saved")))return;const t=document.getElementById("toast");if(hint)t.dataset.hint="1";else delete t.dataset.hint;t.classList.toggle("top",!!document.querySelector("#overlay.on"));
   if(undo&&undoSnap){t.innerHTML=`<span>${esc(msg)}</span><button type="button" class="tundo" data-act="undo">${ico("undo")}${L("Rückgängig","Undo")}</button>`;t.classList.add("withundo");}else{t.textContent=msg;t.classList.remove("withundo");}
   t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>{t.classList.remove("on");if(undo)undoCommit();},ms||(undo?7000:3000));}
 async function copy(text,ok){try{await navigator.clipboard.writeText(text);toast(ok);}catch(e){toast(L("Kopieren nicht möglich","Copy failed"));}}
@@ -101,6 +103,7 @@ document.addEventListener("click",e=>{
       if(s==="pq"&&t.pq){t.pq.sel=null;}if(s==="arbeit"&&t.status==="pq"&&t.pq){delete t.pq.sub;}
       t.status=s;render();toast(tx(TST[s]),0,false,true);break;}
     case "t-submit":openForm("tsub",id);break;
+    case "dl-bad":{let s="";try{s=localStorage.getItem(BADKEY)||"";}catch(e){}const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([s],{type:"application/json"}));a.download="arkitecton-beschaedigt-"+iso(TODAY)+".json";a.click();break;}
     case "crew-add":readCrew();S.form.lines.push({role:"x",t:"",m:null,pct:null});renderOverlay();break;
     case "crew-del":readCrew();S.form.lines.splice(+el.dataset.c,1);renderOverlay();break;
     case "t-after":{const a=document.querySelector(".after");if(a)a.scrollIntoView({behavior:"smooth",block:"start"});break;}
@@ -273,7 +276,10 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden)stopCam();}
 window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(D&&v!==S.view&&VIEWS.includes(v))go(v);});
 
 try{const l=localStorage.getItem("arkitecton:lang");if(l==="de"||l==="en")S.lang=l;}catch(e){}themeMeta();
-D=loadData();{const had=!!D;setTimeout(()=>{if(had&&D)sweepFiles();},15000);}try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
+D=loadData();
+/* another tab saved: take over its state, unless a form is open (then the next save notices the conflict) */
+addEventListener("storage",e=>{if(e.key!==REVKEY||!e.newValue||e.newValue===myRev||!D||S.form)return;const o=loadData();if(!o)return;D=o;undoSnap=null;render();toast(L("In einem anderen Fenster geändert. Die Ansicht ist aktualisiert.","Changed in another window. The view is updated."));});
+{const had=!!D;setTimeout(()=>{if(had&&D)sweepFiles();},15000);}try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
 runMigrations();
 const h0=location.hash.slice(1);if(VIEWS.includes(h0))S.view=h0;
 render();

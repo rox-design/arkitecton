@@ -72,6 +72,8 @@ function viewWelcome(){
   return `<div class="welcome"><div class="box">
     <div class="word"><svg viewBox="0 0 30 30" aria-hidden="true" style="width:26px;height:26px"><rect class="mk-ink" x="3" y="20" width="24" height="7"/><rect class="mk-ink" x="7" y="9" width="9" height="11"/><rect class="mk-ink" x="16" y="14" width="7" height="6"/><rect class="mk-red" x="16" y="3" width="6" height="6"/></svg>arkitecton</div>
     <h1>${L("Bauadministration, die mitdenkt.","Construction admin that thinks along.")}</h1>
+    ${CORRUPT?`<div class="notice"><span class="ic crit" aria-hidden="true">!</span><span>${L("Der gespeicherte Stand liess sich nicht lesen. Er ist nicht gelöscht, sondern als Kopie aufbewahrt. Laden Sie Ihre letzte Sicherung oder laden Sie die Kopie herunter, damit sie gerettet werden kann.","The saved state could not be read. It was kept as a copy. Restore your last backup, or download the copy so it can be recovered.")}</span></div>
+    <div class="acts"><label class="btn block">${L("Sicherung laden","Restore backup")}<input type="file" accept=".json" data-imp="backup" hidden></label><button type="button" class="btn block" data-act="dl-bad">${L("Kopie herunterladen","Download the copy")}</button></div>`:""}
     <div class="acts">
       <button type="button" class="btn primary block" data-act="start-example">${L("Mit Beispielprojekt starten","Start with an example project")}</button>
       <button type="button" class="btn block" data-act="start-empty">${L("Leer starten","Start empty")}</button>

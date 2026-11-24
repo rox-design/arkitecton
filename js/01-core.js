@@ -148,7 +148,19 @@ const EX_FINAL=[{pos:"1",text:"Wände streichen, 2 Anstriche",unit:"m²",qty:146
 const SPACE=(new URLSearchParams(location.search).get("raum")||"").replace(/[^a-z0-9-]/gi,"").slice(0,30).toLowerCase();
 const KEY="arkitecton:data:v1"+(SPACE?":"+SPACE:"");
 let D=null;
-function loadData(){try{const s=localStorage.getItem(KEY);if(s){const o=JSON.parse(s);if(o&&o.v===1){o.fees=o.fees||[];o.firm=o.firm||{name:""};return o;}}}catch(e){}return null;}
+/* Storage safety.
+   A damaged saved state is never overwritten: it is copied aside (KEY:defekt) and the start screen says so.
+   Several open tabs: every save writes a revision; a tab whose revision is outdated reloads instead of overwriting the newer state. */
+const REVKEY=KEY+":rev",BADKEY=KEY+":defekt";let myRev=null,CORRUPT=false;
+const readRev=()=>{try{return localStorage.getItem(REVKEY);}catch(e){return null;}};
+function loadData(){let s=null;try{s=localStorage.getItem(KEY);}catch(e){}
+  if(!s)return null;
+  try{const o=JSON.parse(s);if(o&&o.v===1&&Array.isArray(o.projects)){o.fees=o.fees||[];o.firm=o.firm||{name:""};myRev=readRev();return o;}}catch(e){}
+  try{localStorage.setItem(BADKEY,s);localStorage.removeItem(KEY);}catch(e){}CORRUPT=true;return null;}
+function conflictReload(){const o=loadData();if(o)D=o;toastLock=Date.now()+2500;
+  setTimeout(()=>{try{S.form=null;closeAll();render();toast(L("Nicht gespeichert: In einem anderen Fenster wurde arkitecton inzwischen geändert. Hier ist jetzt der neuste Stand. Bitte die Änderung nochmals machen.","Not saved: arkitecton was changed in another window meanwhile. This is now the latest state; please redo the change."),10000);}catch(x){}},0);}
 let saveWarned=false;
-function saveData(){if(!D)return;try{localStorage.setItem(KEY,JSON.stringify(D));saveWarned=false;}catch(e){if(!saveWarned){saveWarned=true;setTimeout(()=>{try{toast(L("Speichern nicht möglich: Der Browser-Speicher ist voll. Bitte sofort unter Einstellungen › Daten und Sicherung eine Sicherung herunterladen.","Cannot save: browser storage is full. Please download a backup now under Settings › Data and backup."),12000);}catch(x){}},0);}}}
+function saveData(){if(!D)return;
+  const st=readRev();let has=false;try{has=localStorage.getItem(KEY)!==null;}catch(e){}if(has&&st&&st!==myRev){conflictReload();return;}
+  try{localStorage.setItem(KEY,JSON.stringify(D));myRev=Date.now().toString(36)+Math.random().toString(36).slice(2,7);localStorage.setItem(REVKEY,myRev);saveWarned=false;}catch(e){if(!saveWarned){saveWarned=true;setTimeout(()=>{try{toast(L("Speichern nicht möglich: Der Browser-Speicher ist voll. Bitte sofort unter Einstellungen › Daten und Sicherung eine Sicherung herunterladen.","Cannot save: browser storage is full. Please download a backup now under Settings › Data and backup."),12000);}catch(x){}},0);}}}
 const newId=p=>p+(++D.seq);

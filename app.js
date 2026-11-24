@@ -57,7 +57,8 @@ document.addEventListener("click",e=>{
     case "open-m":S.mid=id;render();document.getElementById("main").scrollTop=0;break;
     case "back-m":S.mid=null;render();break;
     case "tfilter":S.tfilter=el.dataset.f;render();break;
-    case "fold":{const st=foldGet(),k=el.dataset.k;st[k]=!st[k];try{localStorage.setItem(FOLDK,JSON.stringify(st));}catch(e){}const sec=el.closest("section");sec.classList.toggle("folded",!!st[k]);el.setAttribute("aria-expanded",String(!st[k]));break;}
+    case "fold":{const tmp=el.dataset.s==="t",st=tmp?(S.tfold||(S.tfold={})):foldGet(),k=el.dataset.k,sec=el.closest("section"),cl=!sec.classList.contains("folded");st[k]=cl;if(!tmp)try{localStorage.setItem(FOLDK,JSON.stringify(st));}catch(e){}sec.classList.toggle("folded",cl);el.setAttribute("aria-expanded",String(!cl));el.setAttribute("aria-label",(cl?L("Aufklappen: ","Expand: "):L("Zuklappen: ","Collapse: "))+sec.querySelector("h2").textContent.trim());break;}
+    case "t-go":{const k=el.dataset.k;S.tfold=S.tfold||{};S.tfold["t:"+S.tid+":"+k]=false;render();const sec=document.querySelector('#main section[data-fk="'+k+'"]');if(sec){sec.scrollIntoView({behavior:"smooth",block:"start"});const f=sec.querySelector("input:not(:checked),button.row,button");if(f)setTimeout(()=>f.focus({preventScroll:true}),350);}break;}
     case "bfilter":S.bfilter=el.dataset.f;render();break;
     case "kfilter":S.kfilter=el.dataset.f;render();break;
     case "ffilter":S.ffilter=el.dataset.f;render();break;

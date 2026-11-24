@@ -6,6 +6,18 @@ async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch();ctx,pg,errs=await start(b,mobile=True)
     await pg.evaluate("go('ausschreibungen');S.tid='t2';render()");await pg.wait_for_timeout(200)
+    ok('Nächster Schritt steht oben',await pg.evaluate("document.querySelector('.tnext').getBoundingClientRect().top<document.querySelector('.stats').getBoundingClientRect().top"))
+    ok('Erfüllte Eignung ist zugeklappt',await pg.evaluate("document.querySelector('section[data-fk=elig]').classList.contains('folded')"))
+    ok('Offene Unterlagen sind aufgeklappt',not await pg.evaluate("document.querySelector('section[data-fk=docs]').classList.contains('folded')"))
+    await pg.click('.tnext [data-act="t-go"][data-k="crew"]');await pg.wait_for_timeout(500)
+    ok('Antippen öffnet den Abschnitt',not await pg.evaluate("document.querySelector('section[data-fk=crew]').classList.contains('folded')"))
+    await pg.click('section[data-fk=elig] .fold');await pg.wait_for_timeout(100)
+    ok('Aufklappen von Hand',not await pg.evaluate("document.querySelector('section[data-fk=elig]').classList.contains('folded')"))
+    await pg.evaluate("render()");await pg.wait_for_timeout(100)
+    ok('Aufgeklappt bleibt nach neuem Zeichnen',not await pg.evaluate("document.querySelector('section[data-fk=elig]').classList.contains('folded')"))
+    await pg.click('section[data-fk=gek] .zkrow details.inf summary');await pg.wait_for_timeout(100)
+    ok('Tipp öffnet sich',await pg.evaluate("document.querySelector('section[data-fk=gek] details.inf').open"))
+    ok('Zuschlagskriterien erst in Phase 2',not await pg.query_selector('section[data-fk=zk]'))
     for d in ["d8","d11","d10"]:
       if await pg.query_selector(f'[data-act="t-link"][data-d="{d}"]'):await pg.click(f'[data-act="t-link"][data-d="{d}"]');await pg.wait_for_timeout(100)
     ok('Büro-Unterlagen übernommen',await pg.evaluate("Object.keys(T('t2').link||{}).length")==3)

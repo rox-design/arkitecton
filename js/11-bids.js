@@ -32,9 +32,10 @@ function sigCheck(t){if(t.sig!=="qes")return null;const q=qesPeople(),need=sigNe
   if(!q.length)return {c:"crit",t:L("Niemand im Büro hat eine QES. Die Identifikation beim Anbieter braucht einige Tage Vorlauf.","Nobody in the office has a QES. Getting one takes a few days.")};
   return {c:"warn",t:L("Ihr Büro zeichnet kollektiv zu zweien, aber nur "+nm+" hat eine QES. Es braucht eine zweite Person mit QES.","Your office signs jointly by two, but only "+nm+" has a QES. A second person is needed.")};}
 function sigBlock(t,c){
-  const head=`<div class="sigrow"><span class="sl2">${L("Verlangte Unterschrift","Required signature")}</span><span>${t.sig?esc(L(...SIGREQ[t.sig])):`<span class="muted">${L("noch nicht erfasst, steht in den Unterlagen im Kapitel «Einreichung»","not entered yet, see the chapter on submission")}</span>`}</span></div>`;
+  const head=`<div class="sigrow"><span class="sl2">${L("Verlangte Unterschrift","Required signature")}</span><span>${t.sig?esc(L(...SIGREQ[t.sig])):`<span class="muted">${L("noch nicht erfasst","not entered yet")}</span>`}</span></div>`;
   const k=!c&&sigCheck(t);if(!k)return head;
-  return head+`<div class="notice"><span class="ic ${k.c}" aria-hidden="true">${k.c==="ok"?"✓":"!"}</span><span>${k.t}${k.c==="ok"?"":` ${L("Wer eine hat, im Büroprofil bei der Person «QES» ankreuzen.","Tick «QES» at the person in the office profile.")} <a class="srclink" href="${SECO_CSP}" target="_blank" rel="noopener">${L("Anerkannte Anbieter","Recognised providers")} ↗</a>`}</span></div>`;}
+  if(k.c==="ok")return head+`<div class="notice"><span class="ic ok" aria-hidden="true">✓</span><span>${k.t}</span></div>`;
+  return head+`<div class="notice"><span class="ic ${k.c}" aria-hidden="true">!</span><span>${k.c==="crit"?L("Niemand im Büro hat eine QES.","Nobody in the office has a QES."):L("Es braucht eine zweite Person mit QES.","A second person with a QES is needed.")} <button type="button" class="ghost link" data-act="nav" data-v="profil">${L("Im Büroprofil ankreuzen","Tick in the office profile")}</button> · <a class="srclink" href="${SECO_CSP}" target="_blank" rel="noopener">${L("Anbieter","Providers")} ↗</a></span></div>`;}
 
 /* the team for one tender: roles with an assigned person and workload; the eligibility check and the key-people document read it */
 const CREWR={pl:["Projektleitung","Project lead"],stv:["Stellvertretung Projektleitung","Deputy project lead"],bl:["Bauleitung","Site management"]};
@@ -58,9 +59,12 @@ function crewBlock(t,c){
     const ld=m&&oth.length?crewLoad(t,m.id):null,hot=ld&&ld.tot>100;
     return row({act:"form",id:t.id,c:m?(hot?"crit":"ok"):"n",title:esc(crewRole(x)),meta:m?esc(m.name)+" · "+esc(memberInfo(m)):L("noch niemand zugewiesen","nobody assigned yet"),amt:x.pct?x.pct+" %":"",label:ld?(ld.known?(ld.miss?L("mind. ","at least "):L("geplant ","planned "))+ld.tot+" %":L("auch bei "+oth.length+" anderen","also in "+oth.length+" others")):m?"":L("zuweisen","assign"),lc:hot?"crit":ld?"n":"acc"}).replace('data-act="form"',`data-act="form" data-f="crew"${c?" disabled":""}`);}).join("");
   const seen={},over=cr.map(crewMember).filter(m=>m&&!seen[m.id]&&(seen[m.id]=1)).map(m=>[m,crewLoad(t,m.id)]).filter(([,l])=>l.oth.length);
-  const pc=(v,miss)=>v?v+" %":L("ohne Pensum","no workload");const wait=x=>waitT(x)?L(" (Entscheid offen)"," (decision pending)"):"";
-  return `<section class="crew"><div class="sh"><h2>${L("Team für diese Ausschreibung","Team for this tender")}</h2><span class="cnt">${set}/${cr.length}</span><span class="right">${c?"":ib("edit",L("Team bearbeiten","Edit team"),`data-act="form" data-f="crew" data-id="${t.id}"`)}</span></div>
-    <div class="rows">${rows}</div>${over.length?`<ul class="load">${over.map(([m,l])=>`<li><b>${esc(m.name)}</b>: ${L("hier ","here ")+pc(l.here)}, ${l.oth.map(([x,cs])=>esc(tx(x.title))+wait(x)+" "+pc(cs.reduce((a,c)=>a+(c.pct||0),0))).join(", ")}${l.known?` · <span class="l-${l.tot>100?"crit":"n"}">${(l.miss?L("mindestens ","at least "):L("geplant ","planned "))+l.tot+" %"}${l.miss?", "+l.miss+" "+(l.miss===1?L("Pensum fehlt","workload missing"):L("Pensen fehlen","workloads missing")):""}${l.tot>100?L(", überbucht",", overbooked"):""}</span>`:""}</li>`).join("")}</ul><p class="zktip">${L("Geplant heisst: falls alle Zuschläge kommen. Laufende Projekte sind nicht eingerechnet.","Planned means: if every award comes. Running projects are not included.")}</p>`:""}</section>`;
+  const hot=over.filter(([,l])=>l.tot>100).length,free=cr.length-set;
+  const pc=v=>v?v+" %":L("ohne Pensum","no workload");const wait=x=>waitT(x)?L(" (Entscheid offen)"," (decision pending)"):"";
+  /* the workload across tenders is a detail: one tap away, the rows already show the total */
+  const load=over.length?tInfo(L("Auslastung in anderen Ausschreibungen","Workload in other tenders"),`<ul class="load">${over.map(([m,l])=>`<li><b>${esc(m.name)}</b>: ${L("hier ","here ")+pc(l.here)}, ${l.oth.map(([x,cs])=>esc(tx(x.title))+wait(x)+" "+pc(cs.reduce((a,c)=>a+(c.pct||0),0))).join(", ")}${l.miss?` · ${l.miss} ${l.miss===1?L("Pensum fehlt","workload missing"):L("Pensen fehlen","workloads missing")}`:""}</li>`).join("")}</ul><p class="zktip">${L("Geplant heisst: falls alle Zuschläge kommen. Laufende Projekte sind nicht eingerechnet.","Planned means: if every award comes. Running projects are not included.")}</p>`):"";
+  const head=`<div class="sh"><h2>${L("Team","Team")}</h2><span class="cnt">${set}/${cr.length}</span>${tSum(hot?L("überbucht","overbooked"):free?free+" "+L("offen","open"):L("vollständig","complete"),hot?"crit":free?"warn":"ok")}<span class="right">${c?"":ib("edit",L("Team bearbeiten","Edit team"),`data-act="form" data-f="crew" data-id="${t.id}"`)}</span></div>`;
+  return tSec("crew",!!c||(!hot&&!free),"crew",head,`<div class="rows">${rows}</div>${load}`);
 }
 
 /* tasks of the office around tenders, shown on the start page */
@@ -96,23 +100,23 @@ function tenderAfter(t){
   const steps=[];
   /* 1 what was submitted, kept here because simap deletes submissions 365 days after the deadline */
   steps.push(step(files.length?"ok":"warn",(p1?L("Teilnahmeantrag eingereicht","Request submitted"):L("Angebot eingereicht","Bid submitted"))+(sub.sub?` <span class="res">${L("am ","on ")+fdate(sub.sub)+(sub.subAt?", "+esc(sub.subAt)+L(" Uhr",""):"")+(sub.form&&SUBF[sub.form]?" · "+L(...SUBF[sub.form]):"")}</span>`:""),
-    (files.length?`<div class="dlist">${files.map(fileRow).join("")}</div>`:"")+`<p class="res">${files.length?L("Eingereichte Dateien und Eingangsbestätigung sind hier gesichert.","Submitted files and receipt are kept here."):L("Eingereichte Dateien und Eingangsbestätigung hier ablegen: simap löscht sie 365 Tage nach der Frist.","File the submitted documents and the receipt here: simap deletes them 365 days after the deadline.")}</p>`,
+    (files.length?(files.length>2?tInfo(files.length+" "+L("gesicherte Dateien","saved files"),`<div class="dlist">${files.map(fileRow).join("")}</div>`):`<div class="dlist">${files.map(fileRow).join("")}</div>`):`<p class="res">${L("Eingereichte Dateien und Eingangsbestätigung hier ablegen: simap löscht sie 365 Tage nach der Frist.","File the submitted documents and the receipt here: simap deletes them 365 days after the deadline.")}</p>`),
     up(p1?"tsub1":"tsub",L("Eingereichte Dateien ablegen","File submitted documents"))));
   /* 2 opening minutes: every bidder may see them, at the latest after the award (Art. 37 BöB / IVöB) */
   if(!p1){const law=t.proc==="einl"?L("Im Einladungsverfahren ist die Einsicht nicht geregelt. Fragen lohnt sich trotzdem.","Not regulated in the invitation procedure, but worth asking."):L("Sie haben Anspruch auf Einsicht, spätestens nach dem Zuschlag (Art. 37 BöB / IVöB). Es zeigt die Preise aller Angebote.","You may see it at the latest after the award (Art. 37). It shows the prices of all bids.");
     steps.push(step(prot.length?"ok":t.protAsked?"n":"warn",L("Offertöffnungsprotokoll","Opening minutes")+(t.protAsked&&!prot.length?` <span class="res">${L("verlangt am ","requested on ")+fdate(t.protAsked)}</span>`:""),
-      (prot.length?`<div class="dlist">${prot.map(fileRow).join("")}</div>`:`<p class="res">${law}</p>`)+(prot.length?"":`<button type="button" class="btn sm" data-act="t-protmail" data-id="${t.id}">${L("E-Mail an die Vergabestelle","E-mail to the contracting authority")}</button>`),
+      (prot.length?`<div class="dlist">${prot.map(fileRow).join("")}</div>`:tInfo(L("Warum verlangen?","Why ask for it?"),law))+(prot.length?"":`<button type="button" class="btn sm" data-act="t-protmail" data-id="${t.id}">${L("E-Mail an die Vergabestelle","E-mail to the contracting authority")}</button>`),
       up("tprot",L("Protokoll ablegen","File the minutes"))));}
   /* 3 the decision */
   if(p1){const pq=t.pq||{};
     steps.push(t.status==="nichtausg"?step("n",L("Nicht ausgewählt","Not selected")+(pq.at?` <span class="res">${L("Mitteilung vom ","Notice of ")+fdate(pq.at)}</span>`:""),appealLine(t,pq.at,false),"")
-      :step("n",L("Auswahl der Teilnehmer","Selection of participants"),`<p class="res">${L("Die Vergabestelle teilt die Auswahl meist per Verfügung mit, nicht öffentlich.","Usually notified individually, not published.")+(pq.max?" "+L("Eingeladen werden höchstens "+pq.max+" Büros.","At most "+pq.max+" firms are invited."):"")}</p>`,""));}
-  else if(t.status==="eingereicht")steps.push(step("n",L("Zuschlag","Award"),`<p class="res">${L("Die Zuschlagsverfügung kommt per E-Mail oder Post, am Publikationsdatum auch auf simap.ch.","The award notice comes by e-mail or post, and on simap.ch on the publication date.")}</p>`,""));
+      :step("n",L("Auswahl der Teilnehmer","Selection of participants"),tInfo(L("Wie kommt der Entscheid?","How does the decision come?"),L("Die Vergabestelle teilt die Auswahl meist per Verfügung mit, nicht öffentlich.","Usually notified individually, not published.")+(pq.max?" "+L("Eingeladen werden höchstens "+pq.max+" Büros.","At most "+pq.max+" firms are invited."):"")),""));}
+  else if(t.status==="eingereicht")steps.push(step("n",L("Zuschlag","Award"),tInfo(L("Wie kommt der Entscheid?","How does the decision come?"),L("Die Zuschlagsverfügung kommt per E-Mail oder Post, am Publikationsdatum auch auf simap.ch.","The award notice comes by e-mail or post, and on simap.ch on the publication date.")),""));
   else{const won=t.status==="gewonnen";
     steps.push(step(won?"ok":"n",(won?L("Zuschlag erhalten","Contract awarded"):L("Kein Zuschlag","Not awarded"))+(r.at?` <span class="res">${L("Verfügung vom ","Decision of ")+fdate(r.at)}${!won&&r.winner?" · "+L("Zuschlag an ","awarded to ")+esc(r.winner):""}</span>`:""),
       appealLine(t,r.at,won),ib("edit",L("Ergebnis bearbeiten","Edit result"),`data-act="t-res" data-id="${t.id}" data-w="edit"`)));
     steps.push(step("n",L("Vergleich","Comparison"),resultTable(t),""));}
-  return `<section class="after docs"><div class="sh"><h2>${L("Nach der Eingabe","After submitting")}</h2></div><ul class="checks asteps">${steps.join("")}</ul></section>`;
+  return `<section class="after docs" data-fk="after" data-fd="0"><div class="sh"><h2>${L("Nach der Eingabe","After submitting")}</h2></div><ul class="checks asteps">${steps.join("")}</ul></section>`;
 }
 function appealLine(t,at,won){const ae=appealEnd(at);if(!ae)return "";const n=daysTo(ae);
   if(won)return `<p class="res">${n>=0?L("Zuschlag wird verbindlich am ","Award becomes binding on ")+fdate(addDays(ae,1))+L(", wenn keine Beschwerde eingeht (Frist bis ",", if no appeal is filed (period until ")+fdate(ae)+L("). Bis dahin noch keine Arbeit beginnen.","). Do not start work before."):L("Zuschlag verbindlich seit ","Award binding since ")+fdate(addDays(ae,1))+L(", sofern keine Beschwerde eingegangen ist.",", unless an appeal was filed.")} ${L("Massgebend ist die Rechtsmittelbelehrung in der Verfügung.","The notice in the decision is binding.")}</p>`;
@@ -131,9 +135,9 @@ function resultTile(t){
   const at=p1?(t.pq||{}).at:r.at,ae=appealEnd(at),open=ae&&daysTo(ae)>=0;
   const sl=p1?L("Auswahl","Selection"):L("Zuschlag","Award");
   let sv,c="",ss;
-  if(pending){sv=L("ausstehend","pending");ss=(p1?L("Mitteilung meist per Verfügung","Usually notified by decision"):L("Entscheid kommt per E-Mail oder Post","Decision comes by e-mail or post"))+L(" · erfassen"," · record");}
-  else if(t.status==="gewonnen"){sv=L("Erhalten","Awarded");c=" ok";ss=(at?L("Verfügung vom ","Decision of ")+fdate(at):"")+(open?L(" · verbindlich ab "," · binding from ")+fdate(addDays(ae,1)):"");}
-  else{sv=p1?L("Nein","No"):L("Nicht erhalten","Not awarded");ss=[!p1&&r.winner?L("an ","to ")+esc(r.winner):"",open?L("Beschwerde bis ","appeal until ")+fdate(ae):at?L("Verfügung vom ","decision of ")+fdate(at):""].filter(Boolean).join(" · ");}
+  if(pending){sv=L("ausstehend","pending");ss=L("erfassen","record");}
+  else if(t.status==="gewonnen"){sv=L("Erhalten","Awarded");c=" ok";ss=open?L("verbindlich ab ","binding from ")+fdate(addDays(ae,1)):at?fdate(at):"";}
+  else{sv=p1?L("Nein","No"):L("Nicht erhalten","Not awarded");ss=open?L("Beschwerde bis ","appeal until ")+fdate(ae):at?fdate(at):"";}
   return `<button type="button" class="stat" data-act="${pending?"form":"t-after"}" data-f="tres" data-id="${t.id}" data-w="pick"><span class="sl">${sl}</span><span class="sv${c}">${sv}</span><span class="ss">${ss}</span></button>`;
 }
 /* forms: record the submission (with the checklist), the decision, and pick a firm document */

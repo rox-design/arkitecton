@@ -13,7 +13,10 @@ async def main():
       if same>=4:break
       await a.wait_for_timeout(500)
     bb=await ctx.new_page();await bb.goto(URL+'?raum=safe');await bb.wait_for_timeout(1500)
-    await bb.evaluate("D.firm.name='Aus B';saveData()");await a.wait_for_timeout(400)
+    await bb.evaluate("D.firm.name='Aus B';saveData()")
+    for _ in range(15):
+      if await a.evaluate("D.firm.name")=="Aus B":break
+      await a.wait_for_timeout(200)
     ok('Anderer Tab übernimmt Änderung',await a.evaluate("D.firm.name")=="Aus B")
     await a.evaluate("openForm('firm')");await a.wait_for_timeout(200)
     await bb.evaluate("D.firm.city='Bern-B';saveData()");await a.wait_for_timeout(300)

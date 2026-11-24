@@ -163,4 +163,7 @@ let saveWarned=false;
 function saveData(){if(!D)return;
   const st=readRev();let has=false;try{has=localStorage.getItem(KEY)!==null;}catch(e){}if(has&&st&&st!==myRev){conflictReload();return;}
   try{localStorage.setItem(KEY,JSON.stringify(D));myRev=Date.now().toString(36)+Math.random().toString(36).slice(2,7);localStorage.setItem(REVKEY,myRev);saveWarned=false;}catch(e){if(!saveWarned){saveWarned=true;setTimeout(()=>{try{toast(L("Speichern nicht möglich: Der Browser-Speicher ist voll. Bitte sofort unter Einstellungen › Daten und Sicherung eine Sicherung herunterladen.","Cannot save: browser storage is full. Please download a backup now under Settings › Data and backup."),12000);}catch(x){}},0);}}}
-const newId=p=>p+(++D.seq);
+/* IDs are random (122 bits of a UUID, kept short with a type prefix), so devices can later sync without two objects getting the same ID.
+   Existing IDs (p1, i340) stay: they are unique within the office data, and only new objects need to be unique across devices. */
+const uid=()=>{if(crypto.randomUUID)return crypto.randomUUID().replace(/-/g,"");const b=crypto.getRandomValues(new Uint8Array(16));b[6]=b[6]&15|64;b[8]=b[8]&63|128;return [...b].map(x=>x.toString(16).padStart(2,"0")).join("");};
+const newId=p=>p+"_"+uid();

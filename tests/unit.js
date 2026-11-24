@@ -159,6 +159,7 @@ test("Büro-Unterlagen passend vorschlagen",()=>{
   D=base();D.docs=[{id:"f1",scope:"firm",ref:"firm",name:"Handelsregisterauszug.pdf"},{id:"f2",scope:"firm",ref:"firm",name:"Police Berufshaftpflicht.pdf"},{id:"f3",scope:"firm",ref:"firm",name:"AHV-Bestätigung.pdf"}];
   eq((firmMatch("Handelsregisterauszug")||{}).id,"f1","Handelsregister");eq((firmMatch("Nachweis Berufshaftpflichtversicherung")||{}).id,"f2","Haftpflicht");
   eq((firmMatch("Nachweis Steuern und Sozialabgaben")||{}).id,"f3","Sozialabgaben ↔ AHV");eq(firmMatch("Honorarofferte"),null,"Honorar: kein Vorschlag");});
+test("Kennungen",()=>{D=base();const ids=new Set();for(let i=0;i<2000;i++)ids.add(newId("i"));eq(ids.size,2000,"2000 neue Kennungen, alle verschieden");yes(/^i_[0-9a-f]{32}$/.test(newId("i")),"Typ-Präfix und 32 Hex-Zeichen");});
 D=keep;
 window.__unit=results;
 })();

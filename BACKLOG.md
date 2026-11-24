@@ -37,7 +37,7 @@ Ideas decided for later. Each entry says why it waits.
 Fixed on 24.11.2026 (version 20261126e): several tabs no longer overwrite each other (revision check, other tab reloads), a damaged saved state is kept aside and offered for download, restoring a backup no longer wipes documents first and can be undone, backup note corrected. Two escaping gaps fixed (names in the QES check, SIA phases).
 
 To do together with the server and sync decision:
-1. **IDs:** today `p12`, `i340` count up per browser. Switch to UUIDs before syncing devices, with a migration that rewrites all references.
+1. ~~**IDs**~~ Done 24.11.2026: new objects get random IDs (`i_` + 32 hex characters from a UUID). Existing IDs stay, they are unique within the office data; only new objects must be unique across devices. With the server: IDs come from the client, so offline-created objects merge without collisions.
 2. **Signing key of the seal:** the private key sits in browser storage and in the backup file; whoever has the file can sign valid codes. Move signing to the server (key never leaves it), backup without the key.
 3. ~~**Load time**~~ Done 24.11.2026: xlsx and jsQR load on first use and in the background after start; first start on a slow line 9 s → 3.4 s.
 4. **Offline:** no service worker; without network the app does not start. Add one with a versioned cache.

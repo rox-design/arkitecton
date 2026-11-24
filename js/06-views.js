@@ -239,7 +239,7 @@ function stampProjects(){if(!D||!D.projects)return;D.projects.forEach(p=>{const 
 function lastEdited(p){if(p.edited)return p.edited.slice(0,10);const ids=new Set(D.contracts.filter(w=>w.pid===p.id).map(w=>w.id));const ds=[...D.invoices.filter(i=>ids.has(i.w)),...(D.fees||[]).filter(f=>f.pid===p.id)].flatMap(x=>(x.log||[]).map(l=>l.d)).filter(Boolean).sort();return ds.length?ds[ds.length-1].slice(0,10):null;}
 const activeProjects=()=>D.projects.filter(p=>!p.closed).sort((a,b)=>(b.fav?1:0)-(a.fav?1:0));
 function trashProject(id){const p=D.projects.find(x=>x.id===id);if(!p)return;const ws=D.contracts.filter(w=>w.pid===id),ids=new Set(ws.map(w=>w.id));
-  const e={id:"t"+Date.now(),at:iso(TODAY),p,contracts:ws,invoices:D.invoices.filter(i=>ids.has(i.w)),fees:(D.fees||[]).filter(f=>f.pid===id)};
+  const e={id:newId("x"),at:iso(TODAY),p,contracts:ws,invoices:D.invoices.filter(i=>ids.has(i.w)),fees:(D.fees||[]).filter(f=>f.pid===id)};
   D.trash=D.trash||[];D.trash.unshift(e);D.projects=D.projects.filter(x=>x.id!==id);D.contracts=D.contracts.filter(w=>w.pid!==id);D.invoices=D.invoices.filter(i=>!ids.has(i.w));if(D.fees)D.fees=D.fees.filter(f=>f.pid!==id);
   if(D.pid===id){const n=activeProjects()[0];D.pid=n?n.id:null;}}
 function restoreTrash(tid){const e=(D.trash||[]).find(x=>x.id===tid);if(!e)return;D.projects.push(e.p);D.contracts.push(...e.contracts);D.invoices.push(...e.invoices);D.fees=(D.fees||[]).concat(e.fees);D.trash=D.trash.filter(x=>x.id!==tid);if(!D.pid)D.pid=e.p.id;}

@@ -491,7 +491,10 @@ function viewTender(t){
   const check=()=>{if(busy())return;fetch(location.pathname+"?nc="+Date.now(),{cache:"no-store"}).then(r=>r.text()).then(t=>{const nv=(t.match(/app\.js\?v=([^"&]+)/)||[])[1];if(nv&&nv!==v&&!busy()&&!sessionStorage.getItem("ark-up-"+nv)){sessionStorage.setItem("ark-up-"+nv,"1");location.replace(location.pathname+"?v="+nv+(SPACE?"&raum="+SPACE:"")+location.hash);}}).catch(()=>{});};
   check();document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")check();});window.addEventListener("pageshow",check);setInterval(()=>{if(document.visibilityState==="visible")check();},120000);})();
 /* the app computes due dates from «today» at load: after midnight, reload once nothing is being entered */
-setInterval(()=>{const n=new Date();n.setHours(0,0,0,0);if(n.getTime()!==TODAY.getTime()&&document.visibilityState==="visible"&&!(S.form||S.modal||S.sheet||S.drawer||S.fdrawer||(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))))location.reload();},60000);
+/* a new day: move TODAY forward in place (deadlines, "in n days") and redraw; an open form keeps its input and is redrawn when it closes */
+function rollDay(){const n=new Date();n.setHours(0,0,0,0);if(n.getTime()===TODAY.getTime())return;TODAY.setTime(n.getTime());
+  const busy=S.form||S.modal||S.sheet||S.drawer||S.fdrawer||(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));if(!busy)render();}
+setInterval(rollDay,60000);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")rollDay();});window.addEventListener("focus",rollDay);
 function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
   stampProjects();stampRet();saveData();
   const app=document.getElementById("app");

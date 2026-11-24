@@ -279,6 +279,8 @@ try{const l=localStorage.getItem("arkitecton:lang");if(l==="de"||l==="en")S.lang
 D=loadData();
 /* another tab saved: take over its state, unless a form is open (then the next save notices the conflict) */
 addEventListener("storage",e=>{if(e.key!==REVKEY||!e.newValue||e.newValue===myRev||!D||S.form)return;const o=loadData();if(!o)return;D=o;undoSnap=null;render();toast(L("In einem anderen Fenster geändert. Die Ansicht ist aktualisiert.","Changed in another window. The view is updated."));});
+/* after the first screen is up, fetch the Excel and QR libraries in the background */
+setTimeout(()=>{const go_=()=>{libXLSX().catch(()=>{});libQR().catch(()=>{});};(window.requestIdleCallback||setTimeout)(go_,{timeout:4000});},2500);
 {const had=!!D;setTimeout(()=>{if(had&&D)sweepFiles();},15000);}try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
 runMigrations();
 const h0=location.hash.slice(1);if(VIEWS.includes(h0))S.view=h0;

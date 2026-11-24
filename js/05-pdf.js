@@ -2,7 +2,10 @@
 "use strict";
 
 /* ---------- PDF with Swiss QR-bill ---------- */
-const loadScript=src=>new Promise((ok,no)=>{if(document.querySelector('script[src="'+src+'"]'))return ok();const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s);});
+/* libraries load on first use; one promise per file, so parallel callers wait for the same load, and a failed load can be retried */
+const LIBS={};
+const loadScript=src=>LIBS[src]||(LIBS[src]=new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.onload=ok;s.onerror=()=>{delete LIBS[src];s.remove();no(new Error("lib "+src));};document.head.appendChild(s);}));
+const libXLSX=()=>loadScript("vendor/xlsx.full.min.js"),libQR=()=>loadScript("vendor/jsQR.js");
 async function libsPDF(){await loadScript("vendor/jspdf.umd.min.js");await loadScript("vendor/qrcode-gen.js");}
 function qrPayload(f){
   /* the reference type must match the account: QR-IBAN needs a QR reference, a normal IBAN a creditor reference. If the office changed its IBAN since, renew it. */

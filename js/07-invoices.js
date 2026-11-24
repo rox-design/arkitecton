@@ -97,6 +97,8 @@ function camErrText(e){
 }
 async function startCam(){
   const M=S.modal; if(!M||M.step!==1||cam) return;
+  try{await libQR();}catch(e){}
+  if(S.modal!==M||M.step!==1||cam)return;
   if(typeof jsQR!=="function"){M.camErr=L("Der QR-Leser wurde nicht geladen. Bitte die Seite neu laden.","The QR reader did not load. Please reload the page.");return renderOverlay();}
   if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){M.camErr=L("Live-Kamera hier nicht verfügbar. Bitte ein Foto aufnehmen.","Live camera not available here. Please take a photo.");return renderOverlay();}
   try{
@@ -125,7 +127,7 @@ function scanLoop(ts){
 function stopCam(){if(!cam)return;cancelAnimationFrame(cam.raf);cam.stream.getTracks().forEach(t=>t.stop());cam=null;}
 function qrText(r){if(r.data)return r.data;if(!r.binaryData||!r.binaryData.length)return "";const b=Uint8Array.from(r.binaryData);try{return new TextDecoder("utf-8",{fatal:true}).decode(b);}catch(e){return new TextDecoder("iso-8859-1").decode(b);}}
 async function decodeQR(file){
-  if(typeof jsQR!=="function") throw new Error("lib");
+  await libQR();
   const url=URL.createObjectURL(file),img=new Image();
   try{
     await new Promise((res,rej)=>{img.onload=res;img.onerror=rej;img.src=url;});

@@ -309,7 +309,7 @@ function mapSheet(rows,spec,need){
   return null;
 }
 async function readRows(file){
-  if(typeof XLSX==="undefined") throw new Error("lib");
+  await libXLSX();
   const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});
   return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:"",raw:true});
 }
@@ -342,7 +342,7 @@ async function handleImport(kind,file,id){
     const sc=Math.min(1,600/Math.max(im.naturalWidth||1,im.naturalHeight||1)),c=document.createElement("canvas");c.width=Math.round((im.naturalWidth||1)*sc);c.height=Math.round((im.naturalHeight||1)*sc);c.getContext("2d").drawImage(im,0,0,c.width,c.height);
     readFirmForm();D.firm.logo=c.toDataURL("image/png");renderOverlay();return;}
   S.sheet=null;S.confirm=null;
-  if(kind==="bkplist"){let rows;try{if(typeof XLSX==="undefined")throw 0;const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:"",raw:false});}catch(e){return toast(L("Datei nicht lesbar. Bitte Excel oder CSV.","Cannot read file. Please use Excel or CSV."));}
+  if(kind==="bkplist"){let rows;try{await libXLSX();const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:"",raw:false});}catch(e){return toast(L("Datei nicht lesbar. Bitte Excel oder CSV.","Cannot read file. Please use Excel or CSV."));}
     const out=[];rows.forEach(r=>{let c=String(r[0]||"").trim(),n=String(r[1]||"").trim();const m=c.match(/^(\d{1,3}(?:\.\d{1,2})?)\s*(.*)$/);if(!m)return;c=m[1];if(!n)n=m[2].trim();if(!n)return;if(!out.some(o=>o[0]===c))out.push([c,n.replace(/\s+/g," ")]);});
     if(!out.length)return toast(L("Keine BKP-Codes gefunden. Spalte A: Nummer, Spalte B: Bezeichnung.","No BKP codes found. Column A: number, column B: name."));
     D.bkpList=out;D.bkpListInfo={name:file.name,date:iso(TODAY)};saveData();render();const sub=out.filter(o=>o[0].includes(".")).length;
@@ -390,9 +390,9 @@ function saveBlob(filename,blob){
   try{const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast(L("Erstellt · ","Created · ")+filename);}
   catch(e){toast(L("Datei nicht erstellt","File not created"));}
 }
-function wbSave(filename,sheets){
+async function wbSave(filename,sheets){
   S.sheet=null;renderOverlay();
-  if(typeof XLSX==="undefined") return toast(L("Excel-Modul nicht geladen","Excel module not loaded"));
+  try{await libXLSX();}catch(e){return toast(L("Excel-Modul konnte nicht geladen werden. Bitte Verbindung prüfen.","Excel module could not be loaded. Please check the connection."));}
   const wb=XLSX.utils.book_new();
   sheets.forEach(s=>{const ws=XLSX.utils.aoa_to_sheet(s.rows);ws["!cols"]=s.widths.map(wch=>({wch}));Object.keys(ws).forEach(a=>{if(a[0]!=="!"&&ws[a].t==="n")ws[a].z="#,##0.00";});XLSX.utils.book_append_sheet(wb,ws,s.name.slice(0,31));});
   saveBlob(filename,new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));

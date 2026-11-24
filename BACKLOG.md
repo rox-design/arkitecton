@@ -39,10 +39,10 @@ Fixed on 24.11.2026 (version 20261126e): several tabs no longer overwrite each o
 To do together with the server and sync decision:
 1. **IDs:** today `p12`, `i340` count up per browser. Switch to UUIDs before syncing devices, with a migration that rewrites all references.
 2. **Signing key of the seal:** the private key sits in browser storage and in the backup file; whoever has the file can sign valid codes. Move signing to the server (key never leaves it), backup without the key.
-3. **Load time:** `xlsx.full.min.js` (862 KB) and `jsQR` (251 KB) load at start although rarely needed; load on demand like jsPDF. First start on a slow line: about 9 s (measured without compression).
+3. ~~**Load time**~~ Done 24.11.2026: xlsx and jsQR load on first use and in the background after start; first start on a slow line 9 s → 3.4 s.
 4. **Offline:** no service worker; without network the app does not start. Add one with a versioned cache.
 5. ~~**Fonts:** self-host instead of Google Fonts.~~ Done 24.11.2026: Instrument Sans lies in `fonts/` (OFL), no request leaves the app.
 6. **Tests:** unit tests cover only the money logic. Add tenders (eligibility, deadlines, appeal period, workload, signatures) and move the end-to-end, layout-at-320px, accessibility (axe) and injection scripts into `tests/`.
 7. **Maintainability:** very dense lines (up to 1'300 characters), one shared global scope, no linter or formatter in the repo (ESLint ran clean on 24.11.). Add Prettier and ESLint, then ES modules.
 8. **Example data:** example seeds and their 22 migrations are mixed with production code; move them into their own file that real offices never load.
-9. **Date at midnight:** `TODAY` is fixed when the page loads; an app left open over midnight shows deadlines one day off until reload.
+9. ~~**Date at midnight**~~ Done 24.11.2026: `TODAY` moves forward in place when the day changes (checked every minute, on focus and when the app becomes visible) and the view redraws.

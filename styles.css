@@ -1153,12 +1153,12 @@ input[type=date]::-webkit-date-and-time-value{text-align:left}
 .tnext .bar-actions .ghost{margin-right:auto;min-height:40px;display:inline-flex;align-items:center}
 .tnext-reset{display:flex;justify-content:flex-end;margin-bottom:-32px}
 .tnext-reset .ghost{min-height:40px;display:inline-flex;align-items:center}
-.tdetail .tsec+.tsec,.tdetail .after+.tsec{margin-top:-28px}
-.tdetail .tsec>.sh{align-items:center;flex-wrap:wrap;row-gap:2px}
-.tdetail .tsec>.sh h2{min-width:0}
+.tsec+.tsec,.tdetail .after+.tsec{margin-top:-28px}
+.tsec>.sh{align-items:center;flex-wrap:wrap;row-gap:2px}
+.tsec>.sh h2{min-width:0}
 .sh .sum{margin-left:auto;font-size:.875rem;white-space:nowrap}
 .sh .sum+.right{margin-left:12px}
-.tdetail .tsec>.sh .sum:not([class*=" l-"]){color:var(--muted)}
+.tsec>.sh .sum:not([class*=" l-"]){color:var(--muted)}
 .checks .res.one{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .checks li.hasinf{grid-template-columns:20px minmax(0,1fr) auto}
 details.inf>summary{list-style:none;cursor:pointer;color:var(--muted);font-size:.8125rem;text-decoration:underline;text-underline-offset:3px;min-height:40px;display:inline-flex;align-items:center;padding:0 2px}
@@ -1174,7 +1174,7 @@ details.inf[open]>summary{color:var(--ink)}
 .crew .load{margin-top:4px}
 @media (max-width:700px){
   .tnext{padding:14px 16px 12px;margin:0 -4px}
-  .tdetail .tsec+.tsec,.tdetail .after+.tsec{margin-top:-20px}
+  .tsec+.tsec,.tdetail .after+.tsec{margin-top:-20px}
   .sh .sum{font-size:.8125rem}
   .tnext .bar-actions{gap:8px}
   .tnext .bar-actions .btn.primary{flex:1 1 100%;order:-1}
@@ -1182,13 +1182,13 @@ details.inf[open]>summary{color:var(--ink)}
 details.inf,details.inf:last-child{border:0}
 details.inf>summary{justify-content:flex-start;gap:4px}
 /* section header on the tender detail: title and count on the first line, the summary below, buttons on the right; nothing wraps on its own */
-.tdetail .tsec>.sh{display:grid;grid-template-columns:minmax(0,max-content) auto minmax(0,1fr) auto auto;column-gap:10px;row-gap:2px;align-items:center}
-.tdetail .tsec>.sh>h2{grid-row:1;grid-column:1;overflow-wrap:anywhere}
-.tdetail .tsec>.sh>.cnt{grid-row:1;grid-column:2}
-.tdetail .tsec>.sh>.sum{grid-row:2;grid-column:1/4;margin:0;white-space:normal}
-.tdetail .tsec>.sh>.right{grid-row:1/3;grid-column:4;margin:0;display:flex;gap:8px}
-.tdetail .tsec>.sh>.fold{grid-row:1/3;grid-column:5}
-.tdetail .tsec>.sh>h2{white-space:normal;overflow:visible;text-overflow:clip}
+.tsec>.sh{display:grid;grid-template-columns:minmax(0,max-content) auto minmax(0,1fr) auto auto;column-gap:10px;row-gap:2px;align-items:center}
+.tsec>.sh>h2{grid-row:1;grid-column:1;overflow-wrap:anywhere}
+.tsec>.sh>.cnt{grid-row:1;grid-column:2}
+.tsec>.sh>.sum{grid-row:2;grid-column:1/4;margin:0;white-space:normal}
+.tsec>.sh>.right{grid-row:1/3;grid-column:4;margin:0;display:flex;gap:8px}
+.tsec>.sh>.fold{grid-row:1/3;grid-column:5}
+.tsec>.sh>h2{white-space:normal;overflow:visible;text-overflow:clip}
 .after .ab>details.inf{margin-top:-4px}
 .tdetail.tclosed .tsec>.sh>.sum{color:var(--muted)}
 .tnext .bar-actions:has(>.ghost:only-child){margin-top:4px}
@@ -1200,7 +1200,11 @@ details.inf>summary{justify-content:flex-start;gap:4px}
 .ibtn:focus-visible{outline:2px solid var(--ink);outline-offset:-4px;border-radius:50%}
 .ibox{background:var(--hover);border-radius:10px;padding:12px 14px;margin:12px 0 4px;font-size:.875rem;line-height:1.5;color:var(--ink)}
 .ibox p{margin:0}.ibox p+p{margin-top:8px}
-.tdetail .tsec>.sh>.ibtn{grid-row:1;grid-column:2;justify-self:start;margin:-10px -8px -10px -6px}
-.tdetail .tsec>.sh>h2{overflow-wrap:break-word;hyphens:auto;-webkit-hyphens:auto}
-@media (max-width:360px){.tdetail .tsec>.sh>h2{font-size:1.0625rem}}
-@media (max-width:360px){.tdetail .tsec>.sh{column-gap:4px}.tdetail .tsec>.sh>.right .ib{width:40px;height:40px}}
+.tsec>.sh>.ibtn{grid-row:1;grid-column:2;justify-self:start;margin:-10px -8px -10px -6px}
+.tsec>.sh>h2{overflow-wrap:break-word;hyphens:auto;-webkit-hyphens:auto}
+@media (max-width:360px){.tsec>.sh>h2{font-size:1.0625rem}}
+@media (max-width:360px){.tsec>.sh{column-gap:4px}.tsec>.sh>.right .ib{width:40px;height:40px}}
+#pop .pophead.pdoc{text-transform:none;letter-spacing:0;font-size:.8125rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drow .dmore{flex:none}
+section.tsec.foldable>.sh>.fold{grid-row:1/3;grid-column:5;margin-left:0}
+.tsec>.sh>.cnt+.ibtn{grid-column:3}

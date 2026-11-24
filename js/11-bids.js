@@ -94,7 +94,7 @@ function tenderAfter(t){
   if(!waitT(t)&&!decidedT(t))return "";
   const p1=t.status==="pq"||t.status==="nichtausg",sub=p1?(t.pq||{}):{sub:t.sub,subAt:t.subAt,form:t.subForm};
   const files=tFiles(t,"submitted").filter(d=>p1?d.phase===1:d.phase!==1),prot=tFiles(t,"prot"),r=tRes(t);
-  const fileRow=d=>`<div class="drow"><button type="button" class="dopen" data-act="doc-open" data-id="${d.id}"><span class="dk">${esc(kindOf(d.name))}</span><span class="dn">${esc(d.name)}</span><span class="dm">${fsize(d.size||0)} · ${fdate(d.date)}</span></button>${S.confirm==="ddel:"+d.id?`<button type="button" class="ghost danger" data-act="doc-del" data-id="${d.id}">${L("Löschen?","Delete?")}</button>`:ib("trash",L("Dokument löschen","Delete document"),`data-act="ask" data-c="ddel:${d.id}"`)}</div>`;
+  const fileRow=d=>`<div class="drow"><button type="button" class="dopen" data-act="doc-open" data-id="${d.id}"><span class="dk">${esc(kindOf(d.name))}</span><span class="dn">${esc(d.name)}</span><span class="dm">${fsize(d.size||0)} · ${fdate(d.date)}</span></button>${docMore(d)}</div>`;
   const up=(key,tip)=>`<label class="ib" data-tip="${tip}" aria-label="${tip}">${ico("plus")}<input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.jpg,.jpeg,.png" data-imp="doc" data-id="${key}|${t.id}"></label>`;
   const step=(c,title,body,right)=>`<li class="astep"><span class="ic ${c}" aria-hidden="true">${{ok:"✓",warn:"!",crit:"✕",n:"·"}[c]}</span><div class="ab"><div class="at"><span>${title}</span>${right?`<span class="ar">${right}</span>`:""}</div>${body}</div></li>`;
   const steps=[];

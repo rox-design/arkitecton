@@ -151,18 +151,20 @@ let D=null;
 /* Storage safety.
    A damaged saved state is never overwritten: it is copied aside (KEY:defekt) and the start screen says so.
    Several open tabs: every save writes a revision; a tab whose revision is outdated reloads instead of overwriting the newer state. */
-const REVKEY=KEY+":rev",BADKEY=KEY+":defekt";let myRev=null,CORRUPT=false;
+const REVKEY=KEY+":rev",BADKEY=KEY+":defekt";let myRev=null,CORRUPT=false,lastSaved=null;
 const readRev=()=>{try{return localStorage.getItem(REVKEY);}catch(e){return null;}};
 function loadData(){let s=null;try{s=localStorage.getItem(KEY);}catch(e){}
   if(!s)return null;
-  try{const o=JSON.parse(s);if(o&&o.v===1&&Array.isArray(o.projects)){o.fees=o.fees||[];o.firm=o.firm||{name:""};myRev=readRev();return o;}}catch(e){}
+  try{const o=JSON.parse(s);if(o&&o.v===1&&Array.isArray(o.projects)){o.fees=o.fees||[];o.firm=o.firm||{name:""};myRev=readRev();lastSaved=s;return o;}}catch(e){}
   try{localStorage.setItem(BADKEY,s);localStorage.removeItem(KEY);}catch(e){}CORRUPT=true;return null;}
 function conflictReload(){const o=loadData();if(o)D=o;toastLock=Date.now()+2500;
   setTimeout(()=>{try{S.form=null;closeAll();render();toast(L("Nicht gespeichert: In einem anderen Fenster wurde arkitecton inzwischen geändert. Hier ist jetzt der neuste Stand. Bitte die Änderung nochmals machen.","Not saved: arkitecton was changed in another window meanwhile. This is now the latest state; please redo the change."),10000);}catch(x){}},0);}
 let saveWarned=false;
 function saveData(){if(!D)return;
   const st=readRev();let has=false;try{has=localStorage.getItem(KEY)!==null;}catch(e){}if(has&&st&&st!==myRev){conflictReload();return;}
-  try{localStorage.setItem(KEY,JSON.stringify(D));myRev=Date.now().toString(36)+Math.random().toString(36).slice(2,7);localStorage.setItem(REVKEY,myRev);saveWarned=false;}catch(e){if(!saveWarned){saveWarned=true;setTimeout(()=>{try{toast(L("Speichern nicht möglich: Der Browser-Speicher ist voll. Bitte sofort unter Einstellungen › Daten und Sicherung eine Sicherung herunterladen.","Cannot save: browser storage is full. Please download a backup now under Settings › Data and backup."),12000);}catch(x){}},0);}}}
+  /* every redraw calls saveData: write only when something changed, otherwise a redraw would give this tab a new revision and make the other tab's next change look outdated */
+  const js=JSON.stringify(D);if(has&&js===lastSaved)return;
+  try{localStorage.setItem(KEY,js);lastSaved=js;myRev=Date.now().toString(36)+Math.random().toString(36).slice(2,7);localStorage.setItem(REVKEY,myRev);saveWarned=false;}catch(e){if(!saveWarned){saveWarned=true;setTimeout(()=>{try{toast(L("Speichern nicht möglich: Der Browser-Speicher ist voll. Bitte sofort unter Einstellungen › Daten und Sicherung eine Sicherung herunterladen.","Cannot save: browser storage is full. Please download a backup now under Settings › Data and backup."),12000);}catch(x){}},0);}}}
 /* IDs are random (122 bits of a UUID, kept short with a type prefix), so devices can later sync without two objects getting the same ID.
    Existing IDs (p1, i340) stay: they are unique within the office data, and only new objects need to be unique across devices. */
 const uid=()=>{if(crypto.randomUUID)return crypto.randomUUID().replace(/-/g,"");const b=crypto.getRandomValues(new Uint8Array(16));b[6]=b[6]&15|64;b[8]=b[8]&63|128;return [...b].map(x=>x.toString(16).padStart(2,"0")).join("");};

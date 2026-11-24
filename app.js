@@ -43,6 +43,7 @@ document.addEventListener("click",e=>{
     case "start-empty":D=seedEmpty();runMigrations();S.view="buero";render();openForm("firm");break;
     case "nav":startView(el.dataset.v);go(el.dataset.v);break;
     case "theme-set":setTheme(el.dataset.v);render();toast(L("Gespeichert","Saved"));break;
+    case "dmore":{if(matchMedia("(max-width:820px)").matches){closeAll();S.sheet="doc:"+el.dataset.id;renderOverlay();return;}const r=el.getBoundingClientRect();S.pconfirm=null;S.pop={kind:"doc",key:el.dataset.id,rect:r,kb:e.detail===0};renderPop();return;}
     case "nmore":case "pmore":{const r=el.getBoundingClientRect();S.pconfirm=null;S.pop={kind:a==="nmore"?"nav":"proj",key:a==="nmore"?el.dataset.v:id,rect:r,kb:e.detail===0};renderPop();return;}
     case "ptoggle":S.projOpen=!S.projOpen;renderChrome();break;
     case "pfav":{const p=D.projects.find(x=>x.id===id);if(p){p.fav=!p.fav;closePop();render();toast(p.fav?L("Zu Favoriten hinzugefügt","Added to favourites"):L("Aus Favoriten entfernt","Removed from favourites"));}break;}
@@ -61,6 +62,8 @@ document.addEventListener("click",e=>{
     case "info":{S.info=S.info||{};S.info[el.dataset.k]=!S.info[el.dataset.k];
       /* an explanation in a closed section: open the section, otherwise nothing would show */
       const sec=el.closest("section[data-fk]");if(S.info[el.dataset.k]&&sec&&S.tid&&sec.classList.contains("folded")){S.tfold=S.tfold||{};S.tfold["t:"+S.tid+":"+sec.dataset.fk]=false;}render();const b=document.querySelector('#main [data-act="info"][data-k="'+el.dataset.k+'"]');if(b)b.focus({preventScroll:true});break;}
+    case "all-todo":S.allTodo=!S.allTodo;render();break;
+    case "all-tt":S.allTT=!S.allTT;render();break;
     case "t-go":{const k=el.dataset.k;S.tfold=S.tfold||{};S.tfold["t:"+S.tid+":"+k]=false;render();const sec=document.querySelector('#main section[data-fk="'+k+'"]');if(sec){sec.scrollIntoView({behavior:"smooth",block:"start"});const f=sec.querySelector("input:not(:checked),button.row,button");if(f)setTimeout(()=>f.focus({preventScroll:true}),350);}break;}
     case "bfilter":S.bfilter=el.dataset.f;render();break;
     case "kfilter":S.kfilter=el.dataset.f;render();break;
@@ -127,8 +130,8 @@ document.addEventListener("click",e=>{
     case "pick-project":D.pid=id;closeAll();S.kid=null;if(S.view==="buero"||S.view==="ausschreibungen"||S.view==="profil"||S.view==="einstellungen")go("uebersicht");else render();break;
     case "ask":S.confirm=el.dataset.c;if(/^ddel:/.test(S.confirm)||!S.sheet)render();else renderOverlay();break;
     case "notice-ok":D.noticeOk=1;render();break;
-    case "doc-open":openDoc(el.dataset.id);break;
-    case "doc-del":{snap();const id=el.dataset.id;D.docs=DOCS().filter(d=>d.id!==id);S.confirm=null;fileDel(id);render();toast(L("Dokument gelöscht","Document deleted"),0,0,1);break;}
+    case "doc-open":if(S.sheet&&/^doc:/.test(S.sheet)){S.sheet=null;renderOverlay();}openDoc(el.dataset.id);break;
+    case "doc-del":{if(S.sheet&&/^doc:/.test(S.sheet)){S.sheet=null;renderOverlay();}snap();const id=el.dataset.id;D.docs=DOCS().filter(d=>d.id!==id);S.confirm=null;fileDel(id);render();toast(L("Dokument gelöscht","Document deleted"),0,0,1);break;}
     case "reset-ex":closeAll();clearFiles().then(()=>{D=seedExample();runMigrations();S.view="uebersicht";S.kid=null;S.tid=null;render();toast(L("Beispieldaten geladen","Example data loaded"));});break;
     case "reset-all":closeAll();clearFiles().then(()=>{try{localStorage.removeItem(KEY);}catch(err){}D=null;render();});break;
     case "close":{const back=S.form&&S.form.back;closeAll();if(back&&INV(back))S.drawer=back;render();break;}

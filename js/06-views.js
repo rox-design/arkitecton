@@ -21,23 +21,27 @@ function viewFirm(){
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
   const ps=D.projects.map(p=>withP(p.id,()=>{const chk=unpaid(PI()),fo=PF().filter(f=>!f.paid);return {p,chk,n:chk.length,sum:toPay(PI()),fl:flags().length,flc:flagSum(flags()),fees:fo.reduce((a,f)=>a+feeTotal(f),0),rem:fo.filter(f=>remDue(f)).length};}));
   const feeOpen=ps.reduce((a,x)=>a+x.fees,0),remN=ps.reduce((a,x)=>a+x.rem,0),tot=ps.reduce((a,x)=>a+x.sum,0);
-  const parts=x=>[x.n?x.n+" "+(x.n===1?L("Rechnung offen","invoice open"):L("Rechnungen offen","invoices open")):"",x.fl?x.fl+" "+L("mit Mehrkosten","with extra costs"):"",x.rem?x.rem+" "+(x.rem===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):""].filter(Boolean).join(" · ")||L("nichts offen","nothing open");
-  const rows=ps.filter(x=>!x.p.closed).map(x=>row({act:"open-project",id:x.p.id,c:x.rem?"crit":x.fl?"warn":x.n?"n":"ok",title:esc(x.p.name),meta:(x.p.place?esc(x.p.place)+" · ":"")+parts(x),amt:x.sum?chf(x.sum,false):"",label:""})).join("");
+  /* a project row says only the most urgent thing; the project page has the rest */
+  const top=x=>x.rem?[x.rem+" "+(x.rem===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")),"crit"]:x.fl?[x.fl+" "+L("Mehrkosten","extra costs"),"warn"]:x.n?[x.n+" "+L("offen","open"),"n"]:[L("nichts offen","nothing open"),"ok"];
+  const act=ps.filter(x=>!x.p.closed),rows=act.map(x=>{const [lb,c]=top(x);return row({act:"open-project",id:x.p.id,c,title:esc(x.p.name),meta:x.p.place?esc(x.p.place):"",amt:x.sum?chf(x.sum,false):"",label:lb,lc:c});}).join("");
   const name=(D.firm&&D.firm.name)||L("Ihr Büro","Your firm");
-  const tl=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0).sort((a,b)=>toDate(a.due)-toDate(b.due));
+  const tl=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0),fitN=tl.filter(x=>fitOf(x).fit==="ok").length;
+  const tasks=tenderTasks(),tShow=S.allTT?tasks:tasks.slice(0,3);
+  const ttRows=tShow.map(x=>row({act:"open-t",id:x.t.id,c:x.c,title:esc(x.title),meta:esc(x.meta||tx(x.t.title)),amt:"",label:x.label,lc:x.c})).join("");
+  const dn=ps.filter(x=>x.p.closed);
+  const O=D.office||{},fd=docsFor("firm","firm"),bad=fd.map(docValid).filter(v=>v&&v.c!=="ok"),cr=bad.some(v=>v.c==="crit");
   return `<div class="page">
     ${ph(esc(today),esc(name),"","")}
     ${dataNotice()}${startSteps()}
     <div class="stats">
-      <div class="stat"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(ps.flatMap(x=>x.chk))}</span></div>
-      <div class="stat"><span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung fällig","no reminder due")}</span></div>
-      <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${(()=>{const o=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0),y=o.filter(x=>fitOf(x).fit==="ok").length,pa=o.filter(x=>fitOf(x).fit==="partner").length;return [y?y+" "+L("Eignung erfüllt","eligible"):"",pa?pa+" "+L("nur mit Partner","only with partner"):""].filter(Boolean).join(" · ")||L("keine passend","none suitable");})()}</span></button>
+      <div class="stat"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${openTop(ps.flatMap(x=>x.chk))}</span></div>
+      <div class="stat"><span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung","no reminder")}</span></div>
+      <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${fitN?fitN+" "+L("passend","suitable"):L("keine passend","none suitable")}</span></button>
     </div>
-    ${(()=>{const tr=tenderTaskRows(),n=tenderTasks().length;return n?`<section><div class="sh"><h2>${L("Zu erledigen bei Ausschreibungen","Tender to-dos")}</h2><span class="cnt">${n}</span></div><div class="rows">${tr}</div></section>`:"";})()}
+    ${tasks.length?`<section><div class="sh"><h2>${L("Zu erledigen bei Ausschreibungen","Tender to-dos")}</h2><span class="cnt">${tasks.length}</span></div><div class="rows">${ttRows}</div>${tasks.length>3?`<button type="button" class="more" data-act="all-tt">${S.allTT?L("Weniger anzeigen","Show less"):L("Alle anzeigen","Show all")+" ("+tasks.length+")"}</button>`:""}</section>`:""}
+    <section><div class="sh"><h2>${L("Projekte","Projects")}</h2><span class="cnt">${act.length}</span><span class="right">${ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"')}</span></div><div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div>${foldRows(L("Abgeschlossene Projekte","Completed projects"),dn.map(x=>row({act:"open-project",id:x.p.id,c:"ok",title:esc(x.p.name),meta:x.p.place?esc(x.p.place):"",amt:"",label:""})).join(""),dn.length)}</section>
     ${FEES().length?incomeSection():""}
-    <section><div class="sh"><h2>${L("Projekte","Projects")}</h2><span class="cnt">${ps.filter(x=>!x.p.closed).length}</span><span class="right">${ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"')}</span></div><div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div>${(()=>{const dn=ps.filter(x=>x.p.closed);return dn.length?`<details class="pdone hdone"><summary>${L("Abgeschlossene Projekte","Completed projects")} <span class="cnt">${dn.length}</span></summary><div class="rows">${dn.map(x=>row({act:"open-project",id:x.p.id,c:"ok",title:esc(x.p.name),meta:x.p.place?esc(x.p.place):"",amt:"",label:""})).join("")}</div></details>`:"";})()}</section>
-    ${(()=>{const O=D.office||{},fd=docsFor("firm","firm"),bad=fd.map(docValid).filter(v=>v&&v.c!=="ok"),cr=bad.some(v=>v.c==="crit");
-      return `<section><div class="sh"><h2>${L("Büroprofil","Office profile")}</h2></div><div class="rows">${row({act:"nav",v:"profil",c:bad.length?(cr?"crit":"warn"):"ok",title:L("Team, Referenzen, Unterlagen","Team, references, documents"),meta:[(O.team||[]).length+" "+L("Personen","people"),(O.refs||[]).length+" "+L("Referenzen","references"),fd.length+" "+L("Unterlagen","documents")].join(" · "),amt:"",label:bad.length?bad.length+" "+(cr?L("abgelaufen oder bald","expired or soon"):L("laufen bald ab","expiring soon")):"",lc:cr?"crit":"warn"})}</div></section>`;})()}
+    <section><div class="sh"><h2>${L("Büroprofil","Office profile")}</h2></div><div class="rows">${row({act:"nav",v:"profil",c:bad.length?(cr?"crit":"warn"):"ok",title:L("Team, Referenzen, Unterlagen","Team, references, documents"),meta:"",amt:"",label:bad.length?bad.length+" "+(cr?L("abgelaufen","expired"):L("laufen ab","expiring")):L("aktuell","up to date"),lc:bad.length?(cr?"crit":"warn"):"ok"})}</div></section>
   </div>`;
 }
 function viewOverview(){
@@ -48,19 +52,19 @@ function viewOverview(){
   const mt=missingTasks(),fl=flags(), flSum=flagSum(fl);
   /* cost status = approved and paid invoices incl. retention: retention is construction cost, only paid out later */
   const used=t.billed, pct=t.kv?Math.round(used/t.kv*100):0, held=r2(t.ret);
-  const feeRows=PF().filter(f=>remDue(f)).map(f=>row({act:"open-fee",id:f.id,c:"crit",title:esc(L("Honorar ","Fee ")+f.no),meta:remName(remDue(f))+L(" senden"," to send"),amt:chf(feeTotal(f),false),label:L("seit "+feeAge(f)+" Tagen offen","open for "+feeAge(f)+" days"),lc:"crit"})).join("");
-  const mtRows=mt.map(x=>row({act:"open-k",id:x.k.id,c:"crit",title:esc(x.k.name),meta:L("Fehlt: ","Missing: ")+x.m.join(", "),amt:"",label:L("Angaben fehlen","details missing"),lc:"crit"})).join("");
+  const feeRows=PF().filter(f=>remDue(f)).map(f=>row({act:"open-fee",id:f.id,c:"crit",title:esc(L("Honorar ","Fee ")+f.no),meta:remName(remDue(f))+L(" senden"," to send"),amt:chf(feeTotal(f),false),label:L("seit "+feeAge(f)+" Tagen","for "+feeAge(f)+" days"),lc:"crit"}));
+  const mtRows=mt.map(x=>row({act:"open-k",id:x.k.id,c:"crit",title:esc(x.k.name),meta:L("Fehlt: ","Missing: ")+x.m.join(", "),amt:"",label:L("Angaben fehlen","details missing"),lc:"crit"}));
   /* deadlines of filed documents: warranty bonds, insurance certificates */
   const dl=docsOfProject(p.id).map(d=>[d,docValid(d)]).filter(([d,v])=>v&&v.c!=="ok").sort((a,b)=>(a[0].until||"").localeCompare(b[0].until||""));
-  const dlRows=dl.map(([d,v])=>{const k=d.kid&&K(d.kid);return row({act:"doc-open",id:d.id,c:v.c,title:esc(k?k.name:d.name),meta:esc(dkShort(docKind(d)))+(docKind(d)==="gs"?L(" · Mängel rügen"," · report defects"):L(" · neu verlangen"," · request new")),amt:"",label:v.t,lc:v.c});}).join("");
+  const dlRows=dl.map(([d,v])=>{const k=d.kid&&K(d.kid);return row({act:"doc-open",id:d.id,c:v.c,title:esc(k?k.name:d.name),meta:esc(dkShort(docKind(d)))+(docKind(d)==="gs"?L(" · Mängel rügen"," · report defects"):L(" · neu verlangen"," · request new")),amt:"",label:v.t,lc:v.c});});
   const nTodo=toCheck.length+mt.length+PF().filter(f=>remDue(f)).length+dl.length;
   /* same groups and words as the tiles on Rechnungen: Zu prüfen, Rückfrage */
-  const invR=st=>toCheck.filter(i=>st==="rueckfrage"?i.status==="rueckfrage":i.status!=="rueckfrage").map(i=>{const k=K(W(i.w).k),dd=daysTo(i.due),q=i.status==="rueckfrage",tone=q?"crit":dueTone(dd);return row({act:"open-inv",id:i.id,c:tone,title:esc(k.name),meta:typeLabel(i),amt:chf(i.gross,false),label:dueText(dd),lc:tone});}).join("");
-  const invP=invR("pruefen"),invQ=invR("rueckfrage");
-  const todo=(invP?subTitle(L("Zu prüfen","To check"))+`<div class="rows">${invP}</div>`:"")+(invQ?subTitle(L("Rückfrage","Query"))+`<div class="rows">${invQ}</div>`:"")
-    +(feeRows?subTitle(L("Mahnen","Send reminders"))+`<div class="rows">${feeRows}</div>`:"")
-    +(mtRows?subTitle(L("Angaben ergänzen","Complete details"))+`<div class="rows">${mtRows}</div>`:"")
-    +(dlRows?subTitle(L("Fristen","Deadlines"))+`<div class="rows">${dlRows}</div>`:"");
+  const invR=st=>toCheck.filter(i=>st==="rueckfrage"?i.status==="rueckfrage":i.status!=="rueckfrage").map(i=>{const k=K(W(i.w).k),dd=daysTo(i.due),q=i.status==="rueckfrage",tone=q?"crit":dueTone(dd);return row({act:"open-inv",id:i.id,c:tone,title:esc(k.name),meta:typeLabel(i),amt:chf(i.gross,false),label:dueText(dd),lc:tone});});
+  /* most urgent first; the first five show, the rest behind «Alle anzeigen» */
+  const groups=[[L("Mahnen","Send reminders"),feeRows],[L("Rückfrage","Query"),invR("rueckfrage")],[L("Zu prüfen","To check"),invR("pruefen")],[L("Angaben ergänzen","Complete details"),mtRows],[L("Fristen","Deadlines"),dlRows]];
+  let left=S.allTodo?1e9:5;
+  const todo=groups.map(([g,rs])=>{const take=rs.slice(0,Math.max(0,left));left-=take.length;return take.length?subTitle(g)+`<div class="rows">${take.join("")}</div>`:"";}).join("")
+    +(nTodo>5?`<button type="button" class="more" data-act="all-todo">${S.allTodo?L("Weniger anzeigen","Show less"):L("Alle anzeigen","Show all")+" ("+nTodo+")"}</button>`:"");
   const shown=S.allFlags?fl:fl.slice(0,3);
   const flagRows=shown.map(f=>row({act:f.act,id:f.id,v:f.v,c:f.c,title:esc(f.t),meta:esc(f.m),amt:f.chf===null?"":chf(f.chf,false),label:""})).join("");
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
@@ -68,15 +72,15 @@ function viewOverview(){
     <header class="ph"><span class="eyebrow">${esc(today)}</span><h1><button type="button" class="pswitch" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button></h1><div class="tools">${ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"')}${ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"')}</div>${[p.place,p.desc].filter(Boolean).length?`<p class="lead">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</p>`:""}</header>
     ${startSteps()}
     <div class="stats">
-      <button type="button" class="stat" data-act="to-pay"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${L("Handwerker","Contractors")} · ${openSub(upl)}</span></button>
-      <button type="button" class="stat" data-act="jump-flags"><span class="sl">${L("Mehrkosten","Extra costs")}</span><span class="sv${fl.length?" warn":""}">${chf(flSum,false)}</span><span class="ss">${fl.length?fl.length+" "+(fl.length===1?L("Hinweis","finding"):L("Hinweise","findings"))+L(" · über Vertrag, Offerte oder Budget"," · above contract, offer or budget"):L("keine","none")}</span></button>
-      <button type="button" class="stat" data-act="nav" data-v="budget"><span class="sl">${L("Kostenstand","Cost status")}</span><span class="sv">${t.kv?pct+"%":"–"}</span><span class="ss kst"><span class="mini"><i style="width:${Math.min(100,pct)}%"></i></span>${t.kv?`<span>${chf(used,false)+L(" von "," of ")+nfq.format(t.kv)+L(" freigegeben"," approved")}</span>${held>0?`<span title="${L("Zurückbehalten, wird später ausbezahlt","Withheld, paid out later")}">${L("davon ","incl. ")+chf(held,false)+L(" Rückbehalt"," retention")}</span>`:""}`:L("kein Budget","no budget")}</span></button>
-      ${PF().length?(()=>{const fo=PF().filter(f=>!f.paid),b=fo.reduce((a,f)=>a+feeTotal(f),0),rm=fo.filter(f=>remDue(f)).length;return `<button type="button" class="stat" data-act="to-fees"><span class="sl">${L("Honorar zu erhalten","Fees to receive")}</span><span class="sv">${chf(b,false)}</span><span class="ss${rm?" l-crit":""}">${rm?rm+" "+(rm===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):fo.length+" "+(fo.length===1?L("Rechnung offen","invoice open"):L("Rechnungen offen","invoices open"))}</span></button>`;})():""}
+      <button type="button" class="stat" data-act="to-pay"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${openTop(upl)}</span></button>
+      <button type="button" class="stat" data-act="jump-flags"><span class="sl">${L("Mehrkosten","Extra costs")}</span><span class="sv${fl.length?" warn":""}">${chf(flSum,false)}</span><span class="ss">${fl.length?fl.length+" "+(fl.length===1?L("Hinweis","finding"):L("Hinweise","findings")):L("keine","none")}</span></button>
+      <button type="button" class="stat" data-act="nav" data-v="budget"><span class="sl">${L("Kostenstand","Cost status")}</span><span class="sv">${t.kv?pct+"%":"–"}</span><span class="ss kst"><span class="mini"><i style="width:${Math.min(100,pct)}%"></i></span>${t.kv?`<span>${L("von ","of ")+chf(t.kv,false)}</span>`:L("kein Budget","no budget")}</span></button>
+      ${PF().length?(()=>{const fo=PF().filter(f=>!f.paid),b=fo.reduce((a,f)=>a+feeTotal(f),0),rm=fo.filter(f=>remDue(f)).length;return `<button type="button" class="stat" data-act="to-fees"><span class="sl">${L("Honorar zu erhalten","Fees to receive")}</span><span class="sv">${chf(b,false)}</span><span class="ss${rm?" l-crit":""}">${rm?rm+" "+(rm===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):fo.length+" "+L("offen","open")}</span></button>`;})():""}
     </div>
     <section><div class="sh"><h2>${L("Zu erledigen","To do")}</h2><span class="cnt">${nTodo}</span></div>${todo||`<div class="rows"><div class="empty">${L("Alles erledigt.","All done.")}</div></div>`}</section>
-    <section id="flags"><div class="sh"><h2>${L("Mehrkosten","Extra costs")}</h2><span class="cnt">${fl.length}</span>${fl.length>1?`<span class="legend-s">${L("Total ","Total ")+chf(flSum,false)+L(", Überschneidungen einmal gezählt",", overlaps counted once")}</span>`:""}</div><div class="rows">${flagRows||`<div class="empty">${L("Keine Mehrkosten.","No extra costs.")}</div>`}</div>
+    <section id="flags" class="tsec"><div class="sh"><h2>${L("Mehrkosten","Extra costs")}</h2><span class="cnt">${fl.length}</span>${infoBtn("flags",L("Mehrkosten","Extra costs"))}${fl.length?tSum(L("Total ","Total ")+chf(flSum,false),"warn"):""}</div>${infoBox("flags",`<p>${L("arkitecton vergleicht jede Rechnung mit Werkvertrag, Offerte und Budget. Hier steht, wo mehr abgerechnet wird als vereinbart. Betrifft ein Betrag mehrere Hinweise, zählt er im Total nur einmal.","arkitecton compares each invoice with contract, offer and budget. Listed here is where more is billed than agreed. An amount in several findings counts once in the total.")}</p>`)}<div class="rows">${flagRows||`<div class="empty">${L("Keine Mehrkosten.","No extra costs.")}</div>`}</div>
       ${fl.length>3?`<button type="button" class="more" data-act="all-flags">${S.allFlags?L("Weniger anzeigen","Show less"):L("Alle anzeigen","Show all")}</button>`:""}</section>
-    ${docsGrouped("project",p.id,L("Projektdokumente","Project documents"),L("Pläne, Bewilligungen, Kostenvoranschlag mit ＋ ablegen.","Store plans, permits and estimates with ＋."))}
+    ${docsFold(docsGrouped("project",p.id,L("Projektdokumente","Project documents"),L("Pläne, Bewilligungen, Kostenvoranschlag mit ＋ ablegen.","Store plans, permits and estimates with ＋.")),docsOfProject(p.id))}
   </div>`;
 }
 
@@ -121,7 +125,7 @@ function viewContractors(){
   const missTxt=k=>{const m=missingOf(k);return m.length?`<span class="mwarn">${m.length===1?L(m[0]+" fehlt",m[0]+" missing"):L(m.length+" Angaben fehlen",m.length+" details missing")}</span>`:"";};
   const rows=shown.map(x=>{const sum=x.w.sum||0,pc=sum?Math.round(x.billed/sum*100):0,over=sum&&x.billed>sum;
       return row({act:"open-k",id:x.k.id,c:over?"crit":x.billed?"ok":"n",title:esc(x.k.name),meta:"BKP "+x.w.bkp+" "+esc(bName(x.w.bkp)),amt:kf==="billed"?chf(x.billed,false):kf==="ret"?chf(x.ret,false):chf(sum,false),
-        label:`<span class="kprog${over?" over":""}"><span class="kbar"><i style="width:${Math.min(100,pc)}%"></i></span><span>${kf==="billed"?L("von","of")+" "+nf0.format(sum)+" · "+pc+" %":kf==="ret"?L("Rückbehalt","retention")+" "+retPct(x.w)+" %":pc+" % "+L("abgerechnet","billed")}</span>${missTxt(x.k)}</span>`,lc:over?"crit":"n"});}).join("")
+        label:`<span class="kprog${over?" over":""}"><span class="kbar"><i style="width:${Math.min(100,pc)}%"></i></span><span>${kf==="ret"?retPct(x.w)+" % "+L("Rückbehalt","retention"):pc+" %"}</span>${missTxt(x.k)}</span>`,lc:over?"crit":"n"});}).join("")
     +shownLoose.map(k=>row({act:"open-k",id:k.id,c:"n",title:esc(k.name),meta:L("Noch kein Werkvertrag","No contract yet")+(missingOf(k).length?" · "+missTxt(k):""),amt:"",label:L("Werkvertrag erfassen","Add contract"),lc:"n"})).join("");
   const tile=(f,l,v,ss,n)=>{const sel=kf===f,inner=`<span class="sl">${l}</span><span class="sv">${n?v:"–"}</span><span class="ss">${n?ss:L("keine","none")}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="kfilter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   const nV=all.length;
@@ -132,7 +136,7 @@ function viewContractors(){
   const head=`<div class="sh"><h2>${({billed:L("Mit Abrechnungen","With billing"),ret:L("Mit Rückbehalt","With retention"),missing:L("Angaben fehlen","Details missing")})[kf]||L("Alle Werkverträge","All contracts")}</h2><span class="cnt">${shown.length+shownLoose.length}</span><span class="right">${kf?`<button type="button" class="ghost" data-act="kfilter" data-f="">${L("Alle anzeigen","Show all")} (${nV+loose.length})</button>`:""}</span></div>`;
   return `<div class="page kpage">
     ${ph(p?esc(p.name):L("Büro","Office"),L("Handwerker","Contractors"),"",plus+more)}
-    <div class="stats s4">${tile("",L("Werkverträge","Contracts"),chf(T.sum,false),nV===1?L("1 Vertrag","1 contract"):nV+" "+L("Verträge","contracts"),nV)}${tile("billed",L("Abgerechnet","Billed"),chf(T.billed,false),(T.sum?Math.round(T.billed/T.sum*100):0)+" % "+L("der Verträge","of contracts"),all.filter(FL.billed).length)}${tile("ret",L("Rückbehalt","Retention"),chf(T.ret,false),L("zurückbehalten","held back"),all.filter(FL.ret).length)}${missTile}</div>
+    <div class="stats s4">${tile("",L("Werkverträge","Contracts"),chf(T.sum,false),nV===1?L("1 Vertrag","1 contract"):nV+" "+L("Verträge","contracts"),nV)}${tile("billed",L("Abgerechnet","Billed"),chf(T.billed,false),(T.sum?Math.round(T.billed/T.sum*100):0)+" %",all.filter(FL.billed).length)}${tile("ret",L("Rückbehalt","Retention"),chf(T.ret,false),(n=>n===1?L("1 Vertrag","1 contract"):n+" "+L("Verträge","contracts"))(all.filter(FL.ret).length),all.filter(FL.ret).length)}${missTile}</div>
     <section>${head}<div class="rows">${rows||`<div class="empty"><span>${L("Noch keine Handwerker in diesem Projekt. Mit + fügen Sie einen hinzu.","No contractors in this project yet. Use + to add one.")}</span></div>`}</div></section>
   </div>`;
 }
@@ -166,6 +170,9 @@ function viewContractor(k){
   const tools=ib("edit",L("Bearbeiten","Edit"),`data-act="form" data-f="contractor" data-id="${k.id}"`)+(CW(k.id)?excelBtn("k:"+k.id):"");
   const addHere=P()&&!pids.includes(cur)?`<div class="empty"><span>${L("Kein Werkvertrag in ","No contract in ")}${esc(P().name)}.</span><button type="button" class="btn primary" data-act="form" data-f="contract" data-id="${k.id}">${L("Werkvertrag erfassen","Add contract")}</button></div>`:"";
   const group=(pid,inner,count)=>{const p=PJ(pid);return `<details class="site" data-pid="${pid}"${isOpen(pid)?" open":""}><summary><span class="sn">${esc(p.name)}${p.place?`<span class="sp"> · ${esc(p.place)}</span>`:""}</span><span class="sc">${count}</span></summary><div class="in">${inner}</div></details>`;};
+  /* running projects first; completed ones wait in a closed group, so the page stays short after many projects */
+  const runP=pids.filter(pid=>!PJ(pid).closed),doneP=pids.filter(pid=>PJ(pid).closed);
+  const byState=fn=>runP.map(fn).join("")+(doneP.length?`<details class="pdone hdone kdone"><summary>${L("Abgeschlossene Projekte","Completed projects")} <span class="cnt">${doneP.length}</span></summary>${doneP.map(fn).join("")}</details>`:"");
   let body="";
   if(S.wid&&W(S.wid)&&W(S.wid).k===k.id){
     const w=W(S.wid);
@@ -174,25 +181,27 @@ function viewContractor(k){
       <div class="ctx">${esc(PJ(w.pid).name)} · BKP ${w.bkp} ${esc(bName(w.bkp))}</div>${cmpBody(w)}`;
   } else if(S.ktab==="konto"){
     const oi=invOf(all).filter(i=>i.status!=="bezahlt"&&live(i)),open=oi.reduce((a,i)=>a+payout(i),0),gross=oi.reduce((a,i)=>a+net(i),0),oret=r2(gross-open);
-    const top=all.length?`<div class="total"><span>${L("Offen","Open")}</span><span class="tv">${chf(open,false)}</span><span class="ts">${oi.length?L("Rechnungen ","Invoices ")+chf(gross,false)+(oret>0?L(" minus Rückbehalt "," minus retention ")+chf(oret,false):oret<0?L(" plus freigegebener Rückbehalt "," plus released retention ")+chf(-oret,false):""):L("nichts offen","nothing open")} · ${pids.length} ${pids.length===1?L("Projekt","project"):L("Projekte","projects")}</span></div>`:"";
-    body=top+addHere+pids.map(pid=>{
+    const top=all.length?`<div class="total"><span>${L("Offen","Open")}</span><span class="tv">${chf(open,false)}</span>${oret>0?`<span class="ts">${L("nach Rückbehalt ","after retention ")+chf(oret,false)}</span>`:oret<0?`<span class="ts">${L("mit Rückbehalt ","incl. retention ")+chf(-oret,false)}</span>`:""}</div>`:"";
+    body=top+addHere+byState(pid=>{
       const ws=all.filter(w=>w.pid===pid),inv=invOf(ws),multi=ws.length>1;
       const stats=ws.map(w=>{const iv=inv.filter(i=>i.w===w.id),billed=iv.filter(counted).reduce((a,i)=>a+net(i),0),paid=iv.filter(i=>i.status==="bezahlt").reduce((a,i)=>a+payout(i),0),ret=iv.filter(counted).reduce((a,i)=>a+retention(i),0);
+        /* the retention tile only where the contract has one */
         return `${multi?`<div class="ctx">BKP ${w.bkp} ${esc(bName(w.bkp))}</div>`:""}<div class="stats">
-        <button type="button" class="stat" data-act="form" data-f="contract" data-id="${k.id}" data-w="${w.id}"><span class="sl">${multi?"":"BKP "+w.bkp+" · "}${L("Werkvertrag","Contract")} · ${retPct(w)}% ${L("Rückbehalt","retention")}</span><span class="sv">${w.sum?chf(w.sum,false):"–"}</span><span class="ss">${L("freigegeben","approved")} ${chf(billed,false)}</span></button>
+        <button type="button" class="stat" data-act="form" data-f="contract" data-id="${k.id}" data-w="${w.id}"><span class="sl">${L("Werkvertrag","Contract")}</span><span class="sv">${w.sum?chf(w.sum,false):"–"}</span><span class="ss">BKP ${w.bkp}</span></button>
         <div class="stat"><span class="sl">${L("Ausbezahlt","Paid out")}</span><span class="sv">${chf(paid,false)}</span><span class="ss">${(n=>n+" "+(n===1?L("Zahlung","payment"):L("Zahlungen","payments")))(iv.filter(i=>i.status==="bezahlt").length)}</span></div>
-        <div class="stat"><span class="sl">${L("Rückbehalt","Retention")}</span><span class="sv">${chf(ret,false)}</span><span class="ss">${L("bis Schlusszahlung","until final payment")}</span></div></div>`;}).join("");
+        ${retPct(w)>0||ret>0?`<div class="stat"><span class="sl">${L("Rückbehalt","Retention")}</span><span class="sv">${chf(ret,false)}</span><span class="ss">${retPct(w)} %</span></div>`:""}</div>`;}).join("");
       const rows=inv.map(i=>{const w=W(i.w);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:typeLabel(i)+(multi?` <span class="sp">· BKP ${w.bkp}</span>`:""),meta:esc(i.no)+" · "+fdate(i.date),amt:chf(i.gross,false),label:stLabel(i.status)});}).join("");
       const addInv=pid===cur?`<button type="button" class="add" data-act="form" data-f="invoice" data-id="${k.id}">${L("+ Erfassen","+ Add")}</button>`:"";
       const addW=pid===cur?`<button type="button" class="ghost" data-act="form" data-f="contract" data-id="${k.id}">${L("+ Weiterer Werkvertrag","+ Another contract")}</button>`:"";
-      return group(pid,`${stats}<section><div class="sh"><h2>${L("Rechnungen","Invoices")}</h2><span class="cnt">${inv.length}</span>${addInv}</div><div class="rows">${rows||`<div class="empty">${L("Noch keine Rechnungen.","No invoices yet.")}</div>`}</div></section>${addW}`,inv.length+" "+(inv.length===1?L("Rechnung","invoice"):L("Rechnungen","invoices")));
-    }).join("");
+      const po=inv.filter(i=>i.status!=="bezahlt"&&live(i)).reduce((a,i)=>a+payout(i),0);
+      return group(pid,`${stats}<section><div class="sh"><h2>${L("Rechnungen","Invoices")}</h2><span class="cnt">${inv.length}</span>${addInv}</div><div class="rows">${rows||`<div class="empty">${L("Noch keine Rechnungen.","No invoices yet.")}</div>`}</div></section>${addW}`,po?chf(po,false)+" "+L("offen","open"):inv.length+" "+(inv.length===1?L("Rechnung","invoice"):L("Rechnungen","invoices")));
+    });
   } else {
-    body=addHere+pids.map(pid=>{
+    body=addHere+byState(pid=>{
       const ws=all.filter(w=>w.pid===pid);
       const rows=ws.map(w=>{const c=compare(w);return row({act:"open-w",id:w.id,c:!c?(w.offerPdf?"n":"warn"):c.hasFinal?(c.diff>0?"warn":"ok"):"n",title:"BKP "+w.bkp+" "+esc(bName(w.bkp)),meta:!c?(w.offerPdf?L("Offerte ","Offer ")+chf(w.offerPdf.sum,false)+" · PDF":L("Offerte fehlt","No offer yet")):L("Offerte ","Offer ")+chf(c.ot,false)+" · "+(c.hasFinal?L("Schluss ","Final ")+chf(c.ft,false):L("Schluss fehlt","Final missing")),amt:c&&c.hasFinal?sgn(c.diff):"",lc:"n",label:L("Öffnen →","Open →")});}).join("");
       return group(pid,`<div class="rows">${rows}</div>`,ws.length+" "+(ws.length===1?L("Vertrag","contract"):L("Verträge","contracts")));
-    }).join("");
+    });
   }
   const inW=S.wid&&W(S.wid)&&W(S.wid).k===k.id;
   return `<div class="page">
@@ -200,7 +209,7 @@ function viewContractor(k){
     ${ph("",esc(k.name),lead,tools)}
     ${all.length?`<div class="tabs" role="tablist"><button type="button" role="tab" data-act="ktab" data-t="konto" aria-selected="${S.ktab==="konto"}">${L("Konto","Account")}</button><button type="button" role="tab" data-act="ktab" data-t="vergleich" aria-selected="${S.ktab==="vergleich"}">${L("Offerte und Abrechnung","Offer and final account")}</button></div>`:""}
     ${body||addHere}
-    ${S.wid&&W(S.wid)&&W(S.wid).k===k.id?"":docsGrouped("contractor",k.id,L("Dokumente","Documents"),L("Offerten, Werkverträge, Versicherungsnachweise mit ＋ ablegen.","Store offers, contracts and certificates with ＋."))}
+    ${S.wid&&W(S.wid)&&W(S.wid).k===k.id?"":docsFold(docsGrouped("contractor",k.id,L("Dokumente","Documents"),L("Offerten, Werkverträge, Versicherungsnachweise mit ＋ ablegen.","Store offers, contracts and certificates with ＋.")),docsOfContractor(k.id))}
   </div>`;
 }
 function viewBudget(){
@@ -221,8 +230,8 @@ function viewBudget(){
     return `<div class="bgroup"><span class="code">${g}</span><span class="gn">${esc(bkpMainName(g))}</span><span class="kvc">${kv?chf(kv,false):"–"}</span><span class="nums">${aw?chf(aw,false):"–"}</span><span class="rest${rest<0?" up":rs.every(r=>r.none)?" mute":""}">${kv&&!rs.every(r=>r.none)?chf(rest,false):"–"}</span></div>`+rs.map(one).join("");}).join("");
   return `<div class="page">
     ${ph(esc(p.name),"Budget","",ib("plus",L("BKP-Position erfassen","Add BKP item"),'data-act="form" data-f="bkp"')+excelBtn("budget"))}
-    <div class="stats s4">${bt("",t.rev?L("Kostenvoranschlag rev.","Revised estimate"):L("Kostenvoranschlag","Cost estimate"),chf(t.kv,false),t.rev?L("ursprünglich ","originally ")+chf(t.kv0,false):nP(allRows.length))}${bt("aw",L("Vergeben","Awarded"),chf(t.awarded,false),(t.kv?Math.round(t.awarded/t.kv*100)+" % "+L("des Kostenvoranschlags","of the estimate"):""))}${bt("no",L("Nicht vergeben","Not awarded"),chf(sumB("no",r=>r.kv),false),nP(allRows.filter(BF.no).length))}${bt("over",L("Über Budget","Over budget"),chf(sumB("over",r=>-r.rest),false),nP(allRows.filter(BF.over).length)," warn")}</div>
-    <section><div class="sh"><h2>${({aw:L("Vergeben","Awarded"),no:L("Nicht vergeben","Not awarded"),over:L("Über Budget","Over budget")})[S.bfilter]||L("Alle Positionen","All items")}</h2><span class="cnt">${rows.length}</span><span class="right"><span class="ss" style="color:var(--muted);font-size:.875rem">${L("Reserve","Reserve")} <b style="font-weight:500;color:${t.rest<0?"var(--warn)":"var(--ink)"}">${chf(t.rest,false)}</b></span>${S.bfilter?`<button type="button" class="ghost" data-act="bfilter" data-f="">${L("Alle anzeigen","Show all")} (${allRows.length})</button>`:""}</span></div>${allRows.length?`<div class="bulkbar costbar"><span><b>${L("Kostenstand für die Bauherrschaft","Cost status for the client")}</b> · ${L("Budget, ","Budget, ")+fcL+L(" und Reserve als PDF zum Versenden"," and reserve as a PDF to send")}</span><button type="button" class="btn" data-act="cost-pdf">${L("PDF erstellen","Create PDF")}</button></div>`:""}</section>
+    <div class="stats s4">${bt("",t.rev?L("Kostenvoranschlag rev.","Revised estimate"):L("Kostenvoranschlag","Cost estimate"),chf(t.kv,false),t.rev?L("ursprünglich ","originally ")+chf(t.kv0,false):nP(allRows.length))}${bt("aw",L("Vergeben","Awarded"),chf(t.awarded,false),(t.kv?Math.round(t.awarded/t.kv*100)+" %":""))}${bt("no",L("Nicht vergeben","Not awarded"),chf(sumB("no",r=>r.kv),false),nP(allRows.filter(BF.no).length))}${bt("over",L("Über Budget","Over budget"),chf(sumB("over",r=>-r.rest),false),nP(allRows.filter(BF.over).length)," warn")}</div>
+    <section><div class="sh"><h2>${({aw:L("Vergeben","Awarded"),no:L("Nicht vergeben","Not awarded"),over:L("Über Budget","Over budget")})[S.bfilter]||L("Alle Positionen","All items")}</h2><span class="cnt">${rows.length}</span><span class="right"><span class="ss" style="color:var(--muted);font-size:.875rem">${L("Reserve","Reserve")} <b style="font-weight:500;color:${t.rest<0?"var(--warn)":"var(--ink)"}">${chf(t.rest,false)}</b></span>${S.bfilter?`<button type="button" class="ghost" data-act="bfilter" data-f="">${L("Alle anzeigen","Show all")} (${allRows.length})</button>`:""}</span></div>${allRows.length?`<div class="bulkbar costbar"><span><b>${L("Kostenstand für die Bauherrschaft","Cost status for the client")}</b></span><button type="button" class="btn" data-act="cost-pdf">${L("PDF erstellen","Create PDF")}</button></div>`:""}</section>
     <section>${br?`<div class="bhead"><span>BKP</span><span>${L("Arbeitsgattung","Trade")}</span><span class="kvc">${L("Kostenvoranschlag","Estimate")}</span><span class="nums">${fcL}</span><span class="rest">${L("Reserve","Reserve")}</span></div>`:""}${br||`<div class="empty"><span>${L("Noch kein Kostenvoranschlag. Erfassen Sie die BKP-Positionen mit Betrag, daran misst arkitecton alle Rechnungen.","No cost estimate yet. Add the BKP items with amounts; arkitecton measures every invoice against them.")}</span><div class="eb"><button type="button" class="btn primary" data-act="form" data-f="bkp">${L("BKP-Position erfassen","Add BKP item")}</button></div></div>`}
       ${rows.length?`<div class="legend"><span><i class="c-paid"></i>${L("Bezahlt","Paid")}</span><span><i class="c-appr"></i>${L("Freigegeben","Approved")}</span><span><i class="c-open"></i>${L("Zu prüfen","To check")}</span><span><i style="width:1px;height:12px;background:var(--ink)"></i>${L("Kostenvoranschlag","Estimate")}</span></div>`:""}</section>
   </div>`;
@@ -255,18 +264,18 @@ function viewSettings(){
       ${row(L("Sprache","Language"),"",seg("lang-set",S.lang,[["de","Deutsch"],["en","English"]]))}
     </section>
     <section><div class="sh"><h2>${L("Büroprofil","Office profile")}</h2></div>
-      ${row(L("Büro, Team, Referenzen, Unterlagen","Office, team, references, documents"),L("Haben einen eigenen Bereich.","Have their own section."),`<button type="button" class="btn" data-act="nav" data-v="profil">${L("Zum Büroprofil","Open office profile")}</button>`)}
+      ${row(L("Büro, Team, Referenzen, Unterlagen","Office, team, references, documents"),"",`<button type="button" class="btn" data-act="nav" data-v="profil">${L("Zum Büroprofil","Open office profile")}</button>`)}
     </section>
-    <section><div class="sh"><h2>${L("Standardwerte","Defaults")}</h2><span class="legend-s">${L("Gelten für neue Werkverträge und Rechnungen","Apply to new contracts and invoices")}</span></div>
-      ${row(L("Rückbehalt","Retention"),L("Standard für neue Werkverträge, meist 0 %. Öffentliche Bauherren wie die Stadt behalten oft einen Rückbehalt. Pro Werkvertrag änderbar.","Default for new contracts, usually 0 %. Public clients such as the city often hold back retention. Can be changed per contract."),num("ret",st.ret,"%",L("Rückbehalt","Retention")))}
+    <section><div class="sh"><h2>${L("Standardwerte","Defaults")}</h2></div>
+      ${row(L("Rückbehalt","Retention"),L("Für neue Werkverträge, pro Vertrag änderbar.","For new contracts, changeable per contract."),num("ret",st.ret,"%",L("Rückbehalt","Retention")))}
       ${row(L("Zahlungsfrist Handwerker","Contractor payment term"),L("Wenn die Rechnung kein Fälligkeitsdatum enthält.","When the invoice has no due date."),num("term",st.term,L("Tage","days"),L("Zahlungsfrist Handwerker","Contractor payment term")))}
       ${row(L("Zahlungsfrist Honorar","Fee payment term"),L("Steht auf Ihren neuen Honorarrechnungen.","Printed on your new fee invoices."),num("feeTerm",st.feeTerm,L("Tage","days"),L("Zahlungsfrist Honorar","Fee payment term")))}
-      ${row(L("Mahnungen","Reminders"),L("1., 2. und 3. Mahnung, Tage ab Rechnungsdatum.","1st, 2nd and 3rd reminder, days from the invoice date."),`<div class="setrem">${num("rem0",st.rem[0],"",L("1. Mahnung","1st reminder"))}${num("rem1",st.rem[1],"",L("2. Mahnung","2nd reminder"))}${num("rem2",st.rem[2],L("Tage","days"),L("3. Mahnung","3rd reminder"))}</div>`)}
+      ${row(L("Mahnungen","Reminders"),L("Tage ab Rechnungsdatum","Days from the invoice date"),`<div class="setrem">${num("rem0",st.rem[0],"",L("1. Mahnung","1st reminder"))}${num("rem1",st.rem[1],"",L("2. Mahnung","2nd reminder"))}${num("rem2",st.rem[2],L("Tage","days"),L("3. Mahnung","3rd reminder"))}</div>`)}
       <div class="ferr" id="setErr" role="alert"></div>
     </section>
     <section><div class="sh"><h2>${L("BKP-Liste","BKP list")}</h2></div>
       ${(()=>{const own=D.bkpList||[],inf=D.bkpListInfo||{},sub=own.filter(o=>o[0].includes(".")).length;
-        return row(own.length?L("Eigene Liste aktiv","Own list active"):L("Standardliste","Standard list"),own.length?esc(inf.name||"")+" · "+own.length+L(" Codes"," codes")+(sub?", "+sub+L(" Unterpositionen"," sub-items"):"")+" · "+fdate(inf.date||iso(TODAY)):L("Hauptgruppen 0 bis 9 und Positionen bis 3 Stellen. Für Unterpositionen wie 211.5 laden Sie Ihre eigene Liste als Excel: Spalte A Nummer, Spalte B Bezeichnung.","Main groups 0 to 9 and items up to 3 digits. For sub-items like 211.5, load your own list as Excel: column A number, column B name."),
+        return row(own.length?L("Eigene Liste aktiv","Own list active"):L("Standardliste","Standard list"),own.length?esc(inf.name||"")+" · "+own.length+L(" Codes"," codes")+(sub?", "+sub+L(" Unterpositionen"," sub-items"):"")+" · "+fdate(inf.date||iso(TODAY)):L("Positionen bis 3 Stellen. Eigene Liste als Excel: Spalte A Nummer, B Bezeichnung.","Items up to 3 digits. Own list as Excel: column A number, B name."),
           `<div class="setbtns"><label class="btn">${own.length?L("Andere Liste laden","Load other list"):L("Eigene Liste laden","Load own list")}<input type="file" accept=".xlsx,.xls,.csv" data-imp="bkplist"></label>${own.length?`<button type="button" class="btn" data-act="bkp-reset">${L("Standardliste verwenden","Use standard list")}</button>`:""}</div>`);})()}
     </section>
     <section><div class="sh"><h2>${L("Papierkorb","Bin")}</h2><span class="cnt">${(D.trash||[]).length}</span></div>
@@ -299,9 +308,9 @@ const FOLDK="arkitecton:fold",foldGet=()=>{try{return JSON.parse(localStorage.ge
 /* sections fold; on the tender detail each section opens by default only when something there needs doing (data-fd="1" = closed).
    The state is fixed when the tender is first shown, so a section never closes by itself while someone works in it. */
 function foldSections(){const tk=S.view==="ausschreibungen"&&S.tid?"t:"+S.tid+":":null;
-  if(S.view!=="buero"&&S.view!=="uebersicht"&&!tk)return;const st=tk?(S.tfold||(S.tfold={})):foldGet();
+  if(!["buero","uebersicht","profil"].includes(S.view)&&!tk)return;const st=tk?(S.tfold||(S.tfold={})):foldGet();
   document.querySelectorAll("#main section").forEach(sec=>{const sh=sec.querySelector(":scope>.sh"),h=sh&&sh.querySelector("h2");if(!h||sh.querySelector(".fold")||(tk&&!sec.dataset.fk))return;
-    const k=tk?tk+sec.dataset.fk:S.view+":"+h.textContent.trim(),closed=tk?(k in st?st[k]:(st[k]=sec.dataset.fd==="1")):!!st[k];sec.classList.add("foldable");sec.classList.toggle("folded",closed);
+    const k=tk?tk+sec.dataset.fk:S.view+":"+h.textContent.trim(),closed=tk?(k in st?st[k]:(st[k]=sec.dataset.fd==="1")):(k in st?!!st[k]:sec.dataset.fd==="1");sec.classList.add("foldable");sec.classList.toggle("folded",closed);
     const b=document.createElement("button");b.type="button";b.className="fold";b.dataset.act="fold";b.dataset.k=k;if(tk)b.dataset.s="t";b.setAttribute("aria-expanded",String(!closed));b.setAttribute("aria-label",(closed?L("Aufklappen: ","Expand: "):L("Zuklappen: ","Collapse: "))+h.textContent.trim());b.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';sh.appendChild(b);});}
 function trimRail(){const b=document.querySelector('.rail .nrow>button[data-act="nav"][data-v="'+S.view+'"]');if(!b)return;const row=b.parentNode,on=pageActs();
   row.querySelectorAll(".nact .na").forEach(n=>{if(n.dataset.act==="nmore"){if(!popItems("nav",S.view).length)n.remove();}else if(on.has(n.dataset.act+"|"+(n.dataset.f||"")))n.remove();});}
@@ -313,6 +322,7 @@ function popItems(kind,key){
     handwerker:[im(L("Handwerkerliste importieren","Import contractor list"),"contractors"),it(L("Handwerkerliste","Contractor list")+xl,"x-contractors")],
     budget:[it(L("Kostenstand für die Bauherrschaft (PDF)","Cost status for the client (PDF)"),"cost-pdf"),it(L("Bauabrechnung (PDF)","Construction account (PDF)"),"final-pdf"),it(L("Budget nach BKP","Budget by BKP")+xl,"x-budget")],
     ausschreibungen:[it(L("Verfahrensliste","Procedure list")+xl,"x-tenders"),it(L("Referenzliste","Reference list")+xl,"x-refs")]})[key]||[];
+  if(kind==="doc"){const d=DOCS().find(x=>x.id===key);if(!d)return [];return [it(L("Öffnen","Open"),"doc-open",`data-id="${d.id}"`),it(d.scope==="tender"||d.scope==="firm"?L("Gültigkeit bearbeiten","Edit validity"):L("Bearbeiten","Edit"),"form",`data-f="docvalid" data-id="${d.id}"`),Object.assign(it(L("Löschen","Delete"),"doc-del",`data-id="${d.id}"`),{danger:true})];}
   if(kind==="nav"&&key===S.view){const on=pageActs();return navList.filter(x=>!on.has(itemKey(x)));}
   if(kind==="nav")return navList;
   const p=D.projects.find(x=>x.id===key);if(!p)return [];
@@ -324,7 +334,7 @@ function renderPop(){let el=document.getElementById("pop");if(!el){el=document.c
   const P0=S.pop;if(!P0){el.className="";el.innerHTML="";return;}
   const items=popItems(P0.kind,P0.key);
   const foot=(P0.kind==="proj"||(P0.kind==="nav"&&P0.key==="uebersicht"))?(()=>{const p=D.projects.find(x=>x.id===(P0.kind==="proj"?P0.key:D.pid)),d=p&&lastEdited(p);return d?`<div class="popfoot">${L("Zuletzt geändert am ","Last changed on ")+fdate(d)}</div>`:"";})():"";
-  el.innerHTML=`<div class="pophead">${P0.kind==="proj"?L("Projekt","Project"):vName(P0.key)}</div>`+items.map(x=>x.imp?`<label class="popi" role="menuitem"><span>${esc(x.label)}</span><input type="file" accept=".xlsx,.xls,.csv" data-imp="${x.imp}" aria-label="${esc(x.label)}"></label>`:`<button type="button" class="popi${x.danger?" danger":""}" role="menuitem" data-act="${x.act}" ${x.ex}>${esc(x.label)}</button>`).join("")+foot;
+  el.innerHTML=`<div class="pophead${P0.kind==="doc"?" pdoc":""}">${P0.kind==="proj"?L("Projekt","Project"):P0.kind==="doc"?esc(((DOCS().find(x=>x.id===P0.key))||{}).name||""):vName(P0.key)}</div>`+items.map(x=>x.imp?`<label class="popi" role="menuitem"><span>${esc(x.label)}</span><input type="file" accept=".xlsx,.xls,.csv" data-imp="${x.imp}" aria-label="${esc(x.label)}"></label>`:`<button type="button" class="popi${x.danger?" danger":""}" role="menuitem" data-act="${x.act}" ${x.ex}>${esc(x.label)}</button>`).join("")+foot;
   el.className="on";const r=P0.rect,w=el.offsetWidth,h=el.offsetHeight;
   el.style.left=Math.min(innerWidth-w-8,r.right+6)+"px";el.style.top=Math.max(8,Math.min(innerHeight-h-8,r.top-6))+"px";
   const f=el.querySelector(".popi");if(f&&P0.kb)f.focus();}
@@ -350,16 +360,16 @@ function viewProfil(){
   const G={refs:O.refs,pub:O.refs.filter(r=>r.pub),sugg};
   if(!G[S.pfilter]||(!G[S.pfilter].length&&S.pfilter!=="refs"))S.pfilter="refs";
   const maxC=Math.max(0,...O.refs.filter(r=>!r.running).map(r=>r.cost||0));
-  const TL={refs:[L("Referenzen","References"),O.refs.length,O.refs.length?L("grösstes Projekt ","largest project ")+mio(maxC):L("noch keine erfasst","none yet")],
-    pub:[L("Öffentliche Bauherrschaft","Public clients"),G.pub.length,L("oft verlangt bei Ausschreibungen","often required in tenders")],
-    sugg:[L("Vorschläge","Suggestions"),sugg.length,L("abgeschlossene Projekte als Referenz","completed projects as reference")]};
+  const TL={refs:[L("Referenzen","References"),O.refs.length,O.refs.length?L("bis ","up to ")+mio(maxC):L("noch keine","none yet")],
+    pub:[L("Öffentlich","Public"),G.pub.length,L("Bauherrschaft","client")],
+    sugg:[L("Vorschläge","Suggestions"),sugg.length,L("aus Projekten","from projects")]};
   const tile=k=>{const [l,v,ss]=TL[k],n=G[k].length,sel=S.pfilter===k,inner=`<span class="sl">${l}</span><span class="sv">${v||"–"}</span><span class="ss">${ss}</span>`;
     return n||k==="refs"?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="pfilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   const refRow=r=>row({act:"form",id:r.id,c:r.pub?"acc":"n",title:esc(tx(r)),meta:[esc(r.client||""),r.type&&RTYPE[r.type]?tx(RTYPE[r.type]):"",r.phases?"SIA "+esc(r.phases):""].filter(Boolean).join(" · "),amt:r.cost?mio(r.cost):"",label:r.running?L("laufend","ongoing"):String(r.year||""),lc:"n"}).replace('data-act="form"','data-act="form" data-f="ref"');
   const sRow=p=>row({act:"form",c:"n",title:esc(p.name),meta:[esc(p.place||""),esc(p.client||"")].filter(Boolean).join(" · "),amt:"",label:L("Als Referenz übernehmen","Use as reference"),lc:"acc"}).replace('data-act="form"','data-act="form" data-f="ref" data-w="'+p.id+'"');
   const fl=S.pfilter,list=G[fl],rows=(fl==="sugg"?list.map(sRow):list.map(refRow)).join("");
   const sig=f.sigRule==="kollektiv2"?L("kollektiv zu zweien","jointly by two"):L("Einzelunterschrift","single signature");
-  return `<div class="page">${ph("",L("Büroprofil","Office profile"),L("Einmal pflegen: für Rechnungen, Briefe und jede Bewerbung bereit.","Keep once: ready for invoices, letters and every bid."),"")}
+  return `<div class="page">${ph("",L("Büroprofil","Office profile"),"","")}
     ${!O.refs.length||!O.team.length?`<div class="notice"><span class="ic warn" aria-hidden="true">!</span><span>${L("Solange Referenzen und Team fehlen, kann arkitecton die Eignung bei Ausschreibungen nicht prüfen.","As long as references and team are missing, arkitecton cannot check tender eligibility.")}</span></div>`:""}
     <section><div class="sh"><h2>${L("Büro","Office")}</h2></div>
       ${srow(esc(f.name||L("Büroname fehlt","Firm name missing")),[adr,f.iban?"IBAN "+fmtIban(f.iban):L("IBAN fehlt","IBAN missing"),f.vatNo||"",L("Zeichnungsberechtigung: ","Signing: ")+sig].filter(Boolean).map(esc).join(" · "),`<button type="button" class="btn" data-act="form" data-f="firm">${L("Bearbeiten","Edit")}</button>`)}
@@ -368,7 +378,7 @@ function viewProfil(){
     <section id="refs"><div class="sh"><h2>${L("Referenzen","References")}</h2><span class="cnt">${O.refs.length}</span><span class="right">${ib("plus",L("Referenz erfassen","Add reference"),'data-act="form" data-f="ref"')}</span></div>
       <div class="stats">${["refs","pub","sugg"].map(tile).join("")}</div>
       <div class="rows">${rows||`<div class="empty"><span>${L("Noch keine Referenzen. Mit + erfassen Sie eine, oder übernehmen Sie ein abgeschlossenes Projekt.","No references yet. Use + to add one, or take over a completed project.")}</span></div>`}</div></section>
-    ${docsBlock("firm","firm",L("Unterlagen des Büros","Firm documents"),L("Handelsregister, Versicherung, AHV, Betreibungsregister: einmal ablegen, für jede Bewerbung bereit. Mit Gültigkeit warnt arkitecton vor Ablauf.","Register extract, insurance, social security: store once, ready for every bid."))}
+    ${docsFold(docsBlock("firm","firm",L("Unterlagen des Büros","Firm documents"),L("Handelsregister, Versicherung, AHV, Betreibungsregister: einmal ablegen, für jede Bewerbung bereit. Mit Gültigkeit warnt arkitecton vor Ablauf.","Register extract, insurance, social security: store once, ready for every bid.")),docsFor("firm","firm"))}
   </div>`;
 }
 function viewTenders(){
@@ -418,6 +428,10 @@ function viewPerson(m,tsw){
   </div>`;
 }
 
+/* a document section that opens by default only when it is empty or a document runs out; the header says how many and what runs out */
+function docsFold(html,list){const bad=list.map(docValid).filter(v=>v&&v.c!=="ok"),cr=bad.some(v=>v.c==="crit");
+  const sum=bad.length?tSum(bad.length+" "+(cr?L("abgelaufen oder bald","expired or soon"):L("laufen bald ab","expiring soon")),cr?"crit":"warn"):"";
+  return html.replace('<section class="docs">',`<section class="docs tsec" data-fd="${list.length&&!bad.length?1:0}">`).replace(/(<span class="cnt">\d+<\/span>)/,"$1"+sum);}
 /* a section of the tender detail: a one-line summary in the header, open by default only when something there needs doing */
 const tSum=(txt,c)=>txt?`<span class="sum${c?" l-"+c:""}">${txt}</span>`:"";
 const tSec=(fk,closed,cls,head,body)=>`<section class="tsec${cls?" "+cls:""}" data-fk="${fk}" data-fd="${closed?1:0}">${head}${body}</section>`;
@@ -433,7 +447,7 @@ function tenderSource(t,c){
   const sum=[src.url?"simap":"",dos.length?L("Dossier","Dossier"):"",t.sig?(t.sig==="qes"?"QES":L(...SIGREQ[t.sig]).split(",")[0]):""].filter(Boolean).join(" · ");
   const head=`<div class="sh"><h2>${L("Ausschreibung","Tender")}</h2>${tSum(k&&k.c!=="ok"?L("Unterschrift fehlt","Signature missing"):sum||L("unvollständig","incomplete"),k&&k.c!=="ok"?k.c:(!src.url&&!dos.length?"warn":""))}<span class="right">${c?"":ib("edit",L("Link und Unterschrift bearbeiten","Edit link and signature"),`data-act="form" data-f="tsrc" data-id="${t.id}"`)}<label class="ib" data-tip="${L("Ausschreibungsunterlagen (Dossier) als PDF ablegen","Add the tender dossier as PDF")}" aria-label="${L("Dossier ablegen","Add dossier")}">${ico("plus")}<input type="file" multiple accept=".pdf,.doc,.docx,.zip" data-imp="doc" data-id="tdos|${t.id}"></label></span></div>`;
   const body=`<div class="tsrow">${link}</div>${sigBlock(t,c)}
-    ${dos.length?`<div class="dlist">${dos.map(d=>`<div class="drow"><button type="button" class="dopen" data-act="doc-open" data-id="${d.id}"><span class="dk">${esc(kindOf(d.name))}</span><span class="dn">${esc(d.name)}</span><span class="dm">${L("Dossier","Dossier")} · ${fsize(d.size||0)} · ${fdate(d.date)}</span></button>${S.confirm==="ddel:"+d.id?`<button type="button" class="ghost danger" data-act="doc-del" data-id="${d.id}">${L("Löschen?","Delete?")}</button>`:ib("trash",L("Dokument löschen","Delete document"),`data-act="ask" data-c="ddel:${d.id}"`)}</div>`).join("")}</div>`
+    ${dos.length?`<div class="dlist">${dos.map(d=>`<div class="drow"><button type="button" class="dopen" data-act="doc-open" data-id="${d.id}"><span class="dk">${esc(kindOf(d.name))}</span><span class="dn">${esc(d.name)}</span><span class="dm">${L("Dossier","Dossier")} · ${fsize(d.size||0)} · ${fdate(d.date)}</span></button>${docMore(d)}</div>`).join("")}</div>`
       :`<div class="empty">${L("Ausschreibungsunterlagen von simap.ch herunterladen und mit ＋ ablegen.","Download the dossier from simap.ch and add it with ＋.")}</div>`}`;
   return tSec("src",true,"tsrc docs",head,body);
 }

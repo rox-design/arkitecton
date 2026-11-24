@@ -237,6 +237,9 @@ function sheetDef(key){
   if(key==="budget") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Kostenstand für die Bauherrschaft (PDF)","Cost status for the client (PDF)"),"cost-pdf"),ex(L("Bauabrechnung (PDF)","Construction account (PDF)"),"final-pdf"),ex(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client"),"x-report"),ex(L("Budget nach BKP","Budget by BKP"),"x-budget")]]]};
   if(key==="tender") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Verfahrensliste","Procedure list"),"x-tenders"),ex(L("Referenzliste","Reference list"),"x-refs")]]]};
   if(key.startsWith("t:")) return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Referenzen für diese Bewerbung","References for this bid"),"x-refs",key.slice(2))]]]};
+  /* the «···» of a document on the phone: the same three actions as the menu on the desktop */
+  if(key.startsWith("doc:")){const d=DOCS().find(x=>x.id===key.slice(4));if(!d)return null;
+    return {title:d.name,groups:[["",[bt(L("Öffnen","Open"),"doc-open",d.id),Object.assign(bt(d.scope==="tender"||d.scope==="firm"?L("Gültigkeit bearbeiten","Edit validity"):L("Bearbeiten","Edit"),"form",d.id),{f:"docvalid"}),bt(L("Löschen","Delete"),"doc-del",d.id,"danger")]]]};}
   if(key.startsWith("k:")){const id=key.slice(2),w=CW(id);
     return {title:L("Weitere Aktionen","More actions"),groups:[[L("Hochladen","Upload"),w?[im(L("Offerte","Offer"),"offer",w.id),im(L("Schlussabrechnung","Final account"),"final",w.id)]:[]],[L("Herunterladen","Download"),[ex(L("Dossier für Sie","File for you"),"x-dossier",id),ex(L("Kontoauszug für den Handwerker","Statement for the contractor"),"x-statement",id),ex(L("Leere Offertvorlage","Blank offer template"),"x-template")]]]};}
   return null;

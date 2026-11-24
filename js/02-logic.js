@@ -24,6 +24,8 @@ const projTitle=pp=>{const p=pp||P();return p?p.name+(p.place?", "+p.place:""):"
 const PJ=id=>D.projects.find(p=>p.id===id)||null;
 const KC=kid=>D.contracts.filter(w=>w.k===kid);
 const counted=i=>i.status==="frei"||i.status==="bezahlt";
+/* the most urgent state of open invoices in one short phrase, for tiles */
+const openTop=list=>{const n=st=>list.filter(i=>i.status===st).length,q=n("rueckfrage"),c=n("pruefen"),f=n("frei");return c?c+" "+L("zu prüfen","to check"):q?q+" "+L("Rückfrage","queried"):f?f+" "+L("freigegeben","approved"):L("nichts offen","nothing open");};
 const openSub=list=>{const n=st=>list.filter(i=>i.status===st).length,c=n("pruefen"),q=n("rueckfrage"),f=n("frei");return [c?c+" "+L("zu prüfen","to check"):"",q?q+" "+L("Rückfrage","queried"):"",f?f+" "+L("freigegeben","approved"):""].filter(Boolean).join(" · ")||L("nichts offen","nothing open");};
 /* "Offene Rechnungen" (open invoices) means the same everywhere; the client pays them after the architect releases them: every unpaid invoice, as the amount actually paid out */
 const unpaid=list=>list.filter(i=>live(i)&&i.status!=="bezahlt");

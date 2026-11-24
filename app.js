@@ -274,7 +274,7 @@ const SWIPE=["ausschreibungen","uebersicht","rechnungen","handwerker","budget"];
 function swipeHint(){if(!D||D.swipeSeen||D.swipeHinted||!window.matchMedia("(max-width:820px)").matches||!SWIPE.includes(S.view))return;D.swipeHinted=1;saveData();setTimeout(()=>{if(document.querySelector("#overlay.on")){D.swipeHinted=0;return;}toast(L("Tipp: Seitlich wischen wechselt zwischen den Bereichen der Leiste unten.","Tip: swipe left or right to move between the areas of the bar below."),6000,true);},900);}
 document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches('span[role="button"][data-act]')){e.preventDefault();e.target.click();return;}if(e.key==="Escape"&&S.pop){closePop();return;}if(e.key==="Escape"&&(S.drawer||S.fdrawer||S.modal||S.sheet||S.form||S.kvx)){closeAll();render();}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)stopCam();});
-window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(D&&v!==S.view&&VIEWS.includes(v))go(v);});
+window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(deepLink(v)){render();return;}if(D&&v!==S.view&&VIEWS.includes(v))go(v);});
 
 try{const l=localStorage.getItem("arkitecton:lang");if(l==="de"||l==="en")S.lang=l;}catch(e){}themeMeta();
 D=loadData();
@@ -284,6 +284,8 @@ addEventListener("storage",e=>{if(e.key!==REVKEY||!e.newValue||e.newValue===myRe
 setTimeout(()=>{const go_=()=>{libXLSX().catch(()=>{});libQR().catch(()=>{});};(window.requestIdleCallback||setTimeout)(go_,{timeout:4000});},2500);
 {const had=!!D;setTimeout(()=>{if(had&&D)sweepFiles();},15000);}try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
 runMigrations();
-const h0=location.hash.slice(1);if(VIEWS.includes(h0))S.view=h0;
+/* a direct link: #ausschreibung/<id> opens that tender; a browser without data starts with the example first */
+function deepLink(h){const m=h.match(/^ausschreibung\/([\w-]+)$/);if(!m)return false;if(!D){D=seedExample();runMigrations();}S.view="ausschreibungen";S.tid=m[1];return true;}
+const h0=location.hash.slice(1);if(!deepLink(h0)&&VIEWS.includes(h0))S.view=h0;
 render();
 window.__ark={get D(){return D;},setD(o){D=o;render();},render:()=>render(),S,compare,budgetRows,totals,retention,payout,parseSPC,parseLines,flags};

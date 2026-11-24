@@ -1208,3 +1208,10 @@ details.inf>summary{justify-content:flex-start;gap:4px}
 .drow .dmore{flex:none}
 section.tsec.foldable>.sh>.fold{grid-row:1/3;grid-column:5;margin-left:0}
 .tsec>.sh>.cnt+.ibtn{grid-column:3}
+/* «Nächster Schritt» with nothing to do: one small line */
+.tnext.tdone{padding:12px 20px}
+.tnext.tdone .tnh{margin:2px 0 0;align-items:center;gap:10px}
+.tnext.tdone .tnh h2{font-size:1rem;color:var(--muted)}
+.tnext .nmore{min-height:40px;display:inline-flex;align-items:center}
+.setrow .st{display:flex;align-items:center;gap:4px}
+.setrow .st .ibtn{margin:-10px -6px}

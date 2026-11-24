@@ -21,10 +21,15 @@ async def main():
       await pg.evaluate("go('buero')");await pg.wait_for_timeout(300)
       ok(f'{tag}: Einnahmen zugeklappt mit Statuszeile',await pg.evaluate("(()=>{const s=document.querySelector('section.income');return s.classList.contains('folded')&&!!s.querySelector('.sum')})()"))
       ok(f'{tag}: Kachel-Untertitel kurz',await pg.evaluate("Math.max(...[...document.querySelectorAll('#main .stat .ss')].map(e=>e.textContent.split(/\\s+/).length))")<=4)
+      # «Nächster Schritt» on every page, first after the header, at most 3 points, the rest behind «Alle anzeigen»
+      for v,js in [('Ausschreibungen',"go('ausschreibungen')"),('Home',"go('buero')"),('Projekt',"go('uebersicht')"),('Rechnungen',"go('rechnungen')"),('Honorar',"go('rechnungen');S.rtab='deb';render()"),('Handwerker',"go('handwerker')"),('Handwerker-Detail',"go('handwerker');S.kid=D.contractors[0].id;render()"),('Budget',"go('budget')"),('Büroprofil',"go('profil')")]:
+        await pg.evaluate("S.rtab='kred';S.kid=null;S.tid=null;"+js);await pg.wait_for_timeout(250)
+        r=await pg.evaluate("(()=>{const c=document.querySelector('#main .tnext');if(!c)return null;const first=[...document.querySelectorAll('#main .page>section,#main .page>.stats,#main .page>div.notice,#main .page>.dnote')][0];return {first:first===c,rows:c.querySelectorAll('.rows .row').length}})()")
+        ok(f'{tag}: {v} hat «Nächster Schritt» zuoberst',bool(r) and r['first'],r)
+        ok(f'{tag}: {v} zeigt höchstens 3 Punkte',bool(r) and r['rows']<=3,r)
       await pg.evaluate("go('uebersicht')");await pg.wait_for_timeout(300)
-      ok(f'{tag}: Projekt zeigt höchstens 5 Aufgaben',await pg.evaluate("document.querySelectorAll('#main section:nth-of-type(1) .rows .row').length")<=5)
-      await pg.click('[data-act="all-todo"]');await pg.wait_for_timeout(200)
-      ok(f'{tag}: Alle anzeigen zeigt alle Aufgaben',await pg.evaluate("document.querySelectorAll('#main section:nth-of-type(1) .rows .row').length")>5)
+      await pg.click('.tnext [data-act="next-all"]');await pg.wait_for_timeout(200)
+      ok(f'{tag}: Alle anzeigen zeigt alle Punkte',await pg.evaluate("document.querySelectorAll('.tnext .rows .row').length")>3)
       await pg.evaluate("go('handwerker');S.kid=D.contracts.find(w=>PJ(w.pid)&&PJ(w.pid).closed).k;render()");await pg.wait_for_timeout(300)
       ok(f'{tag}: Abgeschlossene Projekte beim Handwerker zugeklappt',await pg.evaluate("(()=>{const d=document.querySelector('.kdone');return !!d&&!d.open})()"))
       ok(f'{tag}: Keine JS-Fehler',not errs,errs[:3])

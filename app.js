@@ -62,6 +62,11 @@ document.addEventListener("click",e=>{
     case "info":{S.info=S.info||{};S.info[el.dataset.k]=!S.info[el.dataset.k];
       /* an explanation in a closed section: open the section, otherwise nothing would show */
       const sec=el.closest("section[data-fk]");if(S.info[el.dataset.k]&&sec&&S.tid&&sec.classList.contains("folded")){S.tfold=S.tfold||{};S.tfold["t:"+S.tid+":"+sec.dataset.fk]=false;}render();const b=document.querySelector('#main [data-act="info"][data-k="'+el.dataset.k+'"]');if(b)b.focus({preventScroll:true});break;}
+    case "next-all":S.nextAll=S.nextAll||{};S.nextAll[el.dataset.k]=!S.nextAll[el.dataset.k];render();break;
+    /* a point from another project: switch to that project, then open the invoice or fee */
+    case "p-open":D.pid=el.dataset.p;S.kid=null;if(el.dataset.k==="inv"){S.drawer=id;}else if(el.dataset.k==="fee"){S.fdrawer=id;}render();break;
+    case "open-tgo":{fromHere("ausschreibungen");go("ausschreibungen");S.tid=id;const k=el.dataset.k;S.tfold=S.tfold||{};if(k)S.tfold["t:"+id+":"+k]=false;render();const sec=k&&document.querySelector('#main section[data-fk="'+k+'"]');if(sec)sec.scrollIntoView({behavior:"smooth",block:"start"});break;}
+    case "jump":{const t=document.getElementById(el.dataset.k);if(t){const sec=t.closest("section")||t;if(sec.classList.contains("folded")){const f=sec.querySelector(".fold");if(f)f.click();}sec.scrollIntoView({behavior:"smooth",block:"start"});}break;}
     case "all-todo":S.allTodo=!S.allTodo;render();break;
     case "all-tt":S.allTT=!S.allTT;render();break;
     case "t-go":{const k=el.dataset.k;S.tfold=S.tfold||{};S.tfold["t:"+S.tid+":"+k]=false;render();const sec=document.querySelector('#main section[data-fk="'+k+'"]');if(sec){sec.scrollIntoView({behavior:"smooth",block:"start"});const f=sec.querySelector("input:not(:checked),button.row,button");if(f)setTimeout(()=>f.focus({preventScroll:true}),350);}break;}

@@ -24,8 +24,8 @@ async def main():
       # «Nächster Schritt» on every page, first after the header, at most 3 points, the rest behind «Alle anzeigen»
       for v,js in [('Ausschreibungen',"go('ausschreibungen')"),('Home',"go('buero')"),('Projekt',"go('uebersicht')"),('Rechnungen',"go('rechnungen')"),('Honorar',"go('rechnungen');S.rtab='deb';render()"),('Handwerker',"go('handwerker')"),('Handwerker-Detail',"go('handwerker');S.kid=D.contractors[0].id;render()"),('Budget',"go('budget')"),('Büroprofil',"go('profil')")]:
         await pg.evaluate("S.rtab='kred';S.kid=null;S.tid=null;"+js);await pg.wait_for_timeout(250)
-        r=await pg.evaluate("(()=>{const c=document.querySelector('#main .tnext');if(!c)return null;const first=[...document.querySelectorAll('#main .page>section,#main .page>.stats,#main .page>div.notice,#main .page>.dnote')][0];return {first:first===c,rows:c.querySelectorAll('.rows .row').length}})()")
-        ok(f'{tag}: {v} hat «Nächster Schritt» zuoberst',bool(r) and r['first'],r)
+        r=await pg.evaluate("(()=>{const c=document.querySelector('#main .tnext');if(!c)return null;const st=document.querySelector('#main .page>.stats');const pos=st?!!(st.compareDocumentPosition(c)&Node.DOCUMENT_POSITION_FOLLOWING):true;const before=[...document.querySelectorAll('#main .page section')].filter(x=>x!==c&&(x.compareDocumentPosition(c)&Node.DOCUMENT_POSITION_FOLLOWING)&&!x.closest('details'));return {after_stats:pos,first:!before.length,rows:c.querySelectorAll('.rows .row').length}})()")
+        ok(f'{tag}: {v} zeigt zuerst den Stand, dann «Nächster Schritt»',bool(r) and r['after_stats'] and r['first'],r)
         ok(f'{tag}: {v} zeigt höchstens 3 Punkte',bool(r) and r['rows']<=3,r)
       await pg.evaluate("go('uebersicht')");await pg.wait_for_timeout(300)
       await pg.click('.tnext [data-act="next-all"]');await pg.wait_for_timeout(200)

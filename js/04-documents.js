@@ -293,8 +293,9 @@ function viewFees(){
   /* next step: reminders that are due */
   const card=G.due.length?nextCard({key:"fees:"+D.pid,title:G.due.length===1?L("1 Mahnung senden","Send 1 reminder"):G.due.length+" "+L("Mahnungen senden","reminders to send"),when:chf(tot(G.due),false),whenC:"crit",
     items:G.due.map(f=>({act:"open-fee",ex:`data-id="${f.id}"`,c:"crit",title:esc(f.title||L("Honorar","Fee")),meta:esc(f.no)+" · "+remName(remDue(f)),amt:chf(feeTotal(f),false),label:L("seit "+feeAge(f)+" Tagen","for "+feeAge(f)+" days")}))}):nextCard({});
-  return `${card}${miss.length?`<div class="notice"><span class="ic warn" aria-hidden="true">!</span><span>${L("Für Rechnungen mit QR-Code fehlen Büro-Angaben: ","Firm details missing for QR invoices: ")}${miss.join(", ")}. <button type="button" class="ghost link" data-act="form" data-f="firm">${L("Ergänzen","Add")}</button></span></div>`:""}
+  return `${miss.length?`<div class="notice"><span class="ic warn" aria-hidden="true">!</span><span>${L("Für Rechnungen mit QR-Code fehlen Büro-Angaben: ","Firm details missing for QR invoices: ")}${miss.join(", ")}. <button type="button" class="ghost link" data-act="form" data-f="firm">${L("Ergänzen","Add")}</button></span></div>`:""}
     <div class="stats">${["open","due","paid"].map(tile).join("")}</div>
+    ${card}
     <section>${head}<div class="rows">${rows||`<div class="empty"><span>${L("Noch keine Honorarrechnungen.","No fee invoices yet.")}</span>${D.example?`<button type="button" class="btn" data-act="fee-demo">${L("Beispielrechnungen anzeigen","Show example invoices")}</button>`:""}</div>`}</div></section>`;
 }
 

@@ -6,7 +6,7 @@ async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch();ctx,pg,errs=await start(b,mobile=True)
     await pg.evaluate("go('ausschreibungen');S.tid='t2';render()");await pg.wait_for_timeout(200)
-    ok('Nächster Schritt steht oben',await pg.evaluate("document.querySelector('.tnext').getBoundingClientRect().top<document.querySelector('.stats').getBoundingClientRect().top"))
+    ok('Zuerst der Stand, dann Nächster Schritt',await pg.evaluate("document.querySelector('.stats').getBoundingClientRect().top<document.querySelector('.tnext').getBoundingClientRect().top"))
     ok('Erfüllte Eignung ist zugeklappt',await pg.evaluate("document.querySelector('section[data-fk=elig]').classList.contains('folded')"))
     ok('Offene Unterlagen sind aufgeklappt',not await pg.evaluate("document.querySelector('section[data-fk=docs]').classList.contains('folded')"))
     await pg.click('.tnext [data-act="t-go"][data-k="crew"]');await pg.wait_for_timeout(500)

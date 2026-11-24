@@ -27,7 +27,7 @@ const SIGREQ={qes:["Qualifizierte elektronische Signatur (QES)","Qualified elect
 const SECO_CSP="https://www.seco.admin.ch/de/csp-elektronische-signatur";
 const qesPeople=()=>(((D.office||{}).team)||[]).filter(m=>(m.extra||[]).includes("qes"));
 const sigNeed=()=>(D.firm||{}).sigRule==="kollektiv2"?2:1;
-function sigCheck(t){if(t.sig!=="qes")return null;const q=qesPeople(),need=sigNeed(),nm=q.map(m=>m.name).join(L(" und "," and "));
+function sigCheck(t){if(t.sig!=="qes")return null;const q=qesPeople(),need=sigNeed(),nm=q.map(m=>esc(m.name)).join(L(" und "," and "));
   if(q.length>=need)return {c:"ok",t:L("Unterschreiben können ","Can sign: ")+nm+(need===2?L(" (kollektiv zu zweien)"," (two signatures)"):"")+"."};
   if(!q.length)return {c:"crit",t:L("Niemand im Büro hat eine QES. Die Identifikation beim Anbieter braucht einige Tage Vorlauf.","Nobody in the office has a QES. Getting one takes a few days.")};
   return {c:"warn",t:L("Ihr Büro zeichnet kollektiv zu zweien, aber nur "+nm+" hat eine QES. Es braucht eine zweite Person mit QES.","Your office signs jointly by two, but only "+nm+" has a QES. A second person is needed.")};}

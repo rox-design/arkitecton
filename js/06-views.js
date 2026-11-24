@@ -249,7 +249,6 @@ function viewSettings(){
   const seg=(name,cur,opts)=>`<div class="seg" role="group">${opts.map(([v,l])=>`<button type="button" data-act="${name}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`).join("")}</div>`;
   const num=(id,v,unit,lbl)=>`<label class="setnum"><input id="${id}" data-set="${id}" inputmode="numeric" autocomplete="off" value="${v}" aria-label="${esc(lbl)}"><span>${unit}</span></label>`;
   const row=(t,hint,ctrl)=>`<div class="setrow"><div><div class="st">${t}</div>${hint?`<div class="sh2">${hint}</div>`:""}</div><div class="sc">${ctrl}</div></div>`;
-  const adr=[f.street,[f.zip,f.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   return `<div class="page">${ph("",L("Einstellungen","Settings"),"","")}
     <section><div class="sh"><h2>${L("Ansicht","View")}</h2></div>
       ${row(L("Erscheinungsbild","Appearance"),L("Automatisch folgt der Einstellung Ihres Geräts.","Automatic follows your device setting."),seg("theme-set",themeMode(),[["auto",L("Automatisch","Automatic")],["light",L("Hell","Light")],["dark",L("Dunkel","Dark")]]))}
@@ -464,7 +463,7 @@ function viewTender(t){
   const hint=t.status==="arbeit"&&!c?(fit==="no"?`<span class="act-hint">${L("Eignung nicht erfüllt","Not eligible")}</span>`:open.length?`<span class="act-hint">${L("Noch ","Still ")+open.length+" "+(open.length===1?L("Unterlage offen","document open"):L("Unterlagen offen","documents open"))}</span>`:""):"";
   return `<div class="page">
     ${backBtn("back-t",L("Ausschreibungen","Tenders"))}
-    ${ph(esc(t.client)+(t.own?"":" · "+L("Beispiel","Example")),esc(tx(t.title)),tx(PROC[t.proc]||PROC.offen)+" · SIA "+t.phases,excelBtn("t:"+t.id))}
+    ${ph(esc(t.client)+(t.own?"":" · "+L("Beispiel","Example")),esc(tx(t.title)),tx(PROC[t.proc]||PROC.offen)+" · SIA "+esc(t.phases||""),excelBtn("t:"+t.id))}
     ${phaseBar(t)}
     <div class="stats${resultTile(t)?" s4":""}">
       <div class="stat"><span class="sl">${phs===1?L("Teilnahmeantrag","Request to participate"):L("Eingabe","Submission")}</span><span class="sv${!c&&dd<=7?(dd<=2?" crit":" warn"):""}">${c?(t.status==="verzichtet"?tx(TST[t.status]):L("Eingereicht","Submitted")):dd<0?L("vorbei","closed"):dd===0?L("heute","today"):L("in "+dd+" "+dayWord(dd),"in "+dd+" "+(dd===1?"day":"days"))}</span><span class="ss">${subLine}</span></div>

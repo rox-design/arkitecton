@@ -22,6 +22,10 @@ async def main():
     ok('i öffnet die Erklärung',await pg.evaluate("!!document.querySelector('section[data-fk=gek] .ibox')&&document.querySelector('section[data-fk=gek] .ibtn').getAttribute('aria-expanded')==='true'"))
     await pg.click('section[data-fk=gek] .ibtn');await pg.wait_for_timeout(200)
     ok('i schliesst die Erklärung',not await pg.query_selector('section[data-fk=gek] .ibox'))
+    await pg.click('section[data-fk=gek] [data-i="2"][data-v="m"]');await pg.wait_for_timeout(200)
+    ok('Abschnitt bleibt offen nach dem Einschätzen',not await pg.evaluate("document.querySelector('section[data-fk=gek]').classList.contains('folded')"))
+    await pg.click('section[data-fk=gek] .fold');await pg.wait_for_timeout(100);await pg.click('section[data-fk=gek] .ibtn');await pg.wait_for_timeout(200)
+    ok('i öffnet auch einen zugeklappten Abschnitt',await pg.evaluate("(()=>{const x=document.querySelector('section[data-fk=gek] .ibox');return !!x&&x.offsetHeight>0})()"))
     for d in ["d8","d11","d10"]:
       if await pg.query_selector(f'[data-act="t-link"][data-d="{d}"]'):await pg.click(f'[data-act="t-link"][data-d="{d}"]');await pg.wait_for_timeout(100)
     ok('Büro-Unterlagen übernommen',await pg.evaluate("Object.keys(T('t2').link||{}).length")==3)

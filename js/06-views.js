@@ -296,11 +296,12 @@ function saveSetting(el){
 function pageActs(){const s=new Set();document.querySelectorAll("#main [data-act]").forEach(e=>{s.add(e.dataset.act+"|"+(e.dataset.f||""));if(e.dataset.act==="sheet"&&e.dataset.k!=="projects"&&e.dataset.k!=="daten"){const d=sheetDef(e.dataset.k);(d&&d.groups||[]).forEach(g=>g[1].forEach(x=>s.add(x.imp?"imp:"+x.imp+"|":x.act+"|"+(x.f||""))));}});return s;}
 const itemKey=x=>x.imp?"imp:"+x.imp+"|":x.act+"|"+(((x.ex||"").match(/data-f="([^"]+)"/)||[])[1]||"");
 const FOLDK="arkitecton:fold",foldGet=()=>{try{return JSON.parse(localStorage.getItem(FOLDK)||"{}")}catch(e){return {}}};
-/* sections fold; on the tender detail each section opens by default only when something there needs doing (data-fd="1" = closed), and the choice holds for the session */
+/* sections fold; on the tender detail each section opens by default only when something there needs doing (data-fd="1" = closed).
+   The state is fixed when the tender is first shown, so a section never closes by itself while someone works in it. */
 function foldSections(){const tk=S.view==="ausschreibungen"&&S.tid?"t:"+S.tid+":":null;
   if(S.view!=="buero"&&S.view!=="uebersicht"&&!tk)return;const st=tk?(S.tfold||(S.tfold={})):foldGet();
   document.querySelectorAll("#main section").forEach(sec=>{const sh=sec.querySelector(":scope>.sh"),h=sh&&sh.querySelector("h2");if(!h||sh.querySelector(".fold")||(tk&&!sec.dataset.fk))return;
-    const k=tk?tk+sec.dataset.fk:S.view+":"+h.textContent.trim(),closed=tk?(k in st?st[k]:sec.dataset.fd==="1"):!!st[k];sec.classList.add("foldable");sec.classList.toggle("folded",closed);
+    const k=tk?tk+sec.dataset.fk:S.view+":"+h.textContent.trim(),closed=tk?(k in st?st[k]:(st[k]=sec.dataset.fd==="1")):!!st[k];sec.classList.add("foldable");sec.classList.toggle("folded",closed);
     const b=document.createElement("button");b.type="button";b.className="fold";b.dataset.act="fold";b.dataset.k=k;if(tk)b.dataset.s="t";b.setAttribute("aria-expanded",String(!closed));b.setAttribute("aria-label",(closed?L("Aufklappen: ","Expand: "):L("Zuklappen: ","Collapse: "))+h.textContent.trim());b.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';sh.appendChild(b);});}
 function trimRail(){const b=document.querySelector('.rail .nrow>button[data-act="nav"][data-v="'+S.view+'"]');if(!b)return;const row=b.parentNode,on=pageActs();
   row.querySelectorAll(".nact .na").forEach(n=>{if(n.dataset.act==="nmore"){if(!popItems("nav",S.view).length)n.remove();}else if(on.has(n.dataset.act+"|"+(n.dataset.f||"")))n.remove();});}

@@ -58,7 +58,9 @@ document.addEventListener("click",e=>{
     case "back-m":S.mid=null;render();break;
     case "tfilter":S.tfilter=el.dataset.f;render();break;
     case "fold":{const tmp=el.dataset.s==="t",st=tmp?(S.tfold||(S.tfold={})):foldGet(),k=el.dataset.k,sec=el.closest("section"),cl=!sec.classList.contains("folded");st[k]=cl;if(!tmp)try{localStorage.setItem(FOLDK,JSON.stringify(st));}catch(e){}sec.classList.toggle("folded",cl);el.setAttribute("aria-expanded",String(!cl));el.setAttribute("aria-label",(cl?L("Aufklappen: ","Expand: "):L("Zuklappen: ","Collapse: "))+sec.querySelector("h2").textContent.trim());break;}
-    case "info":{S.info=S.info||{};S.info[el.dataset.k]=!S.info[el.dataset.k];render();const b=document.querySelector('#main [data-act="info"][data-k="'+el.dataset.k+'"]');if(b)b.focus({preventScroll:true});break;}
+    case "info":{S.info=S.info||{};S.info[el.dataset.k]=!S.info[el.dataset.k];
+      /* an explanation in a closed section: open the section, otherwise nothing would show */
+      const sec=el.closest("section[data-fk]");if(S.info[el.dataset.k]&&sec&&S.tid&&sec.classList.contains("folded")){S.tfold=S.tfold||{};S.tfold["t:"+S.tid+":"+sec.dataset.fk]=false;}render();const b=document.querySelector('#main [data-act="info"][data-k="'+el.dataset.k+'"]');if(b)b.focus({preventScroll:true});break;}
     case "t-go":{const k=el.dataset.k;S.tfold=S.tfold||{};S.tfold["t:"+S.tid+":"+k]=false;render();const sec=document.querySelector('#main section[data-fk="'+k+'"]');if(sec){sec.scrollIntoView({behavior:"smooth",block:"start"});const f=sec.querySelector("input:not(:checked),button.row,button");if(f)setTimeout(()=>f.focus({preventScroll:true}),350);}break;}
     case "bfilter":S.bfilter=el.dataset.f;render();break;
     case "kfilter":S.kfilter=el.dataset.f;render();break;

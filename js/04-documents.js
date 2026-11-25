@@ -247,6 +247,25 @@ function runMigrations(){
     if(!has("rueckfrage"))add(pick(pool.length-1),"rueckfrage",-12,L("Rückfrage gesendet: Ausmass Position 3 fehlt","Query sent: quantity for item 3 missing"));
     if(!has("frei"))add(pick(pool.length-2),"frei",-8);
   });}
+  /* example data: every Handwerker tile of an open example project has something to show (retention, billed amount, missing details) */
+  if(!D.mig.kwDemo){D.mig.kwDemo=1;if(D.example)D.projects.filter(p=>!p.closed).forEach(p=>{
+    const ws=D.contracts.filter(w=>w.pid===p.id);if(!ws.length)return;
+    const billed=w=>D.invoices.filter(i=>i.w===w.id&&live(i)&&counted(i)).reduce((a,i)=>a+net(i),0);
+    if(!ws.some(w=>billed(w)>0)){const w=ws[0],i=D.invoices.find(i=>i.w===w.id&&i.status==="pruefen");if(i)i.status="bezahlt";}
+    if(!ws.some(w=>retPct(w)>0&&billed(w)>0)){const w=ws.slice().sort((a,b)=>billed(b)-billed(a))[0];if(billed(w)>0)w.ret=10;}
+    const ks=[...new Set(ws.map(w=>w.k))].map(id=>D.contractors.find(k=>k.id===id)).filter(Boolean);
+    if(ks.length>1&&!ks.some(k=>missingOf(k).length)){const k=ks[ks.length-1];k.iban="";}
+  });}
+  /* example data: the Rechnungen tiles «Zu prüfen» and «Mahnung fällig» are not empty in any open example project */
+  if(!D.mig.invDemo2){D.mig.invDemo2=1;if(D.example)D.projects.filter(p=>!p.closed).forEach(p=>{
+    const ws=D.contracts.filter(w=>w.pid===p.id&&!D.invoices.some(i=>i.w===w.id&&i.type==="schluss"));
+    if(ws.length&&!D.invoices.some(i=>i.status==="pruefen"&&ws.some(w=>w.id===i.w))){const w=ws.find(w=>{const k=D.contractors.find(c=>c.id===w.k)||{};return k.iban&&k.street;})||ws[0],
+      n=D.invoices.filter(i=>i.w===w.id&&i.type==="akonto").length+1,no="AK-"+String(700+D.invoices.length),r=makeRef(no);
+      D.invoices.push({id:newId("i"),no,w:w.id,type:"akonto",n,date:addDays(iso(TODAY),-4),due:addDays(iso(TODAY),26),gross:Math.max(1000,Math.round((w.sum||10000)*0.2/1000)*1000),status:"pruefen",ref:r.ref,log:[{d:addDays(iso(TODAY),-4),t:L("Erfasst","Recorded")}]});}
+    const fs=FEES().filter(f=>f.pid===p.id);
+    if(fs.length&&!fs.some(f=>remDue(f))){const no=(()=>{const y=TODAY.getFullYear(),n=FEES().filter(f=>String(f.no).startsWith(y+"-")).reduce((a,f)=>Math.max(a,parseInt(String(f.no).slice(5),10)||0),0)+1;return y+"-"+String(n).padStart(3,"0");})(),r=makeRef(no),day=-(SET().rem[0]+35);
+      D.fees.push({id:newId("h"),pid:p.id,no,date:addDays(iso(TODAY),day),title:L("Honorar Akonto, Ausführungsplanung","Fee progress payment, construction drawings"),lines:[{t:L("Akonto, Phase Ausführungsplanung","Progress payment, construction drawings"),q:1,u:L("pauschal","lump sum"),p:6500}],vat:!!(D.firm||{}).vat,vatRate:8.1,refType:r.type,ref:r.ref,rem:[],paid:null,log:[{d:addDays(iso(TODAY),day),t:L("Erstellt","Created")}]});}
+  });}
   if(!D.mig.feeno){D.mig.feeno=1;const by={};FEES().slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).forEach(f=>{const y=String(f.date).slice(0,4);by[y]=(by[y]||0)+1;f.no=y+"-"+String(by[y]).padStart(3,"0");const r=makeRef(f.no);if(f.refType===r.type)f.ref=r.ref;});}
 }
 function incomeData(){

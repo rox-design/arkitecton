@@ -139,27 +139,31 @@ function viewInvoices(){
   </div>`;
 }
 
-function viewContractors(){
-  if(S.kid&&K(S.kid)) return viewContractor(K(S.kid));
-  if(!P()) return noProject(); /* same empty state as Rechnungen and Budget */
-  const p=P(),ws=PC().slice().sort((a,b)=>String(a.bkp).localeCompare(String(b.bkp),undefined,{numeric:true})||K(a.k).name.localeCompare(K(b.k).name));
+/* the contracts of the open project with billed amount and retention; shared by the Handwerker page and its tile sheets */
+function kData(){
+  const ws=PC().slice().sort((a,b)=>String(a.bkp).localeCompare(String(b.bkp),undefined,{numeric:true})||K(a.k).name.localeCompare(K(b.k).name));
   const loose=D.contractors.filter(k=>k.pid===D.pid&&!D.contracts.some(w=>w.k===k.id));
   const st=w=>{const li=D.invoices.filter(i=>i.w===w.id&&live(i)&&counted(i));const billed=r2(li.reduce((a,i)=>a+net(i),0)),ret=r2(li.reduce((a,i)=>a+retention(i),0));return {billed,ret};};
   const all=ws.map(w=>({w,k:K(w.k),...st(w)}));
   const kMiss=[...new Set([...all.map(x=>x.k),...loose])].filter(k=>missingOf(k).length);
   const T={sum:r2(all.reduce((a,x)=>a+(x.w.sum||0),0)),billed:r2(all.reduce((a,x)=>a+x.billed,0)),ret:r2(all.reduce((a,x)=>a+x.ret,0))};
   const FL={billed:x=>x.billed>0,ret:x=>x.ret>0,missing:x=>missingOf(x.k).length>0};
-  if(S.kfilter&&FL[S.kfilter]&&!all.some(FL[S.kfilter])&&!(S.kfilter==="missing"&&kMiss.length))S.kfilter="";
-  const kf=FL[S.kfilter]?S.kfilter:"",onlyMiss=kf==="missing";
+  return {all,loose,kMiss,T,FL};
+}
+function viewContractors(){
+  if(S.kid&&K(S.kid)) return viewContractor(K(S.kid));
+  if(!P()) return noProject(); /* same empty state as Rechnungen and Budget */
+  const p=P(),{all,loose,kMiss,T,FL}=kData();
+  const kf="",onlyMiss=false; /* tiles open a sheet; the list below stays unfiltered */
   const shown=kf?all.filter(FL[kf]):all, shownLoose=kf==="missing"?loose.filter(k=>missingOf(k).length):kf?[]:loose;
   const missTxt=k=>{const m=missingOf(k);return m.length?`<span class="mwarn">${m.length===1?L(m[0]+" fehlt",m[0]+" missing"):L(m.length+" Angaben fehlen",m.length+" details missing")}</span>`:"";};
   const rows=shown.map(x=>{const sum=x.w.sum||0,pc=sum?Math.round(x.billed/sum*100):0,over=sum&&x.billed>sum;
       return row({act:"open-k",id:x.k.id,c:over?"crit":x.billed?"ok":"n",title:esc(x.k.name),meta:"BKP "+x.w.bkp+" "+esc(bName(x.w.bkp)),amt:kf==="billed"?chf(x.billed,false):kf==="ret"?chf(x.ret,false):chf(sum,false),
         label:`<span class="kprog${over?" over":""}"><span class="kbar"><i style="width:${Math.min(100,pc)}%"></i></span><span>${kf==="ret"?retPct(x.w)+" % "+L("Rückbehalt","retention"):pc+" %"}</span>${missTxt(x.k)}</span>`,lc:over?"crit":"n"});}).join("")
     +shownLoose.map(k=>row({act:"open-k",id:k.id,c:"n",title:esc(k.name),meta:L("Noch kein Werkvertrag","No contract yet")+(missingOf(k).length?" · "+missTxt(k):""),amt:"",label:L("Werkvertrag erfassen","Add contract"),lc:"n"})).join("");
-  const tile=(f,l,v,ss,n)=>{const sel=kf===f,inner=`<span class="sl">${l}</span><span class="sv">${n?v:"–"}</span><span class="ss">${n?ss:L("keine","none")}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="kfilter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
+  const tile=(f,l,v,ss,n)=>{const sel=kf===f,inner=`<span class="sl">${l}</span><span class="sv">${n?v:"–"}</span><span class="ss">${n?ss:L("keine","none")}</span>`;return n?`<button type="button" class="stat" data-act="sheet" data-k="kw:${f||"all"}" aria-haspopup="dialog">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   const nV=all.length;
-  const missTile=kMiss.length?`<button type="button" class="stat ftile${onlyMiss?" sel":""}" data-act="kfilter" data-f="missing" aria-pressed="${onlyMiss}"><span class="sl">${L("Angaben fehlen","Details missing")}</span><span class="sv warn">${kMiss.length}</span><span class="ss">${kMiss.length===1?L("1 Handwerker","1 contractor"):kMiss.length+" "+L("Handwerker","contractors")}</span></button>`
+  const missTile=kMiss.length?`<button type="button" class="stat" data-act="sheet" data-k="kw:missing" aria-haspopup="dialog"><span class="sl">${L("Angaben fehlen","Details missing")}</span><span class="sv warn">${kMiss.length}</span><span class="ss">${kMiss.length===1?L("1 Handwerker","1 contractor"):kMiss.length+" "+L("Handwerker","contractors")}</span></button>`
     :`<div class="stat ftile off"><span class="sl">${L("Angaben fehlen","Details missing")}</span><span class="sv">–</span><span class="ss">${L("alles vollständig","all complete")}</span></div>`;
   const more=`<button type="button" class="ib" title="${L("Weitere Aktionen","More actions")}" aria-label="${L("Weitere Aktionen","More actions")}" data-act="sheet" data-k="handwerker">${ico("more")}</button>`;
   const plus=ib("plus",L("Handwerker erfassen","Add contractor"),'data-act="sheet" data-k="k-add"');

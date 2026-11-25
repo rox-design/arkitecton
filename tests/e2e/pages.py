@@ -50,7 +50,21 @@ async def main():
           ok(f'{tag}: Kachel {pre}{k} zeigt so viele Einträge wie sie zählt',await pg.evaluate("document.querySelectorAll('#overlay .sheet .row').length")==n)
           btn=await pg.query_selector('#overlay .sheet .bar-actions .btn')
           if btn: ok(f'{tag}: Knopf im Blatt {pre}{k} über die ganze Breite',await pg.evaluate("(()=>{const b=document.querySelector('#overlay .sheet .bar-actions .btn'),r=b.parentElement.getBoundingClientRect(),q=b.getBoundingClientRect();return Math.abs(r.width-q.width)<2})()"))
-      await pg.evaluate("closeAll();render()")
+        ok(f'{tag}: Rechnungen {tab}: keine Kachel leer (Beispieldaten)',await pg.evaluate("closeAll(),render(),[...document.querySelectorAll('#main .stats .stat')].every(e=>e.tagName==='BUTTON')"))
+      # Handwerker: every tile opens a sheet with exactly the entries it counts; no tile is empty in the example data
+      for pid in await pg.evaluate("D.projects.filter(p=>!p.closed&&D.contracts.some(w=>w.pid===p.id)).map(p=>p.id)"):
+        await pg.evaluate(f"closeAll();D.pid='{pid}';S.kid=null;go('handwerker')");await pg.wait_for_timeout(250)
+        ok(f'{tag}: Handwerker {pid}: alle Kacheln antippbar, keine leer',await pg.evaluate("[...document.querySelectorAll('#main .stats .stat')].every(e=>e.tagName==='BUTTON'&&e.dataset.act==='sheet')"))
+        for k in ['all','billed','ret','missing']:
+          await pg.evaluate("closeAll();render()");await pg.wait_for_timeout(100)
+          exp=await pg.evaluate(f"(()=>{{const d=kData();return '{k}'==='missing'?d.kMiss.length:'{k}'==='all'?d.all.length:d.all.filter(d.FL['{k}']).length}})()")
+          await pg.click(f'[data-k="kw:{k}"]');await pg.wait_for_timeout(250)
+          ok(f'{tag}: Handwerker-Kachel {k} zeigt so viele Einträge wie sie zählt',await pg.evaluate("document.querySelectorAll('#overlay .sheet .row').length")==exp)
+      await pg.evaluate("closeAll();D.pid='p1';go('handwerker')");await pg.wait_for_timeout(250)
+      ok(f'{tag}: Handwerker-Liste unter den Kacheln ungefiltert',await pg.evaluate("document.querySelectorAll('#main .page section .rows .row').length")>=await pg.evaluate("kData().all.length"))
+      await pg.click('[data-k="kw:ret"]');await pg.wait_for_timeout(250);await pg.click('#overlay .sheet .row');await pg.wait_for_timeout(300)
+      ok(f'{tag}: Zeile im Blatt öffnet den Handwerker',await pg.evaluate("!!S.kid&&!document.querySelector('#overlay .sheet')"))
+      await pg.evaluate("closeAll();S.kid=null;render()")
       ok(f'{tag}: Keine JS-Fehler',not errs,errs[:3])
       await ctx.close()
     await b.close()

@@ -292,6 +292,17 @@ function sheetHTML(){
     const rows=li.map(i=>{const k=K(W(i.w).k),dd=daysTo(i.due);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:esc(k.name),meta:typeLabel(i)+" · "+esc(i.no),amt:chf(i.gross,false),label:byDue?dueText(dd):stLabel(i.status),lc:byDue?dueTone(dd):STATUS[i.status].c});}).join("");
     const act=f==="frei"&&li.length?`<div class="bar-actions"><button type="button" class="btn primary" data-act="pay-pdf-all">${L("Zahlungsfreigabe an Bauherrschaft (PDF)","Payment release to client (PDF)")}</button></div>`:f==="pruefen"&&li.filter(cleanInv).length>1?`<div class="bar-actions"><button type="button" class="btn primary" data-act="bulk-open">${li.filter(cleanInv).length} ${L("ohne Hinweise gemeinsam freigeben","without remarks: approve together")}</button></div>`:"";
     return sheetBox(stLabel(f)+" · "+li.length,`<div class="rows">${rows}</div>${act}`);}
+  /* a Handwerker tile opens exactly the contracts or contractors it counts; a row opens the contractor */
+  if(/^kw:/.test(S.sheet)){const f=S.sheet.slice(3),{all,loose,kMiss,FL}=kData();
+    let rows;
+    if(f==="missing")rows=kMiss.map(k=>row({act:"open-k",id:k.id,c:"warn",title:esc(k.name),meta:L("Fehlt: ","Missing: ")+esc(missingOf(k).join(", ")),amt:"",label:"",lc:"warn"})).join("");
+    else{const li=f==="all"?all:all.filter(FL[f]);
+      rows=li.map(x=>{const sum=x.w.sum||0,pc=sum?Math.round(x.billed/sum*100):0,over=sum&&x.billed>sum;
+        return row({act:"open-k",id:x.k.id,c:over?"crit":x.billed?"ok":"n",title:esc(x.k.name),meta:"BKP "+x.w.bkp+" "+esc(bName(x.w.bkp)),
+          amt:chf(f==="billed"?x.billed:f==="ret"?x.ret:sum,false),
+          label:f==="ret"?retPct(x.w)+" % "+L("Rückbehalt","retention"):f==="billed"?pc+" % "+L("von","of")+" "+chf(sum,false):(x.billed?pc+" % "+L("abgerechnet","billed"):L("noch nichts abgerechnet","nothing billed yet")),lc:over?"crit":"n"});}).join("");}
+    const n=f==="missing"?kMiss.length:f==="all"?all.length:all.filter(FL[f]).length;
+    return sheetBox(({all:L("Werkverträge","Contracts"),billed:L("Abgerechnet","Billed"),ret:L("Rückbehalt","Retention"),missing:L("Angaben fehlen","Details missing")})[f]+" · "+n,`<div class="rows">${rows}</div>`);}
   if(/^fee:/.test(S.sheet)){const k=S.sheet.slice(4),all=PF();const li=(k==="open"?all.filter(f=>!f.paid):k==="due"?all.filter(f=>remDue(f)):all.filter(f=>f.paid)).sort((a,b)=>toDate(b.date)-toDate(a.date));
     const rows=li.map(f=>{const st=feeState(f);return row({act:"open-fee",id:f.id,c:st.c,title:esc(f.title||L("Honorar","Fee")),meta:esc(f.no)+" · "+fdate(f.date),amt:chf(feeTotal(f),false),label:st.t,lc:st.c});}).join("");
     return sheetBox(({open:L("Zu erhalten","To receive"),due:L("Mahnung fällig","Reminder due"),paid:L("Bezahlt","Paid")})[k]+" · "+li.length,`<div class="rows">${rows}</div>`);}

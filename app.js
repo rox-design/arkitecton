@@ -204,14 +204,18 @@ document.addEventListener("input",e=>{if(e.target.getAttribute&&e.target.getAttr
 /* ---------- swipe between the main areas on a phone (same order as the tab bar) ----------
    the page follows the finger 1:1, a short flick is enough, and the next page
    slides in from where the old one left: one continuous movement, no blank moment */
-const SWIPE=["ausschreibungen","uebersicht","rechnungen","handwerker","budget"]; /* same order as the tab bar */
+const SWIPE_OLD=["ausschreibungen","uebersicht","rechnungen","handwerker","budget"]; /* same order as the tab bar */
+/* draft: the four bottom tabs; a project page counts as «Projekte», the settings as «Büroprofil» */
+const SWIPE_NAVD=["buero","projekte","ausschreibungen","profil"];
+const swTab=v=>NAVD?(PVIEWS.includes(v)?"projekte":v==="einstellungen"?"profil":v):v;
+const SWIPE={get list(){return NAVD?SWIPE_NAVD:SWIPE_OLD;},includes(v){return this.list.includes(swTab(v));},indexOf(v){return this.list.indexOf(swTab(v));},get length(){return this.list.length;}};
 (function(){
   const main=document.getElementById("main");let st=null,busy=false;
   const phone=()=>window.matchMedia("(max-width:820px)").matches;
   const blocked=t=>t.closest("input,textarea,select,.tabs:not(.chips),.chart,[data-noswipe]")||document.querySelector("#overlay.on");
   const set=(x,ms,ease)=>{main.style.transition=ms?`transform ${ms}ms ${ease||"cubic-bezier(.2,.7,.2,1)"}`:"none";main.style.transform=x?`translate3d(${x}px,0,0)`:"";};
   main.addEventListener("touchstart",e=>{
-    if(NAVD||busy||!D||!phone()||e.touches.length!==1||!SWIPE.includes(S.view)||blocked(e.target)){st=null;return;}
+    if(busy||!D||!phone()||e.touches.length!==1||!SWIPE.includes(S.view)||blocked(e.target)){st=null;return;}
     const t=e.touches[0];if(t.clientX<20||t.clientX>innerWidth-20){st=null;return;} /* screen edges stay with the system back gesture */
     st={x:t.clientX,y:t.clientY,dir:0,dx:0,v:0,lx:t.clientX,lt:performance.now()};
   },{passive:true});
@@ -235,7 +239,7 @@ const SWIPE=["ausschreibungen","uebersicht","rechnungen","handwerker","budget"];
     g.style.cssText=`position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;overflow:hidden;background:var(--bg);z-index:5;pointer-events:none;transform:translate3d(${dx}px,0,0)`;
     gi.style.cssText=`padding:${cs.padding};box-sizing:border-box;transform:translate3d(0,${-main.scrollTop}px,0)`;
     gi.innerHTML=main.innerHTML;g.appendChild(gi);document.body.appendChild(g);
-    startView(SWIPE[n]);go(SWIPE[n]);
+    startView(SWIPE.list[n]);go(SWIPE.list[n]);
     set(dx-out*W,0);
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       const ease="cubic-bezier(.25,.8,.3,1)";
@@ -284,7 +288,7 @@ const SWIPE=["ausschreibungen","uebersicht","rechnungen","handwerker","budget"];
   document.addEventListener("mousedown",hide,true);document.addEventListener("scroll",hide,true);
 })();
 /* one-time hint on the phone, until the person has swiped once */
-function swipeHint(){if(NAVD||!D||D.swipeSeen||D.swipeHinted||!window.matchMedia("(max-width:820px)").matches||!SWIPE.includes(S.view))return;D.swipeHinted=1;saveData();setTimeout(()=>{if(document.querySelector("#overlay.on")){D.swipeHinted=0;return;}toast(L("Tipp: Seitlich wischen wechselt zwischen den Bereichen der Leiste unten.","Tip: swipe left or right to move between the areas of the bar below."),6000,true);},900);}
+function swipeHint(){if(!D||D.swipeSeen||D.swipeHinted||!window.matchMedia("(max-width:820px)").matches||!SWIPE.includes(S.view))return;D.swipeHinted=1;saveData();setTimeout(()=>{if(document.querySelector("#overlay.on")){D.swipeHinted=0;return;}toast(L("Tipp: Seitlich wischen wechselt zwischen den Bereichen der Leiste unten.","Tip: swipe left or right to move between the areas of the bar below."),6000,true);},900);}
 document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches('span[role="button"][data-act]')){e.preventDefault();e.target.click();return;}if(e.key==="Escape"&&S.pop){closePop();return;}if(e.key==="Escape"&&(S.drawer||S.fdrawer||S.modal||S.sheet||S.form||S.kvx)){closeAll();render();}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)stopCam();});
 window.addEventListener("hashchange",()=>{const v=location.hash.slice(1);if(deepLink(v)){render();return;}if(D&&v!==S.view&&VIEWS.includes(v))go(v);});

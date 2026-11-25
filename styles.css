@@ -1279,3 +1279,4 @@ section.tsec.foldable>.sh>.fold{grid-row:1/3;grid-column:5;margin-left:0}
 .addrow{display:flex;align-items:center;min-height:48px;margin-top:4px;color:var(--ink);font-size:.9375rem}
 .pbrow .pbact{display:flex;gap:8px;flex:none}
 .pbact .ib .ni{width:20px;height:20px}
+@media (min-width:821px){.sheet.sheetwide{width:min(760px,calc(100% - 64px))}}

@@ -6,8 +6,9 @@
 /* arkitecton · Dates, text and numbers, reference lists, example data, storage. */
 "use strict";
 /* a draft of a design change, shown only with ?entwurf=<name> and kept for this tab; the normal app is unchanged.
-   No draft is open at the moment; the navigation draft became the app on 25.11.2026. */
+   The navigation draft became the app on 25.11.2026. Open draft: «einnahmen» (income as a tile on Home). */
 const DRAFT=(()=>{try{const q=new URLSearchParams(location.search).get("entwurf");if(q==="aus"){sessionStorage.removeItem("ark-entwurf");return "";}if(q)sessionStorage.setItem("ark-entwurf",q);return q||sessionStorage.getItem("ark-entwurf")||"";}catch(e){return "";}})();
+const INCD=DRAFT==="einnahmen";
 
 
 /* ---------- dates ---------- */

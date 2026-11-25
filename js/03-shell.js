@@ -59,7 +59,10 @@ const pNav=()=>{if(!pInProj())return "";const p=P();
   <div class="psegw"><nav class="pseg" aria-label="${L("Teile des Projekts","Project parts")}">${PVIEWS.map(v=>{const t=v==="uebersicht"?L("Übersicht","Overview"):vName(v);return `<button type="button" data-act="ptab" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span data-t="${t}">${t}</span></button>`;}).join("")}</nav></div>`;};
 /* in a project the page header disappears (the tab names the page, actions sit in «···» next to the project name);
    only the invoice switch stays, as content of that page. A contractor's own page keeps its header. */
-const ph=(eyebrow,title,lead,tools)=>{if(!pInProj())return phx(eyebrow,title,lead,tools);
+/* the grey bar that marks a draft, with the way back to the normal app */
+const DRAFTS=()=>({einnahmen:L("Einnahmen als Kachel","Income as a tile")});
+const draftBar=()=>DRAFTS()[DRAFT]?`<div class="draftbar"><span><b>${L("Entwurf","Draft")}</b> · ${DRAFTS()[DRAFT]}</span><a href="?entwurf=aus${location.hash}">${L("Entwurf beenden","End draft")}</a></div>`:"";
+const ph=(eyebrow,title,lead,tools)=>{if(!pInProj())return draftBar()+phx(eyebrow,title,lead,tools);
   if(S.kid||S.wid)return phx(eyebrow,title,lead,tools);
   const seg=(String(tools||"").match(/<div class="seg"[\s\S]*?<\/div>/)||[""])[0];
   return seg?`<header class="ph phseg"><h1 class="srh">${title}</h1><div class="tools">${seg}</div></header>`:`<h1 class="srh">${title}</h1>`;};

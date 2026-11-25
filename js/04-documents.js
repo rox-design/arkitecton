@@ -251,7 +251,7 @@ function incomeData(){
   const late=paidL.filter(f=>(toDate(f.paid)-toDate(f.date))/864e5>30).length;
   return {months,bucket,avg,nPaid:paidL.length,late,openSum:open.reduce((a,f)=>a+feeTotal(f),0)};
 }
-function incomeSection(){
+function incomeSection(only){
   const D2=incomeData(),M=D2.months,max=Math.max(1,...M.map(x=>Math.max(x.billed,x.paid)));
   const mn=m=>new Date(2026,m,1).toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{month:"short"}).replace(".","");
   const mob=window.innerWidth<821,W=mob?360:720,H=mob?190:200,pad=mob?32:28,base=H-22,cw=(W-pad)/12,bw=Math.min(16,cw*(mob?.36:.3));
@@ -263,7 +263,8 @@ function incomeSection(){
     return `<g class="col"><title>${tip}</title><rect x="${pad+i*cw}" y="0" width="${cw}" height="${base}" class="hit"/>${bar(x0,m.billed,"s1")}${bar(x0+bw+2,m.paid,"s2")}${!mob||i%2===1?`<text x="${pad+i*cw+cw/2}" y="${H-6}" class="ax" text-anchor="middle">${mn(m.m)}</text>`:""}</g>`;}).join("");
   const sumB=M.reduce((a,m)=>a+m.billed,0),sumP=M.reduce((a,m)=>a+m.paid,0);
   const B=D2.bucket,tot=Math.max(1,B.notdue+B.overdue+B.dunning),seg=(v,cls)=>v?`<span class="${cls}" style="flex:${v/tot}"></span>`:"";
-  return `<section class="income tsec" data-fd="1"><div class="sh"><h2>${L("Einnahmen","Income")}</h2><span class="cnt">${L("12 Monate","12 months")}</span>${tSum(L("eingegangen ","received ")+chf(Math.round(sumP),false)+" · Ø "+D2.avg+" "+L("Tage","days"))}</div>
+  const hd=`<div class="sh"><h2>${L("Einnahmen","Income")}</h2><span class="cnt">${L("12 Monate","12 months")}</span>${tSum(L("eingegangen ","received ")+chf(Math.round(sumP),false)+" · Ø "+D2.avg+" "+L("Tage","days"))}</div>`;
+  const bd=`
     <div class="legend"><span><i class="k s1"></i>${L("Gestellt","Billed")} <b>CHF ${nfq.format(Math.round(sumB))}</b></span><span><i class="k s2"></i>${L("Eingegangen","Received")} <b>CHF ${nfq.format(Math.round(sumP))}</b></span></div>
     <div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${L("Gestellt und eingegangen pro Monat","Billed and received per month")}">${grid}${cols}</svg></div>
     <div class="two">
@@ -271,7 +272,11 @@ function incomeSection(){
         <div class="obar">${seg(B.notdue,"b1")}${seg(B.overdue,"b2")}${seg(B.dunning,"b3")}</div>
         <div class="olegend"><span><i class="k b1"></i>${L("noch nicht fällig","not yet due")} <b>${nfq.format(Math.round(B.notdue))}</b></span><span><i class="k b2"></i>${L("überfällig","overdue")} <b>${nfq.format(Math.round(B.overdue))}</b></span><span><i class="k b3"></i>${L("in Mahnung","in reminder")} <b>${nfq.format(Math.round(B.dunning))}</b></span></div></div>
       <div><div class="sl">${L("Zahlungsdauer","Time to payment")}</div><div class="exp"><div><span class="ev">Ø ${D2.avg} ${L("Tage","days")}</span><span class="ss">${L("von der Rechnung bis zur Zahlung","from invoice to payment")}</span></div><div><span class="ev">${D2.late} ${L("von","of")} ${D2.nPaid}</span><span class="ss">${L("nach mehr als 30 Tagen bezahlt","paid after more than 30 days")}</span></div></div></div>
-    </div></section>`;
+    </div>`;
+  /* the chart alone, for the income tile: opens as a sheet */
+  if(only==="body")return `<div class="income">${bd}</div>`;
+  if(only==="sum")return sumP;
+  return `<section class="income tsec" data-fd="1">${hd}${bd}</section>`;
 }
 function viewFees(){
   const list=PF().slice().sort((a,b)=>toDate(b.date)-toDate(a.date));

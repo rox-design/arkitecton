@@ -280,6 +280,8 @@ function projectsHTML(){
 }
 function sheetHTML(){
   if(S.sheet==="projects") return projectsHTML();
+  /* the income tile opens the chart */
+  if(S.sheet==="income") return `<div class="scrim" data-act="close"></div><div class="sheet sheetwide" role="dialog" aria-modal="true" aria-labelledby="sT"><div class="ohead"><h2 id="sT" style="font-size:1.125rem;font-weight:500">${L("Einnahmen · 12 Monate","Income · 12 months")}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div><div class="obody">${incomeSection("body")}</div></div>`;
   const d=sheetDef(S.sheet);if(!d)return "";
   const items=menuItems(d);
   return sheetWrap(d,items);

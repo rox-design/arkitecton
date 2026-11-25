@@ -53,12 +53,14 @@ function renderChrome(){
   document.querySelector(".topbar").classList.toggle("is-home",S.view==="buero");void firmTabs;
   const ts=document.getElementById("topSet");if(ts){ts.innerHTML=navIco("einstellungen");ts.setAttribute("aria-label",L("Einstellungen","Settings"));ts.title=L("Einstellungen","Settings");ts.setAttribute("aria-current",S.view==="einstellungen"?"page":"false");}
 }
-/* draft: inside a project the project name (tap to switch) and its four parts as tabs, like Airbnb's top categories */
-const pTabs=()=>{const p=P();if(!NAVD||!p||!PVIEWS.includes(S.view))return "";
-  return `<div class="pbar"><button type="button" class="pbname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button>${[p.place,p.desc].filter(Boolean).length?`<div class="pbsub">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</div>`:""}
-  <nav class="pseg" aria-label="${L("Teile des Projekts","Project parts")}">${PVIEWS.map(v=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${v==="uebersicht"?L("Übersicht","Overview"):vName(v)}</span></button>`).join("")}</nav></div>`;};
+/* draft: inside a project the project name (tap to switch) and its four parts as tabs, like Airbnb's top categories.
+   They sit outside the page, so they stand exactly in the same place on all four tabs; the tabs stay at the top while scrolling. */
+const pInProj=()=>NAVD&&!!P()&&PVIEWS.includes(S.view);
 const draftBar=()=>NAVD?`<div class="draftbar"><span><b>${L("Entwurf","Draft")}</b> · ${L("neue Navigation","new navigation")}</span><a href="?entwurf=aus${location.hash}">${L("Entwurf beenden","End draft")}</a></div>`:"";
-const ph=(eyebrow,title,lead,tools)=>(NAVD&&PVIEWS.includes(S.view)?(draftBar()+pTabs()+phx("",S.view==="uebersicht"&&P()&&title===esc(P().name)?L("Übersicht","Overview"):title,lead,tools)):draftBar()+phx(eyebrow,title,lead,tools));
+const pNav=()=>{if(!pInProj())return "";const p=P();
+  return `<div class="pnav">${draftBar()}<button type="button" class="pbname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button>${[p.place,p.desc].filter(Boolean).length?`<div class="pbsub">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</div>`:""}</div>
+  <div class="psegw"><nav class="pseg" aria-label="${L("Teile des Projekts","Project parts")}">${PVIEWS.map(v=>{const t=v==="uebersicht"?L("Übersicht","Overview"):vName(v);return `<button type="button" data-act="ptab" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span data-t="${t}">${t}</span></button>`;}).join("")}</nav></div>`;};
+const ph=(eyebrow,title,lead,tools)=>pInProj()?phx("",S.view==="uebersicht"&&title===esc(P().name)?L("Übersicht","Overview"):title,lead,tools):draftBar()+phx(eyebrow,title,lead,tools);
 const phx=(eyebrow,title,lead,tools)=>`<header class="ph">${P()&&eyebrow===esc(P().name)?`<button type="button" class="eyebrow pname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${eyebrow}<span class="cv" aria-hidden="true">⌄</span></button>`:`<span class="eyebrow">${eyebrow}</span>`}<h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;
 const ICO={
 profil:'<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16.2c.6-1.7 1.8-2.5 3.2-2.5s2.6.8 3.2 2.5"/><path d="M14.5 10h3.5M14.5 13.5h3.5"/>',

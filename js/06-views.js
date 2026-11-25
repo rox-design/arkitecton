@@ -643,6 +643,6 @@ function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]
   }
   app.style.display="";document.querySelector(".rail").style.display="";document.querySelector(".topbar").style.display="";document.getElementById("tabbar").style.display="";
   renderChrome();swipeHint();
-  document.getElementById("main").innerHTML=({buero:viewFirm,projekte:viewProjekte,uebersicht:viewOverview,rechnungen:viewInvoices,handwerker:viewContractors,budget:viewBudget,ausschreibungen:viewTenders,profil:viewProfil,einstellungen:viewSettings})[S.view]();
+  document.getElementById("main").innerHTML=pNav()+({buero:viewFirm,projekte:viewProjekte,uebersicht:viewOverview,rechnungen:viewInvoices,handwerker:viewContractors,budget:viewBudget,ausschreibungen:viewTenders,profil:viewProfil,einstellungen:viewSettings})[S.view]();
   trimRail();foldSections();renderOverlay();
 }

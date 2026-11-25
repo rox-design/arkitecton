@@ -68,7 +68,10 @@ const ph=(eyebrow,title,lead,tools)=>{if(!pInProj())return draftBar()+phx(eyebro
   return seg?`<header class="ph phseg"><h1 class="srh">${title}</h1><div class="tools">${seg}</div></header>`:`<h1 class="srh">${title}</h1>`;};
 /* draft: the main action of the tab as «＋» beside the project name; the overview has none */
 const addRow=()=>"";
-const pPlus=()=>{const a=S.view==="rechnungen"?(S.rtab==="deb"?[L("Honorarrechnung erstellen","New fee invoice"),'data-act="form" data-f="fee"']:[L("Rechnung erfassen","Add invoice"),'data-act="capture"']):S.view==="handwerker"?[L("Handwerker erfassen","Add contractor"),'data-act="sheet" data-k="k-add"']:S.view==="budget"?[L("BKP-Position erfassen","Add BKP item"),'data-act="form" data-f="bkp"']:null;
+const pPlus=()=>{
+  /* invoices: on the phone the round scan button at the bottom does this, so nothing here; on the computer the scanner symbol, not «＋» */
+  if(S.view==="rechnungen"&&S.rtab!=="deb")return `<button type="button" class="ib deskonly" data-act="capture" title="${L("QR scannen: Rechnung als PDF oder Foto","Scan QR: invoice as PDF or photo")}" aria-label="${L("QR scannen","Scan QR")}">${navIco("scan")}</button>`;
+  const a=S.view==="rechnungen"?[L("Honorarrechnung erstellen","New fee invoice"),'data-act="form" data-f="fee"']:S.view==="handwerker"?[L("Handwerker erfassen","Add contractor"),'data-act="sheet" data-k="k-add"']:S.view==="budget"?[L("BKP-Position erfassen","Add BKP item"),'data-act="form" data-f="bkp"']:null;
   return a?ib("plus",a[0],a[1]):"";};
 const phx=(eyebrow,title,lead,tools)=>`<header class="ph">${P()&&eyebrow===esc(P().name)?`<button type="button" class="eyebrow pname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${eyebrow}<span class="cv" aria-hidden="true">⌄</span></button>`:`<span class="eyebrow">${eyebrow}</span>`}<h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;
 const ICO={

@@ -252,7 +252,7 @@ function runMigrations(){
     const ws=D.contracts.filter(w=>w.pid===p.id);if(!ws.length)return;
     const billed=w=>D.invoices.filter(i=>i.w===w.id&&live(i)&&counted(i)).reduce((a,i)=>a+net(i),0);
     if(!ws.some(w=>billed(w)>0)){const w=ws[0],i=D.invoices.find(i=>i.w===w.id&&i.status==="pruefen");if(i)i.status="bezahlt";}
-    if(!ws.some(w=>retPct(w)>0&&billed(w)>0)){const w=ws.slice().sort((a,b)=>billed(b)-billed(a))[0];if(billed(w)>0)w.ret=10;}
+    
     const ks=[...new Set(ws.map(w=>w.k))].map(id=>D.contractors.find(k=>k.id===id)).filter(Boolean);
     if(ks.length>1&&!ks.some(k=>missingOf(k).length)){const k=ks[ks.length-1];k.iban="";}
   });}
@@ -265,6 +265,15 @@ function runMigrations(){
     const fs=FEES().filter(f=>f.pid===p.id);
     if(fs.length&&!fs.some(f=>remDue(f))){const no=(()=>{const y=TODAY.getFullYear(),n=FEES().filter(f=>String(f.no).startsWith(y+"-")).reduce((a,f)=>Math.max(a,parseInt(String(f.no).slice(5),10)||0),0)+1;return y+"-"+String(n).padStart(3,"0");})(),r=makeRef(no),day=-(SET().rem[0]+35);
       D.fees.push({id:newId("h"),pid:p.id,no,date:addDays(iso(TODAY),day),title:L("Honorar Akonto, Ausführungsplanung","Fee progress payment, construction drawings"),lines:[{t:L("Akonto, Phase Ausführungsplanung","Progress payment, construction drawings"),q:1,u:L("pauschal","lump sum"),p:6500}],vat:!!(D.firm||{}).vat,vatRate:8.1,refType:r.type,ref:r.ref,rem:[],paid:null,log:[{d:addDays(iso(TODAY),day),t:L("Erstellt","Created")}]});}
+  });}
+  /* example data: a contract with 10 % retention in every open example project. Retention is frozen per approved invoice,
+     so the already counted akontos of that contract get the 10 % as well (example data only) */
+  if(!D.mig.retDemo){D.mig.retDemo=1;if(D.example)D.projects.filter(p=>!p.closed).forEach(p=>{
+    const ws=D.contracts.filter(w=>w.pid===p.id);if(!ws.length)return;
+    const ak=w=>D.invoices.filter(i=>i.w===w.id&&live(i)&&counted(i)&&i.type==="akonto");
+    if(ws.some(w=>ak(w).some(i=>retention(i)>0)))return;
+    const w=ws.filter(w=>!D.invoices.some(i=>i.w===w.id&&i.type==="schluss")).sort((a,b)=>ak(b).reduce((s,i)=>s+net(i),0)-ak(a).reduce((s,i)=>s+net(i),0))[0];
+    if(!w||!ak(w).length)return;w.ret=10;ak(w).forEach(i=>{i.retPct=10;});
   });}
   if(!D.mig.feeno){D.mig.feeno=1;const by={};FEES().slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).forEach(f=>{const y=String(f.date).slice(0,4);by[y]=(by[y]||0)+1;f.no=y+"-"+String(by[y]).padStart(3,"0");const r=makeRef(f.no);if(f.refType===r.type)f.ref=r.ref;});}
 }

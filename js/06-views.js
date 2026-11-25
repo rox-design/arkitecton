@@ -168,13 +168,10 @@ function viewContractors(){
   const more=`<button type="button" class="ib" title="${L("Weitere Aktionen","More actions")}" aria-label="${L("Weitere Aktionen","More actions")}" data-act="sheet" data-k="handwerker">${ico("more")}</button>`;
   const plus=ib("plus",L("Handwerker erfassen","Add contractor"),'data-act="sheet" data-k="k-add"');
   const head=`<div class="sh"><h2>${({billed:L("Mit Abrechnungen","With billing"),ret:L("Mit Rückbehalt","With retention"),missing:L("Angaben fehlen","Details missing")})[kf]||L("Alle Werkverträge","All contracts")}</h2><span class="cnt">${shown.length+shownLoose.length}</span><span class="right">${kf?`<button type="button" class="ghost" data-act="kfilter" data-f="">${L("Alle anzeigen","Show all")} (${nV+loose.length})</button>`:""}</span></div>`;
-  /* next step: contractors billed above their contract, and missing addresses or IBANs */
-  const kpts=all.filter(x=>x.w.sum&&x.billed>x.w.sum).map(x=>({act:"open-k",ex:`data-id="${x.k.id}"`,c:"crit",title:esc(x.k.name),meta:L("über Werkvertrag · BKP ","above contract · BKP ")+x.w.bkp,amt:chf(x.billed-x.w.sum,false),label:""}))
-    .concat(kMiss.map(k=>({act:"open-k",ex:`data-id="${k.id}"`,c:"warn",title:esc(k.name),meta:L("Fehlt: ","Missing: ")+missingOf(k).join(", "),label:""})));
+  /* no «Nächster Schritt» here: the tiles open exactly these contractors (same rule as Rechnungen) */
   return `<div class="page kpage">
     ${ph(p?esc(p.name):L("Büro","Office"),L("Handwerker","Contractors"),"",plus+more)}
     <div class="stats s4">${tile("",L("Werkverträge","Contracts"),chf(T.sum,false),nV===1?L("1 Vertrag","1 contract"):nV+" "+L("Verträge","contracts"),nV)}${tile("billed",L("Abgerechnet","Billed"),chf(T.billed,false),(T.sum?Math.round(T.billed/T.sum*100):0)+" %",all.filter(FL.billed).length)}${tile("ret",L("Rückbehalt","Retention"),chf(T.ret,false),(n=>n===1?L("1 Vertrag","1 contract"):n+" "+L("Verträge","contracts"))(all.filter(FL.ret).length),all.filter(FL.ret).length)}${missTile}</div>
-    ${nextCard({key:"hw:"+p.id,items:kpts})}
     <section>${head}<div class="rows">${rows||`<div class="empty"><span>${L("Noch keine Handwerker in diesem Projekt. Mit + fügen Sie einen hinzu.","No contractors in this project yet. Use + to add one.")}</span></div>`}</div>${addRow(L("Handwerker erfassen","Add contractor"),'data-act="sheet" data-k="k-add"')}</section>
   </div>`;
 }

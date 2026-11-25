@@ -282,6 +282,7 @@ function viewFees(){
   const list=PF().slice().sort((a,b)=>toDate(b.date)-toDate(a.date));
   const G={open:list.filter(f=>!f.paid),due:list.filter(f=>remDue(f)),paid:list.filter(f=>f.paid)};
   if(!S.ffilter)S.ffilter="open";
+  if(INCD)S.ffilter="all";
   if(S.ffilter!=="all"&&!G[S.ffilter].length)S.ffilter=["open","due","paid"].find(k=>G[k].length)||"all";
   const shown=S.ffilter==="all"?list:G[S.ffilter];
   const tot=a=>a.reduce((x,f)=>x+feeTotal(f),0),nInv=n=>n===1?L("1 Rechnung","1 invoice"):n+" "+L("Rechnungen","invoices");
@@ -289,7 +290,7 @@ function viewFees(){
     due:[L("Mahnung fällig","Reminder due"),G.due.length?chf(tot(G.due),false):"–",G.due.length?nInv(G.due.length):L("keine","none"),G.due.length?" crit":""],
     paid:[L("Bezahlt","Paid"),chf(tot(G.paid),false),nInv(G.paid.length),""]};
   const tile=k=>{const [l,v,ss,c]=T[k],n=G[k].length,sel=S.ffilter===k,inner=`<span class="sl">${l}</span><span class="sv${c}">${v}</span><span class="ss">${ss}</span>`;
-    return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="ffilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
+    return n?(INCD?`<button type="button" class="stat" data-act="sheet" data-k="fee:${k}" aria-haspopup="dialog">${inner}</button>`:`<button type="button" class="stat ftile${sel?" sel":""}" data-act="ffilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`):`<div class="stat ftile off">${inner}</div>`;};
   const fRow=f=>{const st=feeState(f);return row({act:"open-fee",id:f.id,c:st.c,title:esc(f.title||L("Honorar","Fee")),meta:esc(f.no)+" · "+fdate(f.date),amt:chf(feeTotal(f),false),label:st.t,lc:st.c});};
   const paidF=S.ffilter==="all"?shown.filter(f=>f.paid):[];
   const rows=shown.filter(f=>!paidF.includes(f)).map(fRow).join("")+foldRows(L("Bezahlt","Paid"),paidF.map(fRow).join(""),paidF.length);

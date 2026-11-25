@@ -3,7 +3,7 @@ import asyncio,os
 from playwright.async_api import async_playwright
 from common import ok,done,start
 AXE=open(os.path.join(os.path.dirname(__file__),'..','vendor','axe.min.js')).read()
-SCREENS=[('buero',''),('uebersicht',''),('rechnungen',''),('rechnungen',"document.querySelector('[data-act=open-inv]').click()"),('handwerker',''),('handwerker',"document.querySelector('[data-act=open-k]').click()"),('budget',''),('ausschreibungen',''),('ausschreibungen',"S.tid='t7';render()"),('ausschreibungen',"S.tid='t6';render()"),('ausschreibungen',"S.tid='t2';render()"),('ausschreibungen',"S.tid='t5';render()"),('profil',''),('einstellungen','')]
+SCREENS=[('buero',''),('uebersicht',''),('rechnungen',''),('rechnungen',"document.querySelector('[data-act=open-inv]').click()"),('handwerker',''),('handwerker',"S.kid=D.contractors[0].id;render()"),('budget',''),('ausschreibungen',''),('ausschreibungen',"S.tid='t7';render()"),('ausschreibungen',"S.tid='t6';render()"),('ausschreibungen',"S.tid='t2';render()"),('ausschreibungen',"S.tid='t5';render()"),('profil',''),('einstellungen','')]
 async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch();ctx,pg,errs=await start(b,mobile=True,room='ax')

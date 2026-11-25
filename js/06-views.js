@@ -169,10 +169,14 @@ function viewContractors(){
   const plus=ib("plus",L("Handwerker erfassen","Add contractor"),'data-act="sheet" data-k="k-add"');
   const head=`<div class="sh"><h2>${({billed:L("Mit Abrechnungen","With billing"),ret:L("Mit Rückbehalt","With retention"),missing:L("Angaben fehlen","Details missing")})[kf]||L("Alle Werkverträge","All contracts")}</h2><span class="cnt">${shown.length+shownLoose.length}</span><span class="right">${kf?`<button type="button" class="ghost" data-act="kfilter" data-f="">${L("Alle anzeigen","Show all")} (${nV+loose.length})</button>`:""}</span></div>`;
   /* no «Nächster Schritt» here: the tiles open exactly these contractors (same rule as Rechnungen) */
+  /* no list of contracts below the tiles: the tile «Werkverträge» opens them. Only contractors without a contract
+     (not counted by any tile) and the empty state remain here */
+  const looseSec=!all.length&&!loose.length?`<section><div class="rows"><div class="empty"><span>${L("Noch keine Handwerker in diesem Projekt. Mit + fügen Sie einen hinzu.","No contractors in this project yet. Use + to add one.")}</span></div></div>${addRow(L("Handwerker erfassen","Add contractor"),'data-act="sheet" data-k="k-add"')}</section>`
+    :loose.length?`<section><div class="sh"><h2>${L("Ohne Werkvertrag","Without contract")}</h2><span class="cnt">${loose.length}</span></div><div class="rows">${loose.map(k=>row({act:"open-k",id:k.id,c:"n",title:esc(k.name),meta:missingOf(k).length?L("Fehlt: ","Missing: ")+esc(missingOf(k).join(", ")):"",amt:"",label:L("Werkvertrag erfassen","Add contract"),lc:"n"})).join("")}</div></section>`:"";
   return `<div class="page kpage">
     ${ph(p?esc(p.name):L("Büro","Office"),L("Handwerker","Contractors"),"",plus+more)}
     <div class="stats s4">${tile("",L("Werkverträge","Contracts"),chf(T.sum,false),nV===1?L("1 Vertrag","1 contract"):nV+" "+L("Verträge","contracts"),nV)}${tile("billed",L("Abgerechnet","Billed"),chf(T.billed,false),(T.sum?Math.round(T.billed/T.sum*100):0)+" %",all.filter(FL.billed).length)}${tile("ret",L("Rückbehalt","Retention"),chf(T.ret,false),(n=>n===1?L("1 Vertrag","1 contract"):n+" "+L("Verträge","contracts"))(all.filter(FL.ret).length),all.filter(FL.ret).length)}${missTile}</div>
-    <section>${head}<div class="rows">${rows||`<div class="empty"><span>${L("Noch keine Handwerker in diesem Projekt. Mit + fügen Sie einen hinzu.","No contractors in this project yet. Use + to add one.")}</span></div>`}</div>${addRow(L("Handwerker erfassen","Add contractor"),'data-act="sheet" data-k="k-add"')}</section>
+    ${looseSec}
   </div>`;
 }
 

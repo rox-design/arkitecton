@@ -63,7 +63,7 @@ async def main():
           await pg.click(f'[data-k="kw:{k}"]');await pg.wait_for_timeout(250)
           ok(f'{tag}: Handwerker-Kachel {k} zeigt so viele Einträge wie sie zählt',await pg.evaluate("document.querySelectorAll('#overlay .sheet .row').length")==exp)
       await pg.evaluate("closeAll();D.pid='p1';go('handwerker')");await pg.wait_for_timeout(250)
-      ok(f'{tag}: Handwerker-Liste unter den Kacheln ungefiltert',await pg.evaluate("document.querySelectorAll('#main .page section .rows .row').length")>=await pg.evaluate("kData().all.length"))
+      ok(f'{tag}: Handwerker: keine Liste der Werkverträge unter den Kacheln',await pg.evaluate("document.querySelectorAll('#main .page section .rows .row').length")==await pg.evaluate("kData().loose.length"))
       await pg.click('[data-k="kw:ret"]');await pg.wait_for_timeout(250);await pg.click('#overlay .sheet .row');await pg.wait_for_timeout(300)
       ok(f'{tag}: Zeile im Blatt öffnet den Handwerker',await pg.evaluate("!!S.kid&&!document.querySelector('#overlay .sheet')"))
       # existing data with retention 0 already frozen in the invoices: the migration still fills the Rückbehalt tile

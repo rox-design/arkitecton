@@ -63,14 +63,13 @@ function viewFirm(){
   return `<div class="page">
     ${ph(esc(today),esc(name),"","")}
     ${dataNotice()}${startSteps()}
-    <div class="stats${INCD&&FEES().length?" s4":""}">
-      ${(t=>INCD?`<button type="button" class="stat" data-act="sheet" data-k="sum-inv" aria-haspopup="dialog">${t}</button>`:`<div class="stat">${t}</div>`)(`<span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${openTop(ps.flatMap(x=>x.chk))}</span>`)}
-      ${(t=>INCD?`<button type="button" class="stat" data-act="sheet" data-k="sum-fee" aria-haspopup="dialog">${t}</button>`:`<div class="stat">${t}</div>`)(`<span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung","no reminder")}</span>`)}
-      <button type="button" class="stat" ${INCD?'data-act="sheet" data-k="sum-ten" aria-haspopup="dialog"':'data-act="nav" data-v="ausschreibungen"'}><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${fitN?fitN+" "+L("passend","suitable"):L("keine passend","none suitable")}</span></button>
-      ${INCD&&FEES().length?`<button type="button" class="stat" data-act="sheet" data-k="income" aria-haspopup="dialog"><span class="sl">${L("Einnahmen","Income")}</span><span class="sv">${chf(Math.round(incomeSection("sum")),false)}</span><span class="ss">${L("12 Monate","12 months")}</span></button>`:""}
+    <div class="stats${FEES().length?" s4":""}">
+      ${(t=>`<button type="button" class="stat" data-act="sheet" data-k="sum-inv" aria-haspopup="dialog">${t}</button>`)(`<span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${openTop(ps.flatMap(x=>x.chk))}</span>`)}
+      ${(t=>`<button type="button" class="stat" data-act="sheet" data-k="sum-fee" aria-haspopup="dialog">${t}</button>`)(`<span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung","no reminder")}</span>`)}
+      <button type="button" class="stat" data-act="sheet" data-k="sum-ten" aria-haspopup="dialog"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${fitN?fitN+" "+L("passend","suitable"):L("keine passend","none suitable")}</span></button>
+      ${FEES().length?`<button type="button" class="stat" data-act="sheet" data-k="income" aria-haspopup="dialog"><span class="sl">${L("Einnahmen","Income")}</span><span class="sv">${chf(Math.round(incomeSection("sum")),false)}</span><span class="ss">${L("12 Monate","12 months")}</span></button>`:""}
     </div>
     ${nextCard({key:"home",items:pts})}
-    ${FEES().length&&!INCD?incomeSection():""}
   </div>`;
 }
 function viewOverview(){
@@ -120,8 +119,8 @@ function viewInvoices(){
   const of=f=>f==="all"?all:f==="zahlen"?unpaid(all):all.filter(i=>i.status===f);
   const fLabel=f=>f==="zahlen"?L("Offene Rechnungen","Open invoices"):stLabel(f);
   const cnt=f=>of(f).length;
-  /* draft: the tiles open a sheet, so the list is never filtered: all invoices, the paid ones folded */
-  if(INCD)S.filter="all";
+  /* the tiles open a sheet, so the list is never filtered: all invoices, the paid ones folded */
+  S.filter="all";
   if(S.filter!=="all"&&!cnt(S.filter)&&all.length)S.filter=F.find(f=>f!=="all"&&cnt(f))||"all";
   const list=of(S.filter).slice().sort((a,b)=>toDate(b.date)-toDate(a.date));
   const pay=S.filter==="zahlen";
@@ -130,18 +129,12 @@ function viewInvoices(){
   const paidI=S.filter==="all"?list.filter(i=>i.status==="bezahlt"):[];
   const rows=list.filter(i=>!paidI.includes(i)).map(iRow).join("")+foldRows(L("Bezahlt","Paid"),paidI.map(iRow).join(""),paidI.length);
   const clean=S.filter==="pruefen"?list.filter(cleanInv):[];
-  /* next step: queries first, then invoices to check by due date; invoices without remarks can be approved together */
-  const chk=all.filter(i=>i.status==="pruefen"||i.status==="rueckfrage"),cl=all.filter(i=>i.status==="pruefen"&&cleanInv(i)),fr=of("frei");
-  const iPt=i=>{const dd=daysTo(i.due),q=i.status==="rueckfrage";return {act:"open-inv",ex:`data-id="${i.id}"`,c:q?"crit":dueTone(dd),title:esc(K(W(i.w).k).name),meta:(q?L("Rückfrage · ","Query · "):"")+typeLabel(i),amt:chf(i.gross,false),label:dueText(dd)};};
-  const card=chk.length?nextCard({key:"rech:"+p.id,title:chk.length===1?L("1 Rechnung prüfen","Check 1 invoice"):chk.length+" "+L("Rechnungen prüfen","invoices to check"),when:chf(chk.reduce((a,i)=>a+i.gross,0),false),items:chk.slice().sort((a,b)=>(b.status==="rueckfrage")-(a.status==="rueckfrage")||toDate(a.due)-toDate(b.due)).map(iPt),keep:true,
-      acts:cl.length>1?`<button type="button" class="btn primary" data-act="bulk-open">${cl.length} ${L("ohne Hinweise gemeinsam freigeben","without remarks: approve together")}</button>`:""})
-    :fr.length?nextCard({key:"rech:"+p.id,title:L("Zahlungsfreigabe an die Bauherrschaft","Payment release to the client"),when:fr.length+" "+L("freigegeben","approved"),items:[],acts:`<button type="button" class="btn primary" data-act="pay-pdf-all">${L("PDF erstellen","Create PDF")}</button>`}):nextCard({});
+  /* no «Nächster Schritt» here: the tiles open exactly those invoices, and «gemeinsam freigeben» sits in the «Zu prüfen» sheet */
   const bulkBar="";
   const more=`<button type="button" class="ib" title="${L("Weitere Aktionen","More actions")}" aria-label="${L("Weitere Aktionen","More actions")}" data-act="sheet" data-k="rechnungen">${ico("more")}</button>`;
   return `<div class="page invp">
     ${ph(esc(p.name),L("Rechnungen","Invoices"),"",sw+`<span class="deskonly">${ib("plus",L("Rechnung erfassen: QR-Rechnung als PDF oder Foto","Add invoice: QR-bill as PDF or photo"),'data-act="capture"')}</span>`+more)}
-    <div class="stats s4">${["pruefen","rueckfrage","frei","bezahlt"].map(f=>{const li=of(f),n=li.length,sum=f==="zahlen"?toPay(li):li.reduce((a,i)=>a+i.gross,0),sel=S.filter===f;const inner=`<span class="sl">${fLabel(f)}</span><span class="sv">${n?chf(sum,false):"–"}</span><span class="ss">${n===1?L("1 Rechnung","1 invoice"):n?n+" "+L("Rechnungen","invoices"):L("keine","none")}</span>`;return n?(INCD?`<button type="button" class="stat" data-act="sheet" data-k="inv:${f}" aria-haspopup="dialog">${inner}</button>`:`<button type="button" class="stat ftile${sel?" sel":""}" data-act="filter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`):`<div class="stat ftile off">${inner}</div>`;}).join("")}</div>
-    ${card}
+    <div class="stats s4">${["pruefen","rueckfrage","frei","bezahlt"].map(f=>{const li=of(f),n=li.length,sum=f==="zahlen"?toPay(li):li.reduce((a,i)=>a+i.gross,0),sel=S.filter===f;const inner=`<span class="sl">${fLabel(f)}</span><span class="sv">${n?chf(sum,false):"–"}</span><span class="ss">${n===1?L("1 Rechnung","1 invoice"):n?n+" "+L("Rechnungen","invoices"):L("keine","none")}</span>`;return n?`<button type="button" class="stat" data-act="sheet" data-k="inv:${f}" aria-haspopup="dialog">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;}).join("")}</div>
     <section><div class="sh"><h2>${S.filter==="all"?L("Alle Rechnungen","All invoices"):fLabel(S.filter)}</h2><span class="cnt">${list.length}</span>${pay&&list.some(i=>retention(i)>0)?infoBtn("ret",L("Beträge","Amounts")):""}<span class="right">${S.filter==="frei"&&list.length?`<button type="button" class="ghost" data-act="pay-pdf-all">${L("Zahlungsfreigabe an Bauherrschaft (PDF)","Payment release to client (PDF)")}</button>`:""}${S.filter==="all"||!all.length?"":`<button type="button" class="ghost" data-act="filter" data-f="all">${L("Alle anzeigen","Show all")} (${all.length})</button>`}</span></div>${infoBox("ret",`<p>${L("Die Beträge sind nach Abzug des Rückbehalts: so viel wird ausbezahlt.","Amounts are after retention: this is what is paid out.")}</p>`)}${bulkBar}<div class="rows">${rows||(all.length?`<div class="empty">${L("Keine Rechnungen mit diesem Status.","No invoices with this status.")}</div>`:`<div class="empty"><span>${L("Noch keine Rechnungen in diesem Projekt. Scannen Sie den QR-Zahlteil einer Handwerker-Rechnung.","No invoices in this project yet. Scan the QR payment part of a contractor invoice.")}</span></div>`)}</div>${addRow(L("Rechnung erfassen","Add invoice"),'data-act="capture"')}</section>
   </div>`;
 }

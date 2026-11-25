@@ -29,6 +29,18 @@ function nextCard(o){
   const title=o.title||(items.length===1?L("1 Punkt zu erledigen","1 thing to do"):items.length+" "+L("Punkte zu erledigen","things to do"));
   return `<section class="tnext"><div class="sh"><span class="kick">${o.kick||L("Nächster Schritt","Next step")}</span></div><div class="tnh"><h2>${title}</h2>${o.when?`<span class="when${o.whenC?" l-"+o.whenC:""}">${o.when}</span>`:""}</div>${shown.length?`<div class="rows">${shown.map(nRow).join("")}</div>`:""}${more||o.acts?`<div class="bar-actions">${more}${o.acts||""}</div>`:""}</section>`;
 }
+const projSection=(act,rows,dn)=>`<section><div class="sh"><h2>${L("Projekte","Projects")}</h2><span class="cnt">${act.length}</span><span class="right">${ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"')}</span></div><div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div>${foldRows(L("Abgeschlossene Projekte","Completed projects"),dn.map(x=>row({act:"open-project",id:x.p.id,c:"ok",title:esc(x.p.name),meta:x.p.place?esc(x.p.place):"",amt:"",label:""})).join(""),dn.length)}</section>`;
+/* draft: all projects in one place, each row with its most urgent point */
+function viewProjekte(){
+  const ps=D.projects.map(p=>withP(p.id,()=>{const fo=PF().filter(f=>!f.paid);return {p,n:unpaid(PI()).length,sum:toPay(PI()),fl:flags().length,rem:fo.filter(f=>remDue(f)).length};}));
+  const top=x=>x.rem?[x.rem+" "+(x.rem===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")),"crit"]:x.fl?[x.fl+" "+L("Mehrkosten","extra costs"),"warn"]:x.n?[x.n+" "+L("offen","open"),"n"]:[L("nichts offen","nothing open"),"ok"];
+  const act=ps.filter(x=>!x.p.closed),dn=ps.filter(x=>x.p.closed);
+  const rows=act.map(x=>{const [lb,c]=top(x);return row({act:"open-project",id:x.p.id,c,title:esc(x.p.name),meta:x.p.place?esc(x.p.place):"",amt:x.sum?chf(x.sum,false):"",label:lb,lc:c});}).join("");
+  return `<div class="page">${ph("",L("Projekte","Projects"),"",ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"'))}
+    <div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div>
+    ${foldRows(L("Abgeschlossene Projekte","Completed projects"),dn.map(x=>row({act:"open-project",id:x.p.id,c:"ok",title:esc(x.p.name),meta:x.p.place?esc(x.p.place):"",amt:"",label:""})).join(""),dn.length)}
+  </div>`;
+}
 function viewFirm(){
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
   const ps=D.projects.map(p=>withP(p.id,()=>{const chk=unpaid(PI()),fo=PF().filter(f=>!f.paid);return {p,chk,n:chk.length,sum:toPay(PI()),fl:flags().length,flc:flagSum(flags()),fees:fo.reduce((a,f)=>a+feeTotal(f),0),rem:fo.filter(f=>remDue(f)).length};}));
@@ -58,9 +70,9 @@ function viewFirm(){
       <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${fitN?fitN+" "+L("passend","suitable"):L("keine passend","none suitable")}</span></button>
     </div>
     ${nextCard({key:"home",items:pts})}
-    <section><div class="sh"><h2>${L("Projekte","Projects")}</h2><span class="cnt">${act.length}</span><span class="right">${ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"')}</span></div><div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div>${foldRows(L("Abgeschlossene Projekte","Completed projects"),dn.map(x=>row({act:"open-project",id:x.p.id,c:"ok",title:esc(x.p.name),meta:x.p.place?esc(x.p.place):"",amt:"",label:""})).join(""),dn.length)}</section>
+    ${NAVD?"":projSection(act,rows,dn)}
     ${FEES().length?incomeSection():""}
-    <section><div class="sh"><h2>${L("Büroprofil","Office profile")}</h2></div><div class="rows">${row({act:"nav",v:"profil",c:bad.length?(cr?"crit":"warn"):"ok",title:L("Team, Referenzen, Unterlagen","Team, references, documents"),meta:"",amt:"",label:bad.length?bad.length+" "+(cr?L("abgelaufen","expired"):L("laufen ab","expiring")):L("aktuell","up to date"),lc:bad.length?(cr?"crit":"warn"):"ok"})}</div></section>
+    ${NAVD?"":`<section><div class="sh"><h2>${L("Büroprofil","Office profile")}</h2></div><div class="rows">${row({act:"nav",v:"profil",c:bad.length?(cr?"crit":"warn"):"ok",title:L("Team, Referenzen, Unterlagen","Team, references, documents"),meta:"",amt:"",label:bad.length?bad.length+" "+(cr?L("abgelaufen","expired"):L("laufen ab","expiring")):L("aktuell","up to date"),lc:bad.length?(cr?"crit":"warn"):"ok"})}</div></section>`}
   </div>`;
 }
 function viewOverview(){
@@ -87,7 +99,7 @@ function viewOverview(){
   const flagRows=shown.map(f=>row({act:f.act,id:f.id,v:f.v,c:f.c,title:esc(f.t),meta:esc(f.m),amt:f.chf===null?"":chf(f.chf,false),label:""})).join("");
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
   return `<div class="page">
-    <header class="ph"><span class="eyebrow">${esc(today)}</span><h1><button type="button" class="pswitch" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button></h1><div class="tools">${ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"')}${ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"')}</div>${[p.place,p.desc].filter(Boolean).length?`<p class="lead">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</p>`:""}</header>
+    ${NAVD?ph("",L("Übersicht","Overview"),"",ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"')+ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"')):`<header class="ph"><span class="eyebrow">${esc(today)}</span><h1><button type="button" class="pswitch" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button></h1><div class="tools">${ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"')}${ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"')}</div>${[p.place,p.desc].filter(Boolean).length?`<p class="lead">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</p>`:""}</header>`}
     ${startSteps()}
     <div class="stats">
       <button type="button" class="stat" data-act="to-pay"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(openSum,false)}</span><span class="ss">${openTop(upl)}</span></button>
@@ -432,12 +444,13 @@ function viewProfil(){
       <div class="stats">${["refs","pub","sugg"].map(tile).join("")}</div>
       <div class="rows">${rows||`<div class="empty"><span>${L("Noch keine Referenzen. Mit + erfassen Sie eine, oder übernehmen Sie ein abgeschlossenes Projekt.","No references yet. Use + to add one, or take over a completed project.")}</span></div>`}</div></section>
     ${docsFold(docsBlock("firm","firm",L("Unterlagen des Büros","Firm documents"),L("Handelsregister, Versicherung, AHV, Betreibungsregister: einmal ablegen, für jede Bewerbung bereit. Mit Gültigkeit warnt arkitecton vor Ablauf.","Register extract, insurance, social security: store once, ready for every bid.")),docsFor("firm","firm"))}
+    ${NAVD?`<section><div class="sh"><h2>${L("Einstellungen","Settings")}</h2></div><div class="rows">${row({act:"nav",v:"einstellungen",c:"n",title:L("Darstellung, Standardwerte, Daten","Appearance, defaults, data"),meta:"",amt:"",label:""})}</div></section>`:""}
   </div>`;
 }
 function viewTenders(){
   if(S.tid&&T(S.tid)) return viewTender(T(S.tid));
   const O=D.office;
-  const tsw=`<button type="button" class="btn" data-act="nav" data-v="profil">${L("Büroprofil","Office profile")}</button>`;
+  const tsw=NAVD?"":`<button type="button" class="btn" data-act="nav" data-v="profil">${L("Büroprofil","Office profile")}</button>`;
   const noProf=!O.refs.length||!O.team.length?`<div class="notice"><span class="ic warn" aria-hidden="true">!</span><span>${L("Solange Referenzen und Team fehlen, kann arkitecton die Eignung bei Ausschreibungen nicht prüfen.","As long as references and team are missing, arkitecton cannot check tender eligibility.")} <button type="button" class="ghost link" data-act="nav" data-v="profil">${L("Im Büroprofil ergänzen","Add in the office profile")}</button></span></div>`:"";
   const active=D.tenders.filter(t=>!closedT(t)),closed=D.tenders.filter(closedT);
   const G={open:active,ok:active.filter(t=>fitOf(t).fit==="ok"),partner:active.filter(t=>fitOf(t).fit==="partner"),done:closed};
@@ -630,6 +643,6 @@ function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]
   }
   app.style.display="";document.querySelector(".rail").style.display="";document.querySelector(".topbar").style.display="";document.getElementById("tabbar").style.display="";
   renderChrome();swipeHint();
-  document.getElementById("main").innerHTML=({buero:viewFirm,uebersicht:viewOverview,rechnungen:viewInvoices,handwerker:viewContractors,budget:viewBudget,ausschreibungen:viewTenders,profil:viewProfil,einstellungen:viewSettings})[S.view]();
+  document.getElementById("main").innerHTML=({buero:viewFirm,projekte:viewProjekte,uebersicht:viewOverview,rechnungen:viewInvoices,handwerker:viewContractors,budget:viewBudget,ausschreibungen:viewTenders,profil:viewProfil,einstellungen:viewSettings})[S.view]();
   trimRail();foldSections();renderOverlay();
 }

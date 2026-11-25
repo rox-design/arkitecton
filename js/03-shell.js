@@ -2,9 +2,11 @@
 "use strict";
 
 /* ---------- chrome ---------- */
-const VIEWS=["buero","uebersicht","rechnungen","handwerker","budget","ausschreibungen","profil","einstellungen"];
+const VIEWS=["buero","projekte","uebersicht","rechnungen","handwerker","budget","ausschreibungen","profil","einstellungen"];
+const PVIEWS=["uebersicht","rechnungen","handwerker","budget"];
 const NAV_ICO={
 buero:'<path d="M4 10.5 12 4l8 6.5V20H4Z"/><path d="M10 20v-5h4v5"/>',
+projekte:'<path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z"/>',
 uebersicht:'<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
 rechnungen:'<path d="M6.5 3h8l3.5 3.5V21h-11.5Z"/><path d="M14 3v4h4"/><path d="M9.5 11.5h5"/><path d="M9.5 15h5"/>',
 handwerker:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20.5c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/>',
@@ -20,7 +22,7 @@ const NAV_MORE=()=>({uebersicht:L("Projekt bearbeiten, Kostenübersicht","Edit p
 function navRow(v,extra=""){const pl=NAV_PLUS()[v],mo=NAV_MORE()[v];
   return `<div class="nrow" style="--na:${(pl?24:0)+(mo?24:0)}px"><button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span>${extra}</button><span class="nact">${pl?`<button type="button" class="na" data-act="${pl[0]}"${pl[1]?` data-f="${pl[1]}"`:""} data-tip="${pl[2]}" aria-label="${pl[2]}">+</button>`:""}${mo?`<button type="button" class="na" data-act="nmore" data-v="${v}" data-tip="${mo}" aria-label="${L("Weitere Aktionen","More actions")}">···</button>`:""}</span></div>`;}
 const navIco=v=>`<svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICO[v]}</svg>`;
-const vName=v=>({buero:"Home",uebersicht:L("Projekt","Project"),rechnungen:L("Rechnungen","Invoices"),handwerker:L("Handwerker","Contractors"),budget:"Budget",ausschreibungen:L("Ausschreibungen","Tenders"),profil:L("Büroprofil","Office profile"),einstellungen:L("Einstellungen","Settings")})[v];
+const vName=v=>({buero:"Home",projekte:L("Projekte","Projects"),uebersicht:L("Projekt","Project"),rechnungen:L("Rechnungen","Invoices"),handwerker:L("Handwerker","Contractors"),budget:"Budget",ausschreibungen:L("Ausschreibungen","Tenders"),profil:L("Büroprofil","Office profile"),einstellungen:L("Einstellungen","Settings")})[v];
 function renderChrome(){
   document.documentElement.lang=S.lang;
   const p=P();
@@ -38,16 +40,26 @@ function renderChrome(){
   const cp=P(),open=!!S.projOpen;
   const plist=open?activeProjects().map(x=>`<div class="nrow prow${x.id===D.pid?" cur":""}"><button type="button" data-act="pick-project" data-id="${x.id}"><span class="pi" aria-hidden="true">${x.fav?"★":"·"}</span><span>${esc(x.name)}</span></button><span class="nact"><button type="button" class="na" data-act="pmore" data-id="${x.id}" data-tip="${L("Favorit, umbenennen, Papierkorb","Favourite, rename, bin")}" aria-label="${L("Weitere Aktionen","More actions")}">···</button></span></div>`).join("")+`<div class="nrow prow"><button type="button" data-act="form-project"><span class="pi" aria-hidden="true">+</span><span>${L("Projekt erfassen","Add project")}</span></button></div>`:"";
   const tog=(cp||D.projects.length)?`<span class="chev" role="button" tabindex="0" data-act="ptoggle" aria-expanded="${open}" aria-label="${open?L("Projektliste schliessen","Close project list"):L("Alle Projekte anzeigen","Show all projects")}" data-tip="${open?L("Projektliste schliessen","Close project list"):L("Alle Projekte anzeigen","Show all projects")}">›</span>`:"";
-  document.getElementById("nav").innerHTML=["uebersicht","rechnungen","handwerker","budget"].map(v=>navRow(v)).join("");void tog;void plist;
-  const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=navRow("buero")+navRow("ausschreibungen")+navRow("profil");
+  document.getElementById("nav").innerHTML=NAVD?"":["uebersicht","rechnungen","handwerker","budget"].map(v=>navRow(v)).join("");void tog;void plist;
+  /* draft: one level for the whole office; a project's parts are tabs inside the project */
+  const navCur=v=>v==="projekte"?(S.view==="projekte"||PVIEWS.includes(S.view)):v==="profil"?(S.view==="profil"||S.view==="einstellungen"):S.view===v;
+  const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=NAVD?["buero","projekte","ausschreibungen","profil"].map(v=>`<div class="nrow"><button type="button" data-act="nav" data-v="${v}"${navCur(v)?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span></button></div>`).join(""):navRow("buero")+navRow("ausschreibungen")+navRow("profil");
+  document.getElementById("app").classList.toggle("navd",NAVD);
   const tb=(v,l)=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${l}</span></button>`;
   const firmTabs=["buero","ausschreibungen","einstellungen"].includes(S.view);
   /* one tab bar everywhere; Home is the logo and firm name at the top */
-  document.getElementById("tabbar").innerHTML=tb("ausschreibungen",L("Ausschreibungen","Tenders"))+tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget")+(S.view==="rechnungen"&&S.rtab!=="deb"?`<button type="button" class="tabscan" data-act="scan-menu" aria-label="${L("Scannen: QR-Rechnung oder Dokument","Scan: QR-bill or document")}" title="${L("Scannen","Scan")}">${navIco("scan")}</button>`:"");
+  const tbd=v=>`<button type="button" data-act="nav" data-v="${v}"${navCur(v)?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span></button>`;
+  document.getElementById("tabbar").innerHTML=(NAVD?["buero","projekte","ausschreibungen","profil"].map(tbd).join(""):tb("ausschreibungen",L("Ausschreibungen","Tenders"))+tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget"))+(S.view==="rechnungen"&&S.rtab!=="deb"?`<button type="button" class="tabscan" data-act="scan-menu" aria-label="${L("Scannen: QR-Rechnung oder Dokument","Scan: QR-bill or document")}" title="${L("Scannen","Scan")}">${navIco("scan")}</button>`:"");
   document.querySelector(".topbar").classList.toggle("is-home",S.view==="buero");void firmTabs;
   const ts=document.getElementById("topSet");if(ts){ts.innerHTML=navIco("einstellungen");ts.setAttribute("aria-label",L("Einstellungen","Settings"));ts.title=L("Einstellungen","Settings");ts.setAttribute("aria-current",S.view==="einstellungen"?"page":"false");}
 }
-const ph=(eyebrow,title,lead,tools)=>`<header class="ph">${P()&&eyebrow===esc(P().name)?`<button type="button" class="eyebrow pname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${eyebrow}<span class="cv" aria-hidden="true">⌄</span></button>`:`<span class="eyebrow">${eyebrow}</span>`}<h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;
+/* draft: inside a project the project name (tap to switch) and its four parts as tabs, like Airbnb's top categories */
+const pTabs=()=>{const p=P();if(!NAVD||!p||!PVIEWS.includes(S.view))return "";
+  return `<div class="pbar"><button type="button" class="pbname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button>${[p.place,p.desc].filter(Boolean).length?`<div class="pbsub">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</div>`:""}
+  <nav class="pseg" aria-label="${L("Teile des Projekts","Project parts")}">${PVIEWS.map(v=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${v==="uebersicht"?L("Übersicht","Overview"):vName(v)}</span></button>`).join("")}</nav></div>`;};
+const draftBar=()=>NAVD?`<div class="draftbar"><span><b>${L("Entwurf","Draft")}</b> · ${L("neue Navigation","new navigation")}</span><a href="?entwurf=aus${location.hash}">${L("Entwurf beenden","End draft")}</a></div>`:"";
+const ph=(eyebrow,title,lead,tools)=>(NAVD&&PVIEWS.includes(S.view)?(draftBar()+pTabs()+phx("",S.view==="uebersicht"&&P()&&title===esc(P().name)?L("Übersicht","Overview"):title,lead,tools)):draftBar()+phx(eyebrow,title,lead,tools));
+const phx=(eyebrow,title,lead,tools)=>`<header class="ph">${P()&&eyebrow===esc(P().name)?`<button type="button" class="eyebrow pname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${eyebrow}<span class="cv" aria-hidden="true">⌄</span></button>`:`<span class="eyebrow">${eyebrow}</span>`}<h1>${title}</h1>${tools?`<div class="tools">${tools}</div>`:"<span></span>"}${lead?`<p class="lead">${lead}</p>`:""}</header>`;
 const ICO={
 profil:'<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16.2c.6-1.7 1.8-2.5 3.2-2.5s2.6.8 3.2 2.5"/><path d="M14.5 10h3.5M14.5 13.5h3.5"/>',
 spark:'<path d="M12 3.5c.5 3.6 1.9 5 5.5 5.5-3.6.5-5 1.9-5.5 5.5-.5-3.6-1.9-5-5.5-5.5 3.6-.5 5-1.9 5.5-5.5Z"/><path d="M18.5 14.5c.2 1.4.8 2 2.2 2.2-1.4.2-2 .8-2.2 2.2-.2-1.4-.8-2-2.2-2.2 1.4-.2 2-.8 2.2-2.2Z"/>',

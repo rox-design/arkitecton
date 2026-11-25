@@ -236,6 +236,17 @@ function runMigrations(){
     else F.signers=old.map(g=>{if(g.m!==undefined)return g;if(!g.name)return {m:"",role:g.role||""};let m=O.team.find(x=>(x.name||"").trim().toLowerCase()===g.name.toLowerCase());
       if(!m){m={id:newId("m"),name:g.name,qual:g.title||"",extra:[],career:[]};O.team.push(m);}else if(!m.qual&&g.title)m.qual=g.title;return {m:m.id,role:g.role||""};});
     delete F.sig1;delete F.sig2;}
+  /* example data: every open example project shows at least one invoice with «Rückfrage» and one «Freigegeben» */
+  if(!D.mig.statusDemo){D.mig.statusDemo=1;if(D.example)D.projects.filter(p=>!p.closed).forEach(p=>{
+    const ws=D.contracts.filter(w=>w.pid===p.id&&!D.invoices.some(i=>i.w===w.id&&i.type==="schluss"));if(!ws.length)return;
+    const has=st=>D.invoices.some(i=>i.status===st&&ws.some(w=>w.id===i.w));
+    const add=(w,st,day,why)=>{const n=D.invoices.filter(i=>i.w===w.id&&i.type==="akonto").length+1,no="AK-"+String(700+D.invoices.length),r=makeRef(no),gross=Math.max(1000,Math.round(w.sum*0.2/1000)*1000);
+      const i={id:newId("i"),no,w:w.id,type:"akonto",n,date:addDays(iso(TODAY),day),due:addDays(iso(TODAY),day+30),gross,status:st,ref:r.ref,log:[{d:addDays(iso(TODAY),day),t:L("Erfasst","Recorded")}]};
+      i.log.push({d:addDays(iso(TODAY),day+2),t:st==="rueckfrage"?why:L("Freigegeben","Approved")});D.invoices.push(i);};
+    const ok=ws.filter(w=>{const k=D.contractors.find(c=>c.id===w.k)||{};return k.iban&&k.street;}),pool=ok.length?ok:ws,pick=k=>pool[Math.max(0,Math.min(k,pool.length-1))];
+    if(!has("rueckfrage"))add(pick(pool.length-1),"rueckfrage",-12,L("Rückfrage gesendet: Ausmass Position 3 fehlt","Query sent: quantity for item 3 missing"));
+    if(!has("frei"))add(pick(pool.length-2),"frei",-8);
+  });}
   if(!D.mig.feeno){D.mig.feeno=1;const by={};FEES().slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).forEach(f=>{const y=String(f.date).slice(0,4);by[y]=(by[y]||0)+1;f.no=y+"-"+String(by[y]).padStart(3,"0");const r=makeRef(f.no);if(f.refType===r.type)f.ref=r.ref;});}
 }
 function incomeData(){

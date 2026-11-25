@@ -64,6 +64,7 @@ document.addEventListener("click",e=>{
       const sec=el.closest("section[data-fk]");if(S.info[el.dataset.k]&&sec&&S.tid&&sec.classList.contains("folded")){S.tfold=S.tfold||{};S.tfold["t:"+S.tid+":"+sec.dataset.fk]=false;}render();const b=document.querySelector('#main [data-act="info"][data-k="'+el.dataset.k+'"]');if(b)b.focus({preventScroll:true});break;}
     /* switching project tabs keeps the tabs where they are: the page only scrolls back as far as the tabs */
     case "ptab":{const m=document.getElementById("main"),w=document.querySelector(".psegw"),st=m.scrollTop,off=w?w.offsetTop:0;go(el.dataset.v);m.scrollTop=Math.min(st,off);const b=document.querySelector('.pseg [data-v="'+el.dataset.v+'"]');if(b)b.focus({preventScroll:true});break;}
+    case "proj-rech":closeAll();D.pid=id;S.kid=null;S.rtab=el.dataset.t||"kred";S.filter=null;S.ffilter=null;go("rechnungen");break;
     case "next-all":S.nextAll=S.nextAll||{};S.nextAll[el.dataset.k]=!S.nextAll[el.dataset.k];render();break;
     /* a point from another project: switch to that project, then open the invoice or fee */
     case "p-open":D.pid=el.dataset.p;S.kid=null;if(el.dataset.k==="inv"){S.drawer=id;}else if(el.dataset.k==="fee"){S.fdrawer=id;}render();break;

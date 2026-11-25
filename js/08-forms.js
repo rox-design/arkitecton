@@ -280,6 +280,12 @@ function projectsHTML(){
 }
 function sheetHTML(){
   if(S.sheet==="projects") return projectsHTML();
+  /* the Home tiles «Offene Rechnungen» and «Zu erhalten»: the amount per project; a project opens its invoices (or fees) */
+  if(S.sheet==="sum-inv"||S.sheet==="sum-fee"){const fee=S.sheet==="sum-fee";
+    const rs=D.projects.map(p=>withP(p.id,()=>{if(fee){const fo=PF().filter(f=>!f.paid),rem=fo.filter(f=>remDue(f)).length;return {p,amt:fo.reduce((a,f)=>a+feeTotal(f),0),lb:rem?rem+" "+(rem===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):fo.length+" "+L("offen","open"),c:rem?"crit":"n"};}
+      const ch=unpaid(PI());return {p,amt:toPay(PI()),lb:openTop(ch),c:ch.some(i=>i.status==="rueckfrage")?"crit":ch.some(i=>i.status==="pruefen")?"warn":"n"};})).filter(x=>x.amt>0).sort((a,b)=>b.amt-a.amt);
+    const body=rs.length?`<div class="rows">${rs.map(x=>`<button type="button" class="row" data-act="proj-rech" data-id="${x.p.id}" data-t="${fee?"deb":"kred"}">${dot(x.c)}<span class="rt">${esc(x.p.name)}</span><span class="rm">${x.p.place?esc(x.p.place):""}</span><span class="ra">${chf(x.amt,false)}</span><span class="rl l-${x.c}">${x.lb}</span></button>`).join("")}</div>`:`<div class="empty">${L("Nichts offen.","Nothing open.")}</div>`;
+    return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sT"><div class="ohead"><h2 id="sT" style="font-size:1.125rem;font-weight:500">${fee?L("Zu erhalten · pro Projekt","To receive · per project"):L("Offene Rechnungen · pro Projekt","Open invoices · per project")}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div><div class="obody">${body}</div></div>`;}
   /* the income tile opens the chart */
   if(S.sheet==="income") return `<div class="scrim" data-act="close"></div><div class="sheet sheetwide" role="dialog" aria-modal="true" aria-labelledby="sT"><div class="ohead"><h2 id="sT" style="font-size:1.125rem;font-weight:500">${L("Einnahmen · 12 Monate","Income · 12 months")}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div><div class="obody">${incomeSection("body")}</div></div>`;
   const d=sheetDef(S.sheet);if(!d)return "";

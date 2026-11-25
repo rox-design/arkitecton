@@ -64,8 +64,8 @@ function viewFirm(){
     ${ph(esc(today),esc(name),"","")}
     ${dataNotice()}${startSteps()}
     <div class="stats${INCD&&FEES().length?" s4":""}">
-      <div class="stat"><span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${openTop(ps.flatMap(x=>x.chk))}</span></div>
-      <div class="stat"><span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung","no reminder")}</span></div>
+      ${(t=>INCD?`<button type="button" class="stat" data-act="sheet" data-k="sum-inv" aria-haspopup="dialog">${t}</button>`:`<div class="stat">${t}</div>`)(`<span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${openTop(ps.flatMap(x=>x.chk))}</span>`)}
+      ${(t=>INCD?`<button type="button" class="stat" data-act="sheet" data-k="sum-fee" aria-haspopup="dialog">${t}</button>`:`<div class="stat">${t}</div>`)(`<span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung","no reminder")}</span>`)}
       <button type="button" class="stat" data-act="nav" data-v="ausschreibungen"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${fitN?fitN+" "+L("passend","suitable"):L("keine passend","none suitable")}</span></button>
       ${INCD&&FEES().length?`<button type="button" class="stat" data-act="sheet" data-k="income" aria-haspopup="dialog"><span class="sl">${L("Einnahmen","Income")}</span><span class="sv">${chf(Math.round(incomeSection("sum")),false)}</span><span class="ss">${L("12 Monate","12 months")}</span></button>`:""}
     </div>

@@ -1287,3 +1287,11 @@ section.tsec.foldable>.sh>.fold{grid-row:1/3;grid-column:5;margin-left:0}
 /* the action at the bottom of a sheet spans the full width, like the main button of «Nächster Schritt» */
 .sheet .bar-actions{display:flex;margin-top:16px}
 .sheet .bar-actions .btn{flex:1 1 100%;justify-content:center;text-align:center}
+/* Budget tile sheets: the BKP table needs the width of the page on the computer */
+@media (min-width:821px){.sheet.wide{width:min(900px,calc(100% - 64px))}}
+.sheet .btable .bgroup:first-of-type{padding-top:10px}
+.bsum{display:flex;justify-content:space-between;align-items:baseline;padding:4px 4px 14px;color:var(--muted);font-size:.875rem}
+.bsum b{font-weight:500;color:var(--ink);font-size:1rem}
+.bsum b.up{color:var(--warn)}
+.sheet .btable{width:100%}
+.sheet .btable .brow,.sheet .btable .bgroup,.sheet .btable .bhead{width:100%;box-sizing:border-box}

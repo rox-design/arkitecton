@@ -259,34 +259,34 @@ function viewContractor(k){
     ${S.wid&&W(S.wid)&&W(S.wid).k===k.id?"":docsFold(docsGrouped("contractor",k.id,L("Dokumente","Documents"),L("Offerten, Werkverträge, Versicherungsnachweise mit ＋ ablegen.","Store offers, contracts and certificates with ＋.")),docsOfContractor(k.id))}
   </div>`;
 }
-function viewBudget(){
-  const p=P(); if(!p) return noProject();
-  const allRows=budgetRows(), t=totals(allRows);
-  const BF={aw:r=>r.awarded>0,no:r=>!r.awarded,over:r=>r.rest<0};if(!BF[S.bfilter]||!allRows.some(BF[S.bfilter]))S.bfilter="";
-  const rows=S.bfilter?allRows.filter(BF[S.bfilter]):allRows,nP=n=>n===1?L("1 Position","1 item"):n+" "+L("Positionen","items");
-  const bt=(f,l,v,ss,c)=>{const n=f?allRows.filter(BF[f]).length:allRows.length,sel=S.bfilter===f,inner=`<span class="sl">${l}</span><span class="sv${c||""}">${n?v:"–"}</span><span class="ss">${ss}</span>`;return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="bfilter" data-f="${f}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
-  const sumB=(f,g)=>allRows.filter(BF[f]).reduce((a,r)=>a+g(r),0);
-  const fcL=p.closed?L("Endkosten","Final cost"):L("Prognose","Forecast");
+const ONE_BROW=(r,act,sub,base,pc)=>`<button type="button" class="brow row${S.hl===r.b.bkp?" hl":""}" ${act}><span class="code">${r.b.bkp}</span><div><span>${esc(tx(r.b))}</span><div class="bar"><i class="c-paid" style="width:${pc(r.paid)}%"></i><i class="c-appr" style="width:${pc(r.approved)}%"></i><i class="c-open" style="width:${pc(r.open)}%"></i>${r.kv?`<span class="kv" style="left:${r.kv/base*100}%"></span>`:""}</div><span class="bsub">${sub}</span></div><span class="kvc">${r.kv?chf(r.kv,false):"–"}</span><span class="nums${r.none?" mute":""}">${r.forecast?chf(r.forecast,false):"–"}</span><span class="rest ${r.rest<0?"up":r.none?"mute":""}">${r.kv&&!r.none?chf(r.rest,false):"–"}</span></button>`;
+/* budget positions and the filters behind the Budget tiles; shared by the page and its tile sheets */
+const BUD_F={all:r=>true,aw:r=>r.awarded>0,no:r=>!r.awarded,over:r=>r.rest<0};
+/* the BKP table (grouped by main group with subtotals, a bar per position, legend) for the given positions */
+function budgetTable(rows){
+  const p=P(),fcL=p&&p.closed?L("Endkosten","Final cost"):L("Prognose","Forecast");
   const one=r=>{const base=Math.max(r.kv,r.awarded,r.billed+r.open,r.forecast,1),pc=x=>Math.max(0,x)/base*100;
     const act=`data-act="kv-explain" data-id="${r.b.bkp}"`;
     const sub=(r.kv?`<span class="bmob">KV ${nf0.format(r.kv)} · ${fcL} ${nf0.format(r.forecast)} · </span>`:"")+(r.rev?`<span class="l-n">${L("revidiert, ursprünglich ","revised, originally ")+nf0.format(r.b.kv||0)}</span> · `:"")+(r.none?L("nicht vergeben","not awarded"):[r.awarded?L("vergeben ","awarded ")+nf0.format(r.awarded):L("ohne Werkvertrag","no contract"),r.billed+r.open?L("abgerechnet ","billed ")+nf0.format(r.billed+r.open):""].filter(Boolean).join(" · "));
-    return `<button type="button" class="brow row${S.hl===r.b.bkp?" hl":""}" ${act}><span class="code">${r.b.bkp}</span><div><span>${esc(tx(r.b))}</span><div class="bar"><i class="c-paid" style="width:${pc(r.paid)}%"></i><i class="c-appr" style="width:${pc(r.approved)}%"></i><i class="c-open" style="width:${pc(r.open)}%"></i>${r.kv?`<span class="kv" style="left:${r.kv/base*100}%"></span>`:""}</div><span class="bsub">${sub}</span></div><span class="kvc">${r.kv?chf(r.kv,false):"–"}</span><span class="nums${r.none?" mute":""}">${r.forecast?chf(r.forecast,false):"–"}</span><span class="rest ${r.rest<0?"up":r.none?"mute":""}">${r.kv&&!r.none?chf(r.rest,false):"–"}</span></button>`;};
-  /* grouped by BKP main group (0 Grundstück … 9 Ausstattung) with a subtotal line, as in a cost estimate */
+    return ONE_BROW(r,act,sub,base,pc);};
   const grp=[...new Set(rows.map(r=>bkpMain(r.b.bkp)))].sort();
   const br=grp.map(g=>{const rs=rows.filter(r=>bkpMain(r.b.bkp)===g),kv=rs.reduce((a,r)=>a+(r.kv||0),0),aw=rs.reduce((a,r)=>a+(r.forecast||0),0),rest=rs.reduce((a,r)=>a+(r.kv?r.rest:0),0);
     return `<div class="bgroup"><span class="code">${g}</span><span class="gn">${esc(bkpMainName(g))}</span><span class="kvc">${kv?chf(kv,false):"–"}</span><span class="nums">${aw?chf(aw,false):"–"}</span><span class="rest${rest<0?" up":rs.every(r=>r.none)?" mute":""}">${kv&&!rs.every(r=>r.none)?chf(rest,false):"–"}</span></div>`+rs.map(one).join("");}).join("");
-  /* next step: items over budget, and items not awarded yet */
-  const bpts=allRows.filter(BF.over).map(r=>({act:"kv-explain",ex:`data-id="${r.b.bkp}"`,c:"crit",title:"BKP "+r.b.bkp+" "+esc(tx(r.b)),meta:L("über Budget","over budget"),amt:chf(-r.rest,false),label:""}));
-  const nNo=allRows.filter(BF.no).length;if(nNo)bpts.push({act:"bfilter",ex:'data-f="no"',c:"n",title:nNo===1?L("1 Position nicht vergeben","1 item not awarded"):nNo+" "+L("Positionen nicht vergeben","items not awarded"),meta:chf(sumB("no",r=>r.kv),false)+L(" im Kostenvoranschlag"," in the estimate"),label:""});
+  return `<div class="btable"><div class="bhead"><span>BKP</span><span>${L("Arbeitsgattung","Trade")}</span><span class="kvc">${L("Kostenvoranschlag","Estimate")}</span><span class="nums">${fcL}</span><span class="rest">${L("Reserve","Reserve")}</span></div>${br}
+    <div class="legend"><span><i class="c-paid"></i>${L("Bezahlt","Paid")}</span><span><i class="c-appr"></i>${L("Freigegeben","Approved")}</span><span><i class="c-open"></i>${L("Zu prüfen","To check")}</span><span><i style="width:1px;height:12px;background:var(--ink)"></i>${L("Kostenvoranschlag","Estimate")}</span></div></div>`;
+}
+function viewBudget(){
+  const p=P(); if(!p) return noProject();
+  const allRows=budgetRows(), t=totals(allRows), nP=n=>n===1?L("1 Position","1 item"):n+" "+L("Positionen","items");
+  /* each tile opens a sheet with exactly the positions it counts */
+  const bt=(f,l,v,ss,c)=>{const n=allRows.filter(BUD_F[f]).length,inner=`<span class="sl">${l}</span><span class="sv${c||""}">${n?v:"–"}</span><span class="ss">${ss}</span>`;return n?`<button type="button" class="stat" data-act="sheet" data-k="bud:${f}" aria-haspopup="dialog">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
+  const sumB=(f,g)=>allRows.filter(BUD_F[f]).reduce((a,r)=>a+g(r),0);
+  /* no «Nächster Schritt» and no table below: the tiles open exactly these positions. Only the empty state remains */
+  const empty=allRows.length?"":`<section><div class="rows"><div class="empty"><span>${L("Noch kein Kostenvoranschlag. Erfassen Sie die BKP-Positionen mit Betrag, daran misst arkitecton alle Rechnungen.","No cost estimate yet. Add the BKP items with amounts; arkitecton measures every invoice against them.")}</span></div></div>${addRow(L("BKP-Position erfassen","Add BKP item"),'data-act="form" data-f="bkp"')}</section>`;
   return `<div class="page">
     ${ph(esc(p.name),"Budget","",ib("plus",L("BKP-Position erfassen","Add BKP item"),'data-act="form" data-f="bkp"')+excelBtn("budget"))}
-
-    <div class="stats s4">${bt("",t.rev?L("Kostenvoranschlag rev.","Revised estimate"):L("Kostenvoranschlag","Cost estimate"),chf(t.kv,false),t.rev?L("ursprünglich ","originally ")+chf(t.kv0,false):nP(allRows.length))}${bt("aw",L("Vergeben","Awarded"),chf(t.awarded,false),(t.kv?Math.round(t.awarded/t.kv*100)+" %":""))}${bt("no",L("Nicht vergeben","Not awarded"),chf(sumB("no",r=>r.kv),false),nP(allRows.filter(BF.no).length))}${bt("over",L("Über Budget","Over budget"),chf(sumB("over",r=>-r.rest),false),nP(allRows.filter(BF.over).length)," warn")}</div>
-    ${allRows.length?nextCard({key:"bud:"+p.id,items:bpts}):""}
-    <section><div class="sh"><h2>${({aw:L("Vergeben","Awarded"),no:L("Nicht vergeben","Not awarded"),over:L("Über Budget","Over budget")})[S.bfilter]||L("Alle Positionen","All items")}</h2><span class="cnt">${rows.length}</span><span class="right"><span class="ss" style="color:var(--muted);font-size:.875rem">${L("Reserve","Reserve")} <b style="font-weight:500;color:${t.rest<0?"var(--warn)":"var(--ink)"}">${chf(t.rest,false)}</b></span>${S.bfilter?`<button type="button" class="ghost" data-act="bfilter" data-f="">${L("Alle anzeigen","Show all")} (${allRows.length})</button>`:""}</span></div>${allRows.length?`<div class="bulkbar costbar"><span><b>${L("Kostenstand für die Bauherrschaft","Cost status for the client")}</b></span><button type="button" class="btn" data-act="cost-pdf">${L("PDF erstellen","Create PDF")}</button></div>`:""}</section>
-    <section>${br?`<div class="bhead"><span>BKP</span><span>${L("Arbeitsgattung","Trade")}</span><span class="kvc">${L("Kostenvoranschlag","Estimate")}</span><span class="nums">${fcL}</span><span class="rest">${L("Reserve","Reserve")}</span></div>`:""}${br||`<div class="empty"><span>${L("Noch kein Kostenvoranschlag. Erfassen Sie die BKP-Positionen mit Betrag, daran misst arkitecton alle Rechnungen.","No cost estimate yet. Add the BKP items with amounts; arkitecton measures every invoice against them.")}</span><div class="eb"><button type="button" class="btn primary" data-act="form" data-f="bkp">${L("BKP-Position erfassen","Add BKP item")}</button></div></div>`}
-      ${addRow(L("BKP-Position erfassen","Add BKP item"),'data-act="form" data-f="bkp"')}
-      ${rows.length?`<div class="legend"><span><i class="c-paid"></i>${L("Bezahlt","Paid")}</span><span><i class="c-appr"></i>${L("Freigegeben","Approved")}</span><span><i class="c-open"></i>${L("Zu prüfen","To check")}</span><span><i style="width:1px;height:12px;background:var(--ink)"></i>${L("Kostenvoranschlag","Estimate")}</span></div>`:""}</section>
+    <div class="stats s4">${bt("all",t.rev?L("Kostenvoranschlag rev.","Revised estimate"):L("Kostenvoranschlag","Cost estimate"),chf(t.kv,false),t.rev?L("ursprünglich ","originally ")+chf(t.kv0,false):nP(allRows.length))}${bt("aw",L("Vergeben","Awarded"),chf(t.awarded,false),(t.kv?Math.round(t.awarded/t.kv*100)+" %":""))}${bt("no",L("Nicht vergeben","Not awarded"),chf(sumB("no",r=>r.kv),false),nP(allRows.filter(BUD_F.no).length))}${bt("over",L("Über Budget","Over budget"),chf(sumB("over",r=>-r.rest),false),nP(allRows.filter(BUD_F.over).length)," warn")}</div>
+    ${empty}
   </div>`;
 }
 

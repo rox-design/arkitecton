@@ -275,6 +275,15 @@ function runMigrations(){
     const w=ws.filter(w=>!D.invoices.some(i=>i.w===w.id&&i.type==="schluss")).sort((a,b)=>ak(b).reduce((s,i)=>s+net(i),0)-ak(a).reduce((s,i)=>s+net(i),0))[0];
     if(!w||!ak(w).length)return;w.ret=10;ak(w).forEach(i=>{i.retPct=10;});
   });}
+  /* example data: every Budget tile of an open example project has something to show (a position not awarded, a position over budget) */
+  if(!D.mig.budDemo){D.mig.budDemo=1;if(D.example)D.projects.filter(p=>!p.closed&&Array.isArray(p.budget)&&p.budget.length).forEach(p=>{
+    const ws=D.contracts.filter(w=>w.pid===p.id);
+    if(p.budget.every(b=>ws.some(w=>w.bkp===b.bkp))){const c=STD_BKP.find(x=>!p.budget.some(b=>b.bkp===x[0])&&!ws.some(w=>w.bkp===x[0]));
+      if(c){p.budget.push({bkp:c[0],de:c[1],en:c[2],kv:9500});p.budget.sort((a,b)=>a.bkp.localeCompare(b.bkp));}}
+    const keep=D.pid;D.pid=p.id;const rows=budgetRows();D.pid=keep;
+    if(!rows.some(r=>r.rest<0)){const r=rows.filter(r=>!r.none&&r.forecast>0&&r.b.kvr==null).sort((a,b)=>a.rest-b.rest)[0];
+      if(r)r.b.kv=Math.max(1000,Math.floor(r.forecast*0.94/500)*500);}
+  });}
   if(!D.mig.feeno){D.mig.feeno=1;const by={};FEES().slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).forEach(f=>{const y=String(f.date).slice(0,4);by[y]=(by[y]||0)+1;f.no=y+"-"+String(by[y]).padStart(3,"0");const r=makeRef(f.no);if(f.refType===r.type)f.ref=r.ref;});}
 }
 function incomeData(){

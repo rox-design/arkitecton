@@ -22,7 +22,7 @@ async def main():
       ok(f'{tag}: Einnahmen als Kachel, kein Abschnitt unten',await pg.evaluate("!!document.querySelector('#main .stats [data-k=\"income\"]')&&!document.querySelector('section.income')"))
       ok(f'{tag}: Kachel-Untertitel kurz',await pg.evaluate("Math.max(...[...document.querySelectorAll('#main .stat .ss')].map(e=>e.textContent.split(/\\s+/).length))")<=4)
       # «Nächster Schritt» on every page, first after the header, at most 3 points, the rest behind «Alle anzeigen»
-      for v,js in [('Ausschreibungen',"go('ausschreibungen')"),('Home',"go('buero')"),('Projekt',"go('uebersicht')"),('Handwerker-Detail',"go('handwerker');S.kid=D.contractors[0].id;render()"),('Budget',"go('budget')"),('Büroprofil',"go('profil')")]:
+      for v,js in [('Ausschreibungen',"go('ausschreibungen')"),('Home',"go('buero')"),('Projekt',"go('uebersicht')"),('Handwerker-Detail',"go('handwerker');S.kid=D.contractors[0].id;render()"),('Büroprofil',"go('profil')")]:
         await pg.evaluate("S.rtab='kred';S.kid=null;S.tid=null;"+js);await pg.wait_for_timeout(250)
         r=await pg.evaluate("(()=>{const c=document.querySelector('#main .tnext');if(!c)return null;const st=document.querySelector('#main .page>.stats');const pos=st?!!(st.compareDocumentPosition(c)&Node.DOCUMENT_POSITION_FOLLOWING):true;const before=[...document.querySelectorAll('#main .page section')].filter(x=>x!==c&&(x.compareDocumentPosition(c)&Node.DOCUMENT_POSITION_FOLLOWING)&&!x.closest('details'));return {after_stats:pos,first:!before.length,rows:c.querySelectorAll('.rows .row').length}})()")
         ok(f'{tag}: {v} zeigt zuerst den Stand, dann «Nächster Schritt»',bool(r) and r['after_stats'] and r['first'],r)
@@ -66,6 +66,21 @@ async def main():
       ok(f'{tag}: Handwerker: keine Liste der Werkverträge unter den Kacheln',await pg.evaluate("document.querySelectorAll('#main .page section .rows .row').length")==await pg.evaluate("kData().loose.length"))
       await pg.click('[data-k="kw:ret"]');await pg.wait_for_timeout(250);await pg.click('#overlay .sheet .row');await pg.wait_for_timeout(300)
       ok(f'{tag}: Zeile im Blatt öffnet den Handwerker',await pg.evaluate("!!S.kid&&!document.querySelector('#overlay .sheet')"))
+      # Budget: every tile opens the BKP table with exactly the positions it counts; nothing below the tiles
+      for pid in await pg.evaluate("D.projects.filter(p=>!p.closed&&(p.budget||[]).length).map(p=>p.id)"):
+        await pg.evaluate(f"closeAll();D.pid='{pid}';S.kid=null;go('budget')");await pg.wait_for_timeout(250)
+        ok(f'{tag}: Budget {pid}: alle Kacheln antippbar, keine leer',await pg.evaluate("[...document.querySelectorAll('#main .stats .stat')].every(e=>e.tagName==='BUTTON'&&e.dataset.act==='sheet')"))
+        ok(f'{tag}: Budget {pid}: unter den Kacheln nichts, was in den Blättern steht',await pg.evaluate("!document.querySelector('#main .tnext,#main .brow,#main .bgroup')"))
+        for k in ['all','aw','no','over']:
+          await pg.evaluate("closeAll();render()");await pg.wait_for_timeout(100)
+          exp=await pg.evaluate(f"budgetRows().filter(BUD_F['{k}']).length")
+          await pg.click(f'[data-k="bud:{k}"]');await pg.wait_for_timeout(250)
+          ok(f'{tag}: Budget-Kachel {k} zeigt so viele Positionen wie sie zählt',await pg.evaluate("document.querySelectorAll('#overlay .sheet .brow').length")==exp)
+        if not mob:
+          ok(f'{tag}: Budget-Blatt breit genug für die Tabelle',await pg.evaluate("document.querySelector('#overlay .sheet').getBoundingClientRect().width")>=700)
+      await pg.evaluate("closeAll();D.pid='p1';go('budget')");await pg.wait_for_timeout(200)
+      await pg.click('[data-k="bud:over"]');await pg.wait_for_timeout(250);await pg.click('#overlay .sheet .brow');await pg.wait_for_timeout(300)
+      ok(f'{tag}: Position im Blatt öffnet die Erklärung',await pg.evaluate("!!S.kvx"))
       # existing data with retention 0 already frozen in the invoices: the migration still fills the Rückbehalt tile
       await pg.evaluate("closeAll();S.kid=null;D.contracts.forEach(w=>w.ret=0);D.invoices.forEach(i=>{if(i.type==='akonto'&&counted(i))i.retPct=0;});delete D.mig.retDemo;runMigrations();D.pid='p1';go('handwerker')");await pg.wait_for_timeout(250)
       ok(f'{tag}: Rückbehalt-Kachel auch in bestehenden Daten gefüllt',await pg.evaluate("!!document.querySelector('#main [data-k=\"kw:ret\"]')"))

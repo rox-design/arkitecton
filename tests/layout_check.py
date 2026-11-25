@@ -8,7 +8,7 @@ VIEWS=["buero","ausschreibungen","uebersicht","rechnungen","handwerker","budget"
 CHECK="""(phone)=>{const m=document.getElementById('main'),out=[];const vis=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden'};
  if(m.scrollWidth>m.clientWidth+1)out.push('horizontal overflow '+m.scrollWidth+'>'+m.clientWidth);
  const mr=m.getBoundingClientRect();if(phone&&(mr.left>1||mr.width<innerWidth-1))out.push('main is not full width: '+Math.round(mr.left)+'/'+Math.round(mr.width));
- [...m.querySelectorAll('.sv,.ra,h1')].filter(vis).forEach(e=>{if(e.scrollWidth>e.clientWidth+1)out.push('cut off: '+e.textContent.trim().slice(0,30))});
+ [...m.querySelectorAll('.sv,.ra,h1:not(.srh)')].filter(vis).forEach(e=>{if(e.scrollWidth>e.clientWidth+1)out.push('cut off: '+e.textContent.trim().slice(0,30))});
  [...m.querySelectorAll('.row,.stat,h1')].filter(vis).forEach(e=>{const r=e.getBoundingClientRect();if(r.right>innerWidth+1||r.left<-1)out.push('outside screen: '+e.textContent.trim().slice(0,30))});
  if(phone)[...document.querySelectorAll('main button,main summary,.tabbar button,.topbar button')].filter(vis).forEach(e=>{if(getComputedStyle(e).pointerEvents==='none')return;const r=e.getBoundingClientRect();if(r.height<40||r.width<40)out.push('small tap target '+Math.round(r.width)+'x'+Math.round(r.height)+': '+(e.getAttribute('aria-label')||e.textContent).trim().slice(0,24))});
  return out}"""

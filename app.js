@@ -62,7 +62,7 @@ document.addEventListener("click",e=>{
     case "info":{S.info=S.info||{};S.info[el.dataset.k]=!S.info[el.dataset.k];
       /* an explanation in a closed section: open the section, otherwise nothing would show */
       const sec=el.closest("section[data-fk]");if(S.info[el.dataset.k]&&sec&&S.tid&&sec.classList.contains("folded")){S.tfold=S.tfold||{};S.tfold["t:"+S.tid+":"+sec.dataset.fk]=false;}render();const b=document.querySelector('#main [data-act="info"][data-k="'+el.dataset.k+'"]');if(b)b.focus({preventScroll:true});break;}
-    /* draft: switching project tabs keeps the tabs where they are: the page only scrolls back as far as the tabs */
+    /* switching project tabs keeps the tabs where they are: the page only scrolls back as far as the tabs */
     case "ptab":{const m=document.getElementById("main"),w=document.querySelector(".psegw"),st=m.scrollTop,off=w?w.offsetTop:0;go(el.dataset.v);m.scrollTop=Math.min(st,off);const b=document.querySelector('.pseg [data-v="'+el.dataset.v+'"]');if(b)b.focus({preventScroll:true});break;}
     case "next-all":S.nextAll=S.nextAll||{};S.nextAll[el.dataset.k]=!S.nextAll[el.dataset.k];render();break;
     /* a point from another project: switch to that project, then open the invoice or fee */
@@ -204,11 +204,10 @@ document.addEventListener("input",e=>{if(e.target.getAttribute&&e.target.getAttr
 /* ---------- swipe between the main areas on a phone (same order as the tab bar) ----------
    the page follows the finger 1:1, a short flick is enough, and the next page
    slides in from where the old one left: one continuous movement, no blank moment */
-const SWIPE_OLD=["ausschreibungen","uebersicht","rechnungen","handwerker","budget"]; /* same order as the tab bar */
-/* draft: the four bottom tabs; a project page counts as «Projekte», the settings as «Büroprofil» */
-const SWIPE_NAVD=["buero","projekte","ausschreibungen","profil"];
-const swTab=v=>NAVD?(PVIEWS.includes(v)?"projekte":v==="einstellungen"?"profil":v):v;
-const SWIPE={get list(){return NAVD?SWIPE_NAVD:SWIPE_OLD;},includes(v){return this.list.includes(swTab(v));},indexOf(v){return this.list.indexOf(swTab(v));},get length(){return this.list.length;}};
+/* swiping follows the bottom bar; a project page counts as «Projekte», the settings as «Büroprofil» */
+const SWIPE_TABS=["buero","projekte","ausschreibungen","profil"];
+const swTab=v=>PVIEWS.includes(v)?"projekte":v==="einstellungen"?"profil":v;
+const SWIPE={list:SWIPE_TABS,includes(v){return SWIPE_TABS.includes(swTab(v));},indexOf(v){return SWIPE_TABS.indexOf(swTab(v));},get length(){return SWIPE_TABS.length;}};
 (function(){
   const main=document.getElementById("main");let st=null,busy=false;
   const phone=()=>window.matchMedia("(max-width:820px)").matches;

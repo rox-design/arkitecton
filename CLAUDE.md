@@ -17,6 +17,9 @@ Live: https://rox-design.github.io/arkitecton/ · Inhaber: Rox (rox-design).
 - Überall dieselbe Struktur und Hierarchie: jede Seite sieht gleich aus und verhält sich gleich, mit und ohne Daten.
 - Für viele Büros bauen, nicht nur für einen Testarchitekten. Branchenstandards (z.B. selektives Verfahren, Bewerbungsmappe) gehören dazu.
 - Entscheide: Scan-Knopf auf dem Handy nur im Bereich Rechnungen. Büroprofil ist ein eigener Bereich (Büro, Team, Referenzen, Unterlagen des Büros). Bei Ausschreibungen werden Personen aus dem Team Rollen zugewiesen.
+- Navigation (seit 25.11.2026): unten vier Bereiche für das Büro: Home, Projekte, Ausschreibungen, Büroprofil (Einstellungen liegen im Büroprofil). Im Projekt oben Projektname (antippen wechselt das Projekt) und vier Reiter: Übersicht, Rechnungen, Handwerker, Budget. Die Reiter stehen beim Wechsel still und bleiben beim Scrollen oben. Neben dem Projektnamen «＋» für die Hauptaktion des Reiters (bei Übersicht keiner; bei Rechnungen auf dem Handy keiner, am Computer das Scanner-Symbol) und «···» für Nebenaktionen, Projekt bearbeiten und Neues Projekt. Wischen folgt der unteren Leiste.
+- Seitenaufbau überall: zuerst der Stand (Kacheln, Zahl plus höchstens ein kurzes Wort), dann «Nächster Schritt» (höchstens 3 Punkte, Rest hinter «Alle anzeigen»), dann Abschnitte mit Statuszeile, zugeklappt wenn in Ordnung. Erklärungen nur im leeren Zustand oder hinter «i». Keine Bearbeiten- und Löschen-Knöpfe pro Zeile, sondern ein «···».
+- Grössere Gestaltungsänderungen zuerst als Entwurf hinter `?entwurf=<name>` (Konstante `DRAFT` in `js/01-core.js`), Rox prüft, erst dann fest übernehmen.
 
 ## Technik
 - Statische Web-App ohne Build, GitHub Pages. Skripte in `index.html` in dieser Reihenfolge: `bkp.js`, `js/01-core.js` … `js/11-bids.js`, `app.js`. Alle teilen einen globalen Namensraum.
@@ -32,9 +35,10 @@ Live: https://rox-design.github.io/arkitecton/ · Inhaber: Rox (rox-design).
 ## Ablauf bei jeder Änderung
 1. Lokaler Server im Repo: `python3 -m http.server 8766`
 2. Version in `index.html` erhöhen (alle `?v=` gleich): `sed -i 's/ALT/NEU/g' index.html`, Format `JJJJMMTT` plus Buchstabe.
-3. `tests/check_all.sh` (Unit-Tests und Layout, Tippziele mindestens 40 px). Bei grösseren Änderungen zusätzlich `tests/run_e2e.sh` (Abläufe, mehrere Tabs, eingeschleuster Code, Barrierefreiheit, 320 px).
-4. Selbst im Browser ansehen (Desktop und Handy, auch 320 px), bevor es Rox gemeldet wird.
-5. Commit mit klarer Beschreibung, dann `git push` auf `main`. Rox den Link mit `?v=<Version>` geben.
+3. `tests/check_all.sh` (Unit-Tests und Layout, Tippziele mindestens 40 px). Bei grösseren Änderungen zusätzlich `tests/run_e2e.sh` (Abläufe, Seitenmuster, Navigation, mehrere Tabs, eingeschleuster Code, Barrierefreiheit, 320 px).
+4. Vor dem Melden jede betroffene Seite gegen die abgemachten Muster prüfen und Rox das Ergebnis zeigen, nicht nur die Tests.
+5. Selbst im Browser ansehen (Desktop und Handy, auch 320 px), bevor es Rox gemeldet wird.
+6. Commit mit klarer Beschreibung, dann `git push` auf `main`. Rox den Link mit `?v=<Version>` geben.
 
 ## Offene Punkte
 Siehe `BACKLOG.md` (u.a. Signaturschlüssel des Prüfsiegels auf den Server beim Server-Entscheid, Offline-Start, Linter).

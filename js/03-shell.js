@@ -40,33 +40,30 @@ function renderChrome(){
   const cp=P(),open=!!S.projOpen;
   const plist=open?activeProjects().map(x=>`<div class="nrow prow${x.id===D.pid?" cur":""}"><button type="button" data-act="pick-project" data-id="${x.id}"><span class="pi" aria-hidden="true">${x.fav?"★":"·"}</span><span>${esc(x.name)}</span></button><span class="nact"><button type="button" class="na" data-act="pmore" data-id="${x.id}" data-tip="${L("Favorit, umbenennen, Papierkorb","Favourite, rename, bin")}" aria-label="${L("Weitere Aktionen","More actions")}">···</button></span></div>`).join("")+`<div class="nrow prow"><button type="button" data-act="form-project"><span class="pi" aria-hidden="true">+</span><span>${L("Projekt erfassen","Add project")}</span></button></div>`:"";
   const tog=(cp||D.projects.length)?`<span class="chev" role="button" tabindex="0" data-act="ptoggle" aria-expanded="${open}" aria-label="${open?L("Projektliste schliessen","Close project list"):L("Alle Projekte anzeigen","Show all projects")}" data-tip="${open?L("Projektliste schliessen","Close project list"):L("Alle Projekte anzeigen","Show all projects")}">›</span>`:"";
-  document.getElementById("nav").innerHTML=NAVD?"":["uebersicht","rechnungen","handwerker","budget"].map(v=>navRow(v)).join("");void tog;void plist;
-  /* draft: one level for the whole office; a project's parts are tabs inside the project */
+  document.getElementById("nav").innerHTML="";void tog;void plist;
+  /* one level for the whole office: Home, Projekte, Ausschreibungen, Büroprofil; a project's parts are tabs inside the project */
+  const TABS=["buero","projekte","ausschreibungen","profil"];
   const navCur=v=>v==="projekte"?(S.view==="projekte"||PVIEWS.includes(S.view)):v==="profil"?(S.view==="profil"||S.view==="einstellungen"):S.view===v;
-  const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=NAVD?["buero","projekte","ausschreibungen","profil"].map(v=>`<div class="nrow"><button type="button" data-act="nav" data-v="${v}"${navCur(v)?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span></button></div>`).join(""):navRow("buero")+navRow("ausschreibungen")+navRow("profil");
-  document.getElementById("app").classList.toggle("navd",NAVD);
-  const tb=(v,l)=>`<button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${l}</span></button>`;
-  const firmTabs=["buero","ausschreibungen","einstellungen"].includes(S.view);
-  /* one tab bar everywhere; Home is the logo and firm name at the top */
   const tbd=v=>`<button type="button" data-act="nav" data-v="${v}"${navCur(v)?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span></button>`;
-  document.getElementById("tabbar").innerHTML=(NAVD?["buero","projekte","ausschreibungen","profil"].map(tbd).join(""):tb("ausschreibungen",L("Ausschreibungen","Tenders"))+tb("uebersicht",L("Projekt","Project"))+tb("rechnungen",L("Rechnungen","Invoices"))+tb("handwerker",L("Handwerker","Contractors"))+tb("budget","Budget"))+(S.view==="rechnungen"&&S.rtab!=="deb"?`<button type="button" class="tabscan" data-act="scan-menu" aria-label="${L("Scannen: QR-Rechnung oder Dokument","Scan: QR-bill or document")}" title="${L("Scannen","Scan")}">${navIco("scan")}</button>`:"");
-  document.querySelector(".topbar").classList.toggle("is-home",S.view==="buero");void firmTabs;
+  const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=TABS.map(v=>`<div class="nrow">${tbd(v)}</div>`).join("");
+  document.getElementById("app").classList.add("navd");
+  document.getElementById("tabbar").innerHTML=TABS.map(tbd).join("")+(S.view==="rechnungen"&&S.rtab!=="deb"?`<button type="button" class="tabscan" data-act="scan-menu" aria-label="${L("Scannen: QR-Rechnung oder Dokument","Scan: QR-bill or document")}" title="${L("Scannen","Scan")}">${navIco("scan")}</button>`:"");
+  document.querySelector(".topbar").classList.toggle("is-home",S.view==="buero");
   const ts=document.getElementById("topSet");if(ts){ts.innerHTML=navIco("einstellungen");ts.setAttribute("aria-label",L("Einstellungen","Settings"));ts.title=L("Einstellungen","Settings");ts.setAttribute("aria-current",S.view==="einstellungen"?"page":"false");}
 }
-/* draft: inside a project the project name (tap to switch) and its four parts as tabs, like Airbnb's top categories.
+/* inside a project the project name (tap to switch) and its four parts as tabs, like Airbnb's top categories.
    They sit outside the page, so they stand exactly in the same place on all four tabs; the tabs stay at the top while scrolling. */
-const pInProj=()=>NAVD&&!!P()&&PVIEWS.includes(S.view);
-const draftBar=()=>NAVD?`<div class="draftbar"><span><b>${L("Entwurf","Draft")}</b> · ${L("neue Navigation","new navigation")}</span><a href="?entwurf=aus${location.hash}">${L("Entwurf beenden","End draft")}</a></div>`:"";
+const pInProj=()=>!!P()&&PVIEWS.includes(S.view);
 const pNav=()=>{if(!pInProj())return "";const p=P();
-  return `<div class="pnav">${draftBar()}<div class="pbrow"><button type="button" class="pbname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button>${S.kid||S.wid?"":`<span class="pbact">${pPlus()}<button type="button" class="ib" data-act="sheet" data-k="pmenu" aria-haspopup="dialog" aria-label="${L("Weitere Aktionen","More actions")}" title="${L("Weitere Aktionen","More actions")}">${ico("more")}</button></span>`}</div>${[p.place,p.desc].filter(Boolean).length?`<div class="pbsub">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</div>`:""}</div>
+  return `<div class="pnav"><div class="pbrow"><button type="button" class="pbname" data-act="sheet" data-k="projects" aria-haspopup="dialog" title="${L("Projekt wechseln","Switch project")}">${esc(p.name)}<span class="cv" aria-hidden="true">⌄</span></button>${S.kid||S.wid?"":`<span class="pbact">${pPlus()}<button type="button" class="ib" data-act="sheet" data-k="pmenu" aria-haspopup="dialog" aria-label="${L("Weitere Aktionen","More actions")}" title="${L("Weitere Aktionen","More actions")}">${ico("more")}</button></span>`}</div>${[p.place,p.desc].filter(Boolean).length?`<div class="pbsub">${esc([p.place,p.desc].filter(Boolean).join(" · "))}</div>`:""}</div>
   <div class="psegw"><nav class="pseg" aria-label="${L("Teile des Projekts","Project parts")}">${PVIEWS.map(v=>{const t=v==="uebersicht"?L("Übersicht","Overview"):vName(v);return `<button type="button" data-act="ptab" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span data-t="${t}">${t}</span></button>`;}).join("")}</nav></div>`;};
-/* draft: in a project the page header disappears (the tab names the page, actions sit in «···» next to the project name);
+/* in a project the page header disappears (the tab names the page, actions sit in «···» next to the project name);
    only the invoice switch stays, as content of that page. A contractor's own page keeps its header. */
-const ph=(eyebrow,title,lead,tools)=>{if(!pInProj())return draftBar()+phx(eyebrow,title,lead,tools);
+const ph=(eyebrow,title,lead,tools)=>{if(!pInProj())return phx(eyebrow,title,lead,tools);
   if(S.kid||S.wid)return phx(eyebrow,title,lead,tools);
   const seg=(String(tools||"").match(/<div class="seg"[\s\S]*?<\/div>/)||[""])[0];
   return seg?`<header class="ph phseg"><h1 class="srh">${title}</h1><div class="tools">${seg}</div></header>`:`<h1 class="srh">${title}</h1>`;};
-/* draft: the main action of the tab as «＋» beside the project name; the overview has none */
+/* the main action of the tab as «＋» beside the project name; the overview has none */
 const addRow=()=>"";
 const pPlus=()=>{
   /* invoices: on the phone the round scan button at the bottom does this, so nothing here; on the computer the scanner symbol, not «＋» */

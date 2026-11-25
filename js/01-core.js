@@ -5,9 +5,10 @@
    bkp.js, js/01-core … js/08-forms, then app.js (start-up). */
 /* arkitecton · Dates, text and numbers, reference lists, example data, storage. */
 "use strict";
-/* a draft of a design change, shown only with ?entwurf=<name> and kept for this tab; the normal app is unchanged */
+/* a draft of a design change, shown only with ?entwurf=<name> and kept for this tab; the normal app is unchanged.
+   No draft is open at the moment; the navigation draft became the app on 25.11.2026. */
 const DRAFT=(()=>{try{const q=new URLSearchParams(location.search).get("entwurf");if(q==="aus"){sessionStorage.removeItem("ark-entwurf");return "";}if(q)sessionStorage.setItem("ark-entwurf",q);return q||sessionStorage.getItem("ark-entwurf")||"";}catch(e){return "";}})();
-const NAVD=DRAFT==="nav";
+
 
 /* ---------- dates ---------- */
 const TODAY=(()=>{const d=new Date();d.setHours(0,0,0,0);return d;})();

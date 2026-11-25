@@ -3,7 +3,7 @@
 # Each script prints OK/FAIL lines and exits with 1 on a failure.
 cd "$(dirname "$0")/e2e" || exit 1
 fail=0
-for s in flow undo tenders pages safety inject a11y narrow; do
+for s in flow undo tenders pages nav safety inject a11y narrow; do
   echo "== $s"; python3 $s.py || fail=1
 done
 exit $fail

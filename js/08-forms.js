@@ -234,7 +234,10 @@ function sheetDef(key){
   if(key==="k-add"){const inP=new Set(PC().map(w=>w.k)),others=D.contractors.filter(k=>!inP.has(k.id)&&!(k.pid===D.pid&&!D.contracts.some(w=>w.k===k.id))).sort((a,b)=>a.name.localeCompare(b.name));
     return {title:L("Handwerker erfassen","Add contractor"),groups:[["",[Object.assign(bt(L("Neuen Handwerker erfassen","Add new contractor"),"form"),{f:"contractor"})]],...(others.length?[[L("Aus Ihrem Büro zuweisen","Assign from your office"),others.map(k=>Object.assign(bt(k.name,"form",k.id),{f:"contract"}))]]:[])]};}
   if(key==="handwerker") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Hochladen","Upload"),[im(L("Handwerkerliste importieren","Import contractor list"),"contractors")]],[L("Herunterladen","Download"),[ex(L("Handwerkerliste","Contractor list"),"x-contractors")]]]};
-  if(key==="budget") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Kostenstand für die Bauherrschaft (PDF)","Cost status for the client (PDF)"),"cost-pdf"),ex(L("Bauabrechnung (PDF)","Construction account (PDF)"),"final-pdf"),ex(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client"),"x-report"),ex(L("Budget nach BKP","Budget by BKP"),"x-budget")]]]};
+  if(key==="budget") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Kostenstand für die Bauherrschaft","Cost status for the client"),"cost-pdf"),ex(L("Bauabrechnung","Construction account"),"final-pdf"),ex(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client"),"x-report"),ex(L("Budget nach BKP","Budget by BKP"),"x-budget")]]]};
+  /* draft: the «···» next to the project name: what this tab offers besides its main action, then the project itself */
+  if(key==="pmenu"){const sub=S.view==="rechnungen"?(S.rtab==="deb"?null:sheetDef("rechnungen")):S.view==="handwerker"?sheetDef("handwerker"):S.view==="budget"?sheetDef("budget"):null;
+    return {title:P()?P().name:"",groups:[...(sub?sub.groups:[]),[L("Projekt","Project"),[bt(L("Projekt bearbeiten","Edit project"),"form-project-edit",D.pid),bt(L("Neues Projekt","New project"),"form-project")]]]};}
   if(key==="tender") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Verfahrensliste","Procedure list"),"x-tenders"),ex(L("Referenzliste","Reference list"),"x-refs")]]]};
   if(key.startsWith("t:")) return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Referenzen für diese Bewerbung","References for this bid"),"x-refs",key.slice(2))]]]};
   /* the «···» of a document on the phone: the same three actions as the menu on the desktop */
@@ -285,7 +288,7 @@ function menuItems(d){
   return d.groups.filter(g=>g[1].length).map(([g,list])=>(g?`<div class="grp">${g}</div>`:"")+list.map(x=>x.imp
     ?`<label class="mi"><span>${esc(x.label)}</span><span class="k">${x.acc===".json"?".json ↑":".xlsx ↑"}</span><input type="file" accept="${x.acc||".xlsx,.xls,.csv"}" data-imp="${x.imp}"${x.id?` data-id="${x.id}"`:""} aria-label="${esc(x.label)}"></label>`
     :x.btn?`<button type="button" class="mi ${x.cls||""}" data-act="${x.act}"${x.f?` data-f="${x.f}"`:""}${x.id?` data-id="${x.id}" data-c="${x.id}"`:""}><span>${esc(x.label)}</span><span class="k"></span></button>`
-    :`<button type="button" class="mi" data-act="${x.act}"${x.id?` data-id="${x.id}"`:""}><span>${esc(x.label)}</span><span class="k">${x.act==="backup"?".json ↓":".xlsx ↓"}</span></button>`).join("")).join("");
+    :`<button type="button" class="mi" data-act="${x.act}"${x.id?` data-id="${x.id}"`:""}><span>${esc(x.label)}</span><span class="k">${x.act==="backup"?".json ↓":/pdf$/i.test(x.act)?".pdf ↓":".xlsx ↓"}</span></button>`).join("")).join("");
 }
 function sheetWrap(d,items){
   return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sT">

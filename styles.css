@@ -1270,3 +1270,10 @@ section.tsec.foldable>.sh>.fold{grid-row:1/3;grid-column:5;margin-left:0}
   .navd main>.pnav{padding-top:calc(42px + env(safe-area-inset-top))}
   .navd .psegw{top:0;padding-top:env(safe-area-inset-top)}
 }
+/* draft: «···» beside the project name, no header under the tabs, add lines at the end of lists */
+.pbrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pbrow .pbname{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;margin:0}
+.ph.phseg{min-height:0;display:block}
+.ph.phseg .tools{justify-content:flex-start}
+.addrow{display:flex;align-items:center;min-height:48px;margin-top:4px;color:var(--ink);font-size:.9375rem}

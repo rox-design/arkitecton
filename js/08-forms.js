@@ -307,6 +307,9 @@ function sheetHTML(){
   if(/^bud:/.test(S.sheet)){const f=S.sheet.slice(4),all=budgetRows(),li=all.filter(BUD_F[f]||BUD_F.all),t=totals(all);
     const top=f==="all"?`<div class="bsum"><span>${L("Reserve","Reserve")}</span><b class="${t.rest<0?"up":""}">${chf(t.rest,false)}</b></div>`:"";
     return sheetBox(({all:t.rev?L("Kostenvoranschlag rev.","Revised estimate"):L("Kostenvoranschlag","Cost estimate"),aw:L("Vergeben","Awarded"),no:L("Nicht vergeben","Not awarded"),over:L("Über Budget","Over budget")})[f]+" · "+li.length,top+budgetTable(li),"wide");}
+  /* Entwurf «uebersicht»: a Home tile opens exactly the invoices it counts, across all projects */
+  if(/^ainv:/.test(S.sheet)){const k=S.sheet.slice(5),li=allInv().filter((AINV[k]||AINV.pruefen).f);
+    return sheetBox((AINV[k]||AINV.pruefen).l()+" · "+li.length,`<div class="rows">${li.map(ainvRow).join("")}</div>`);}
   if(/^fee:/.test(S.sheet)){const k=S.sheet.slice(4),all=PF();const li=(k==="open"?all.filter(f=>!f.paid):k==="due"?all.filter(f=>remDue(f)):all.filter(f=>f.paid)).sort((a,b)=>toDate(b.date)-toDate(a.date));
     const rows=li.map(f=>{const st=feeState(f);return row({act:"open-fee",id:f.id,c:st.c,title:esc(f.title||L("Honorar","Fee")),meta:esc(f.no)+" · "+fdate(f.date),amt:chf(feeTotal(f),false),label:st.t,lc:st.c});}).join("");
     return sheetBox(({open:L("Zu erhalten","To receive"),due:L("Mahnung fällig","Reminder due"),paid:L("Bezahlt","Paid")})[k]+" · "+li.length,`<div class="rows">${rows}</div>`);}

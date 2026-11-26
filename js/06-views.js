@@ -40,7 +40,49 @@ function viewProjekte(){
     ${foldRows(L("Abgeschlossene Projekte","Completed projects"),dn.map(x=>row({act:"open-project",id:x.p.id,c:"ok",title:esc(x.p.name),meta:x.p.place?esc(x.p.place):"",amt:"",label:""})).join(""),dn.length)}
   </div>`;
 }
+/* ---------- Entwurf «uebersicht»: Home als Übersicht aller Rechnungen über alle Projekte ---------- */
+/* every contractor invoice and every own fee of the office in one list, with project, type, status and reminder level */
+function allInv(){
+  const out=[];
+  D.projects.forEach(p=>withP(p.id,()=>{
+    PI().filter(live).forEach(i=>{const w=W(i.w)||{},k=K(w.k)||{};out.push({kind:"inv",id:i.id,pid:p.id,pname:p.name,closed:!!p.closed,no:i.no,date:i.date,who:k.name||"",what:typeLabel(i),amt:i.gross,st:i.status,lab:stLabel(i.status),c:STATUS[i.status].c,rem:"",open:i.status!=="bezahlt"});});
+    PF().forEach(f=>{const due=remDue(f),sent=(f.rem||[]).length;out.push({kind:"fee",id:f.id,pid:p.id,pname:p.name,closed:!!p.closed,no:f.no,date:f.date,who:L("Honorar","Fee"),what:esc(f.title||""),amt:feeTotal(f),st:f.paid?"fpaid":due?"fdue":"fopen",lab:f.paid?L("Bezahlt","Paid"):due?L("Mahnung fällig","Reminder due"):L("Offen","Open"),c:f.paid?"ok":due?"crit":"n",rem:f.paid?"":due?String(due):sent?String(sent):"",open:!f.paid});});
+  }));
+  return out.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+}
+/* the four tiles: what waits for the architect across all projects */
+const AINV={pruefen:{l:()=>L("Zu prüfen","To check"),f:x=>x.st==="pruefen"},rueckfrage:{l:()=>L("Rückfrage","Query"),f:x=>x.st==="rueckfrage"},frei:{l:()=>L("Freigegeben","Approved"),f:x=>x.st==="frei"},fdue:{l:()=>L("Mahnung fällig","Reminder due"),f:x=>x.st==="fdue"}};
+const ainvRow=x=>row({act:"p-open",id:x.id,c:x.c,title:esc(x.who),meta:esc(x.pname)+" · "+(x.kind==="inv"?x.what:L("Honorar","Fee"))+" · "+esc(x.no),amt:chf(x.amt,false),label:x.lab+(x.rem&&x.st==="fdue"?" · "+x.rem+L(". Stufe",". level"):""),lc:x.c}).replace('data-act="p-open"',`data-act="p-open" data-p="${x.pid}" data-k="${x.kind}"`);
+function viewFirmDraft(){
+  const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
+  const all=allInv();
+  const tile=k=>{const li=all.filter(AINV[k].f),n=li.length,sum=li.reduce((a,x)=>a+x.amt,0),inner=`<span class="sl"><i class="dot l-${k==="pruefen"?"warn":k==="rueckfrage"?"crit":k==="frei"?"acc":"crit"}"></i>${AINV[k].l()}</span><span class="sv">${n}</span><span class="ss">${n?chf(sum,false):L("keine","none")}</span>`;
+    return n?`<button type="button" class="stat" data-act="sheet" data-k="ainv:${k}" aria-haspopup="dialog">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
+  const fs=S.aif||"open",ft=S.ait||"all";
+  const li=all.filter(x=>(fs==="all"||x.open)&&(ft==="all"||x.kind===ft));
+  const chip=(grp,v,l,cur)=>`<button type="button" class="chip${cur===v?" on":""}" data-act="aif" data-g="${grp}" data-f="${v}" aria-pressed="${cur===v}">${l}</button>`;
+  const head=`<div class="ainv-h"><span>${L("Rechnung","Invoice")}</span><span>${L("Projekt","Project")}</span><span>${L("Typ","Type")}</span><span class="r">${L("Betrag","Amount")}</span><span>${L("Status","Status")}</span><span class="r">${L("Mahnstufe","Reminder")}</span></div>`;
+  const trow=x=>`<button type="button" class="ainv-r" data-act="p-open" data-id="${x.id}" data-p="${x.pid}" data-k="${x.kind}"><span><b>${esc(x.who)}</b><small>${esc(x.no)} · ${fdate(x.date)}</small></span><span>${esc(x.pname)}</span><span>${x.kind==="inv"?L("Handwerker","Contractor"):L("Honorar","Fee")}</span><span class="r">${chf(x.amt,false)}</span><span><i class="pillst l-${x.c}"><i class="dot"></i>${x.lab}</i></span><span class="r mute">${x.rem||""}</span></button>`;
+  /* the next step keeps only what the tiles and the table do not show: missing details, tenders, firm documents */
+  const pts=[];
+  D.projects.filter(p=>!p.closed).forEach(p=>withP(p.id,()=>{missingTasks().forEach(x=>pts.push({c:"warn",title:L("Angaben ergänzen","Complete details"),meta:esc(x.k.name)+" · "+x.m.join(", "),label:"",act:"open-k",ex:`data-id="${x.k.id}"`}));}));
+  tenderTasks().forEach(x=>pts.push({c:x.c,title:esc(x.title),meta:esc(x.meta||tx(x.t.title)),label:x.label,act:"open-t",ex:`data-id="${x.t.id}"`}));
+  docsFor("firm","firm").map(d=>[d,docValid(d)]).filter(([,v])=>v&&v.c!=="ok").forEach(([d,v])=>pts.push({c:v.c,title:L("Unterlage erneuern","Renew document"),meta:esc(d.name),label:v.t,act:"nav",ex:'data-v="profil"'}));
+  return `<div class="page hov">
+    ${ph(esc(today),L("Übersicht","Overview"),"","")}
+    <p class="hov-lead">${L("Alle Rechnungen auf einen Blick, mit Status, Freigaben und Mahnstufen.","All invoices at a glance, with status, approvals and reminder levels.")}</p>
+    ${dataNotice()}${startSteps()}
+    <div class="stats s4">${tile("pruefen")}${tile("rueckfrage")}${tile("frei")}${tile("fdue")}</div>
+    ${nextCard({key:"home",items:pts})}
+    <section class="ainv"><div class="sh"><h2>${L("Alle Rechnungen","All invoices")}</h2><span class="cnt">${li.length}</span></div>
+      <div class="chips" role="group" aria-label="${L("Filter","Filter")}">${chip("s","open",L("Offen","Open"),fs)}${chip("s","all",L("Alle","All"),fs)}<span class="sep"></span>${chip("t","all",L("Beide","Both"),ft)}${chip("t","inv",L("Handwerker","Contractor"),ft)}${chip("t","fee",L("Honorar","Fee"),ft)}</div>
+      <div class="ainv-t">${head}${li.map(trow).join("")||`<div class="empty"><span>${L("Keine Rechnungen für diesen Filter.","No invoices for this filter.")}</span></div>`}</div>
+      <div class="rows ainv-m">${li.map(ainvRow).join("")}</div>
+    </section>
+  </div>`;
+}
 function viewFirm(){
+  if(DRAFT==="uebersicht")return viewFirmDraft();
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
   const ps=D.projects.map(p=>withP(p.id,()=>{const chk=unpaid(PI()),fo=PF().filter(f=>!f.paid);return {p,chk,n:chk.length,sum:toPay(PI()),fl:flags().length,flc:flagSum(flags()),fees:fo.reduce((a,f)=>a+feeTotal(f),0),rem:fo.filter(f=>remDue(f)).length};}));
   const feeOpen=ps.reduce((a,x)=>a+x.fees,0),remN=ps.reduce((a,x)=>a+x.rem,0),tot=ps.reduce((a,x)=>a+x.sum,0);

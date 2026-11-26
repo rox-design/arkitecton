@@ -47,8 +47,8 @@ function renderChrome(){
   const tbd=v=>`<button type="button" data-act="nav" data-v="${v}"${navCur(v)?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span></button>`;
   const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=TABS.map(v=>`<div class="nrow">${tbd(v)}</div>`).join("");
   document.getElementById("app").classList.add("navd");
-  /* Entwurf «uebersicht»: abgehobene Kacheln mit Schatten auf allen Ebenen */
-  document.getElementById("app").classList.toggle("tiles-up",DRAFT==="uebersicht");
+  /* raised tiles with shadow, full width and the black rail (fest seit 27.11.2026) */
+  document.getElementById("app").classList.add("tiles-up");
   document.getElementById("tabbar").innerHTML=TABS.map(tbd).join("")+(S.view==="rechnungen"&&S.rtab!=="deb"?`<button type="button" class="tabscan" data-act="scan-menu" aria-label="${L("Scannen: QR-Rechnung oder Dokument","Scan: QR-bill or document")}" title="${L("Scannen","Scan")}">${navIco("scan")}</button>`:"");
   document.querySelector(".topbar").classList.toggle("is-home",S.view==="buero");
   const ts=document.getElementById("topSet");if(ts){ts.innerHTML=navIco("einstellungen");ts.setAttribute("aria-label",L("Einstellungen","Settings"));ts.title=L("Einstellungen","Settings");ts.setAttribute("aria-current",S.view==="einstellungen"?"page":"false");}
@@ -62,7 +62,7 @@ const pNav=()=>{if(!pInProj())return "";const p=P();
 /* in a project the page header disappears (the tab names the page, actions sit in «···» next to the project name);
    only the invoice switch stays, as content of that page. A contractor's own page keeps its header. */
 /* the grey bar that marks a draft, with the way back to the normal app */
-const DRAFTS=()=>({uebersicht:L("Home mit Tabelle aller Rechnungen, Projekte als Karten, Projekt-Übersicht neu, Kacheln mit Schatten, ganze Breite, schwarze Leiste","Home as overview of all invoices, projects as cards, new project overview, raised tiles, full width, black rail")});
+const DRAFTS=()=>({});
 const draftBar=()=>DRAFTS()[DRAFT]?`<div class="draftbar"><span><b>${L("Entwurf","Draft")}</b> · ${DRAFTS()[DRAFT]}</span><a href="${location.pathname}?entwurf=aus${location.hash}">${L("Entwurf beenden","End draft")}</a></div>`:"";
 const ph=(eyebrow,title,lead,tools)=>{if(!pInProj())return draftBar()+phx(eyebrow,title,lead,tools);
   if(S.kid||S.wid)return phx(eyebrow,title,lead,tools);

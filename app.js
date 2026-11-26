@@ -127,10 +127,10 @@ document.addEventListener("click",e=>{
     case "t-link":{const t=T(id);t.link=t.link||{};t.link[el.dataset.d]=el.dataset.f;render();toast(L("Aus Büro-Unterlagen übernommen","Taken from firm documents"));break;}
     case "t-unlink":{const t=T(id);if(t.link)delete t.link[el.dataset.d];openForm("tlink",id,el.dataset.d);break;}
     case "t-doc":{const t=T(el.dataset.t);t.done[el.dataset.d]=!t.done[el.dataset.d];render();break;}
-    case "sheet":if(isDesk()&&el.closest("#main .stats")){closeAll();S.tsel=S.tsel===el.dataset.k?null:el.dataset.k;{const m=document.getElementById("main"),st=m?m.scrollTop:0;render();if(m)m.scrollTop=st;}break;}
+    case "sheet":if(isDesk()&&el.closest("#main .stats")){closeAll();S.tsel=S.tsel===el.dataset.k?null:el.dataset.k;{const m=document.getElementById("main"),st=m?m.scrollTop:0;render();if(m){m.scrollTop=st;requestAnimationFrame(()=>{m.scrollTop=st;});}}break;}
       closeAll();S.sheet=el.dataset.k;renderOverlay();break;
     case "aif":if(el.dataset.g==="s")S.aif=el.dataset.f;else S.ait=el.dataset.f;render();break;
-    case "tsel-close":{const k=S.tsel,m=document.getElementById("main"),st=m?m.scrollTop:0;S.tsel=null;render();if(m)m.scrollTop=st;const t=k&&[...document.querySelectorAll('#main .stats [data-act="sheet"]')].find(e=>e.dataset.k===k);if(t)t.focus({preventScroll:true});break;}
+    case "tsel-close":{const k=S.tsel,m=document.getElementById("main"),st=m?m.scrollTop:0;S.tsel=null;render();if(m){m.scrollTop=st;requestAnimationFrame(()=>{m.scrollTop=st;});}const t=k&&[...document.querySelectorAll('#main .stats [data-act="sheet"]')].find(e=>e.dataset.k===k);if(t)t.focus({preventScroll:true});break;}
     case "form":openForm(el.dataset.f,id,el.dataset.w);break;
     case "form-project":openForm("project");break;
     case "form-project-edit":openForm("project",id);break;

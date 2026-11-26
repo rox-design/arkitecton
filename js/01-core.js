@@ -8,7 +8,7 @@
 /* the app lives in app/; shared files (vendor, pruefen.html) stay at the site root */
 const ROOT=/\/app\/(index\.html)?$/.test(location.pathname)?"../":"";
 /* a draft of a design change, shown only with ?entwurf=<name> and kept for this tab; the normal app is unchanged.
-   Drafts taken over on 25.11.2026: navigation, tiles that open a sheet. No draft is open. */
+   Drafts taken over: 25.11.2026 navigation, tiles that open a sheet; 27.11.2026 «uebersicht» (Home with all invoices, Projekte as cards, project overview, raised tiles, full width, black rail). No draft is open. */
 const DRAFT=(()=>{try{const q=new URLSearchParams(location.search).get("entwurf");if(q==="aus"){sessionStorage.removeItem("ark-entwurf");return "";}if(q)sessionStorage.setItem("ark-entwurf",q);return q||sessionStorage.getItem("ark-entwurf")||"";}catch(e){return "";}})();
 
 

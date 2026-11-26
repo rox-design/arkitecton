@@ -70,10 +70,12 @@ async def main():
         await pg.evaluate("D.pid='p1';S.rtab='kred';go('rechnungen')");await pg.wait_for_timeout(200)
         await pg.evaluate("document.getElementById('main').scrollTop=120");await pg.wait_for_timeout(100)
         y0=await pg.evaluate("document.querySelector('#main .stats').getBoundingClientRect().top")
+        # clicks without Playwright's own scrolling into view, like a person clicking a visible tile
         for k in ['inv:bezahlt','inv:pruefen','inv:bezahlt']:
-          await pg.click(f'#main [data-k="{k}"]');await pg.wait_for_timeout(200)
-        await pg.click('#tpanel .x');await pg.wait_for_timeout(200)
-        ok('Desktop: Kacheln öffnen und schliessen ohne dass die Seite springt',abs(await pg.evaluate("document.querySelector('#main .stats').getBoundingClientRect().top")-y0)<3)
+          await pg.evaluate(f"document.querySelector('#main [data-k=\"{k}\"]').click()");await pg.wait_for_timeout(200)
+        await pg.evaluate("document.querySelector('#tpanel .x').click()");await pg.wait_for_timeout(200)
+        y1=await pg.evaluate("document.querySelector('#main .stats').getBoundingClientRect().top")
+        ok('Desktop: Kacheln öffnen und schliessen ohne dass die Seite springt',abs(y1-y0)<3,(y0,y1,await pg.evaluate("document.getElementById('main').scrollTop")))
       # Handwerker: every tile opens a sheet with exactly the entries it counts; no tile is empty in the example data
       for pid in await pg.evaluate("D.projects.filter(p=>!p.closed&&D.contracts.some(w=>w.pid===p.id)).map(p=>p.id)"):
         await pg.evaluate(f"closeAll();D.pid='{pid}';S.kid=null;go('handwerker')");await pg.wait_for_timeout(250)

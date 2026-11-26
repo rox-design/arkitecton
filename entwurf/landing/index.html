@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>arkitecton · Rechnungen prüfen. Honorare im Blick.</title>
+<meta name="description" content="Browser-App für Handwerker- und Honorarrechnungen in Schweizer Architekturbüros mit 1 bis 9 Personen.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="../../icon-192.png">
+<style>
+/* Entwurf der Landingpage im Brand von arkitecton: Instrument Sans, ruhige Fläche, Haarlinien, Tinte und ein rotes Quadrat */
+@font-face{font-family:"Instrument Sans";font-style:normal;font-display:swap;font-weight:400 700;font-stretch:75% 100%;src:url(../../fonts/instrument-sans-latin-standard-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Instrument Sans";font-style:normal;font-display:swap;font-weight:400 700;font-stretch:75% 100%;src:url(../../fonts/instrument-sans-latin-ext-standard-normal.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+:root{
+  --bg:#fafaf8;--raise:#ffffff;--soft:#f3f3ef;--ink:#141414;--muted:#66665f;--faint:#8a8a83;--line:#e6e6e1;--line2:#d9d9d3;--hl:#ecebe5;
+  --mark:#e03a1e;--font:"Instrument Sans","Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#111110;--raise:#191918;--soft:#161615;--ink:#ededea;--muted:#9b9b94;--faint:#77776f;--line:#2a2a28;--line2:#353532;--hl:#26261f;--mark:#ff5a3c;color-scheme:dark}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--font);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums lining-nums}
+a{color:inherit}
+h1,h2,h3{margin:0;font-weight:400;letter-spacing:-.025em;text-wrap:balance}
+p{margin:0}
+.wrap{max-width:1200px;margin:0 auto;padding:0 32px}
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px;border-radius:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 22px;border-radius:999px;background:var(--ink);color:var(--bg);text-decoration:none;font-weight:500;font-size:.95rem;border:0;cursor:pointer;transition:transform .2s}
+.btn:hover{transform:translateY(-1px)}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:.75rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.eyebrow i{width:9px;height:9px;background:var(--mark);display:block}
+.lead{color:var(--muted);font-size:1.125rem;line-height:1.6}
+.card{background:var(--raise);border:1px solid var(--line);border-radius:16px}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease}
+.reveal.in{opacity:1;transform:none}
+
+/* Kopfzeile */
+header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid transparent;transition:border-color .3s}
+header.sc{border-bottom-color:var(--line)}
+.hd{display:flex;align-items:center;justify-content:space-between;height:72px;gap:24px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:600;font-size:1.125rem;letter-spacing:-.01em}
+.logo svg{width:28px;height:28px}
+.mk-ink{fill:var(--ink)}.mk-red{fill:var(--mark)}
+nav.top{display:flex;gap:6px}
+nav.top a{text-decoration:none;color:var(--muted);font-size:.95rem;padding:10px 14px;border-radius:999px;transition:color .2s,background .2s}
+nav.top a:hover{color:var(--ink);background:var(--soft)}
+
+/* Einstieg */
+.hero{position:relative;padding:72px 0 0;text-align:center;overflow:hidden}
+#ascii{position:absolute;left:50%;top:0;transform:translateX(-50%);width:1100px;max-width:100%;height:420px;pointer-events:none;-webkit-mask-image:radial-gradient(ellipse at center,#000 30%,transparent 72%);mask-image:radial-gradient(ellipse at center,#000 30%,transparent 72%)}
+.hero>.wrap{position:relative}
+.pill{display:inline-flex;align-items:center;gap:12px;padding:5px 14px 5px 5px;border:1px solid var(--line);border-radius:999px;background:var(--raise);text-decoration:none;font-size:.92rem}
+.pill b{font-size:.7rem;letter-spacing:.14em;font-weight:600;background:var(--ink);color:var(--bg);padding:5px 10px;border-radius:999px}
+.pill svg{width:14px;height:14px}
+.hero h1{margin:36px auto 0;font-size:clamp(2.6rem,6vw,4.6rem);line-height:1.02;max-width:12ch}
+.hero .lead{margin:26px auto 0;max-width:34em}
+.note{max-width:560px;margin:34px auto 0;padding:22px 28px;text-align:center;font-size:1rem}
+.note p+p{margin-top:10px}
+.stage{position:relative;margin-top:64px}
+.prompt{position:relative;z-index:2;width:min(620px,92%);margin:0 auto -54px;padding:18px 20px 16px;text-align:left;box-shadow:0 18px 50px -20px rgba(0,0,0,.18)}
+.prompt .tx{color:var(--muted);min-height:1.6em;font-size:1rem}
+.prompt .tx::after{content:"";display:inline-block;width:1px;height:1.1em;background:var(--ink);margin-left:2px;vertical-align:-3px;animation:blink 1s steps(1) infinite}
+.prompt .row{display:flex;align-items:center;gap:8px;margin-top:16px}
+.prompt .sq{width:34px;height:34px;border-radius:9px;background:var(--soft);border:1px solid var(--line)}
+.prompt .go{margin-left:auto;width:44px;height:34px;border-radius:9px;background:var(--ink);display:grid;place-items:center}
+.prompt .go svg{width:16px;height:16px;stroke:var(--bg)}
+@keyframes blink{50%{opacity:0}}
+.browser{position:relative;border:1px solid var(--line);border-bottom:0;border-radius:20px 20px 0 0;background:var(--soft);padding:12px 12px 0;overflow:hidden}
+.browser .bar{display:flex;align-items:center;gap:12px;padding:4px 4px 12px}
+.browser .url{font-size:.85rem;color:var(--faint);border:1px solid var(--line);background:var(--raise);border-radius:999px;padding:6px 16px}
+.browser .dots{margin-left:auto;display:flex;gap:7px}.browser .dots i{width:11px;height:11px;border-radius:50%;background:var(--line2)}
+.browser .shot{position:relative;border-radius:12px 12px 0 0;overflow:hidden;border:1px solid var(--line);border-bottom:0;max-height:620px}
+.browser .shot img{display:block;width:100%;height:auto}
+.browser .shot::after{content:"";position:absolute;inset:auto 0 0 0;height:45%;background:linear-gradient(transparent,var(--bg))}
+section{padding:120px 0}
+.rule{border-top:1px solid var(--line)}
+
+/* So funktioniert es */
+.how{display:grid;grid-template-columns:1fr 1.15fr;gap:64px;align-items:center}
+.tabs{display:inline-flex;gap:4px;padding:4px;border-radius:999px;background:var(--soft);border:1px solid var(--line)}
+.tabs button{display:flex;align-items:center;gap:9px;min-height:42px;padding:0 18px;border:0;border-radius:999px;background:none;color:var(--muted);font-size:.98rem;cursor:pointer;transition:background .25s,color .25s}
+.tabs button span{width:22px;height:22px;border:1px solid currentColor;border-radius:50%;display:grid;place-items:center;font-size:.72rem}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+.how h2{font-size:clamp(2rem,3.4vw,2.9rem);line-height:1.08;margin-top:44px}
+.how .lead{margin-top:20px;max-width:30em;font-size:1.06rem}
+.checks{list-style:none;padding:0;margin:32px 0 0;display:grid;gap:14px}
+.checks li{display:flex;align-items:center;gap:14px;font-weight:500;font-size:1.06rem}
+.checks li i{width:22px;height:22px;border:1.5px solid var(--ink);border-radius:6px;position:relative;flex:none}
+.checks li.on i{background:var(--ink)}
+.checks li.on i::after{content:"";position:absolute;left:6px;top:2px;width:6px;height:11px;border:solid var(--bg);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.panel{transition:opacity .35s}
+.panel.fade{opacity:0}
+.photo{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:var(--soft);aspect-ratio:4/3}
+.photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:62% top;transition:opacity .45s}
+.photo img.hide{opacity:0}
+
+/* Sorgfältig prüfen */
+.center{text-align:center}
+.center h2{font-size:clamp(1.9rem,3.2vw,2.6rem);line-height:1.1;margin:22px auto 0;max-width:20ch}
+.center .lead{margin:18px auto 0;max-width:34em}
+.center .btn{margin-top:30px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:64px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:20px}
+.fc{overflow:hidden;display:flex;flex-direction:column}
+.fc .fh{display:flex;align-items:center;gap:12px;padding:20px 26px;border-bottom:1px solid var(--line);font-weight:500}
+.fc .fh i{width:16px;height:16px;border:1.5px solid var(--ink);border-radius:4px}
+.fc .fb{padding:26px;flex:1;display:flex;flex-direction:column}
+.fc .art{flex:1;min-height:250px;display:grid;place-items:center;position:relative}
+.fc h3{font-size:1.15rem;font-weight:500;letter-spacing:-.01em;margin-top:22px}
+.fc .fb p{color:var(--muted);margin-top:8px}
+.shapes{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:999px;background:var(--soft);border:1px solid var(--line);width:max-content;margin:0 auto 28px}
+.shapes i{width:12px;height:12px;background:var(--faint);animation:pulse 2.4s infinite}
+.shapes i:nth-child(even){border-radius:50%}
+.shapes i:nth-child(2){animation-delay:.2s}.shapes i:nth-child(3){animation-delay:.4s}.shapes i:nth-child(4){animation-delay:.6s}.shapes i:nth-child(5){animation-delay:.8s}
+.shapes b{width:40px;height:12px;border-radius:999px;background:var(--mark)}
+@keyframes pulse{50%{opacity:.35}}
+.big{font-size:clamp(1.4rem,2.3vw,2rem);line-height:1.3;color:var(--muted);max-width:17em;letter-spacing:-.015em}
+.big mark{background:linear-gradient(var(--hl),var(--hl)) no-repeat 0 0/0% 100%;color:var(--ink);padding:0 .1em;transition:background-size 1.4s ease .3s}
+.in .big mark{background-size:100% 100%}
+.flow{display:grid;grid-template-columns:1fr 1fr;gap:18px 56px;width:min(420px,100%)}
+.node{position:relative;padding:14px 18px;border:1px solid var(--line);background:var(--soft);border-radius:12px}
+.node:nth-child(even){transform:translateY(34px)}
+.node b{display:block;font-weight:500}.node small{color:var(--faint);font-size:.85rem}
+.node::after{content:"";position:absolute;right:-6px;top:-6px;width:12px;height:12px;background:var(--line2);transition:background .3s}
+.node.on::after{background:var(--ink)}.node.now::after{background:var(--mark)}
+.orb{width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--line2),var(--faint));box-shadow:0 30px 60px -20px rgba(0,0,0,.25)}
+.cur{position:absolute;width:20px;height:20px;animation:cur 4s ease-in-out infinite}
+.cur path{fill:var(--ink)}
+.c1{left:58%;top:30%}.c2{left:36%;top:66%;animation-delay:1s}.c3{left:52%;top:62%;animation-delay:2s}
+@keyframes cur{0%,100%{transform:translate(0,0)}50%{transform:translate(-10px,-8px)}}
+.radar{width:170px;height:170px;border-radius:50%;position:relative;background:repeating-radial-gradient(circle,transparent 0 27px,var(--line2) 28px 29px)}
+.radar::before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,color-mix(in srgb,var(--ink) 22%,transparent),transparent 70deg);animation:spin 4s linear infinite}
+.radar::after{content:"";position:absolute;left:50%;top:50%;width:24px;height:24px;margin:-12px;border-radius:50%;background:var(--ink)}
+.radar i{position:absolute;width:10px;height:10px;background:var(--mark);left:72%;top:28%;animation:pulse 2s infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lock{position:relative;width:110px;height:130px}
+.lock::before{content:"";position:absolute;left:22px;top:0;width:66px;height:64px;border:12px solid var(--line2);border-bottom:0;border-radius:40px 40px 0 0;animation:shackle 3.2s ease-in-out infinite}
+.lock span{position:absolute;left:0;bottom:0;width:110px;height:84px;border-radius:14px;background:var(--soft);border:1px solid var(--line2)}
+.lock span::after{content:"";position:absolute;left:50%;top:30px;width:12px;height:22px;margin-left:-6px;border-radius:6px;background:var(--ink)}
+@keyframes shackle{0%,60%,100%{transform:translateY(0)}75%{transform:translateY(-10px)}}
+
+/* Im Detail */
+.ring{position:relative;display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto auto;gap:44px 28px;align-items:center}
+.ft{display:flex;gap:14px;padding:12px;width:100%;max-width:330px;align-items:flex-start}
+.ft .no{flex:none;width:96px;height:96px;border-radius:14px;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-size:2rem;font-weight:400;letter-spacing:-.03em;position:relative}
+.ft .no::after{content:"";position:absolute;right:10px;top:10px;width:10px;height:10px;background:var(--mark)}
+.ft b{display:block;font-weight:600;margin-top:4px}
+.ft small{display:block;color:var(--muted);font-size:.88rem;line-height:1.4;margin-top:2px}
+.tog{display:inline-flex;margin-top:10px;width:42px;height:20px;border-radius:999px;background:var(--soft);border:1px solid var(--line);position:relative}
+.tog::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--faint);transition:left .4s,background .4s}
+.ft.on .tog::after{left:24px;background:var(--ink)}
+.r1{grid-column:1;grid-row:1;justify-self:start}.r2{grid-column:2;grid-row:1;justify-self:center;transform:translateY(-24px)}.r3{grid-column:3;grid-row:1;justify-self:end}
+.r4{grid-column:1;grid-row:3;justify-self:start}.r5{grid-column:2;grid-row:3;justify-self:center;transform:translateY(24px)}.r6{grid-column:3;grid-row:3;justify-self:end}
+.ring .mid{grid-column:1/-1;grid-row:2;text-align:center}
+.ring .mid h2{font-size:clamp(1.5rem,2.4vw,2rem);line-height:1.15;margin:18px auto 0;max-width:22ch}
+.ring .mid .btn{margin-top:24px}
+
+/* Beispiele */
+.ex{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto;gap:20px;margin-top:64px}
+.ex .card{padding:26px;display:flex;flex-direction:column;justify-content:space-between;gap:26px}
+.ex p{font-weight:500;line-height:1.5}
+.ex .tag{display:flex;align-items:center;gap:12px}
+.ex .tag i{width:44px;height:44px;border-radius:10px;background:var(--soft);border:1px solid var(--line);position:relative;flex:none}
+.ex .tag i::after{content:"";position:absolute;right:7px;top:7px;width:8px;height:8px;background:var(--ink)}
+.ex .tag b{font-weight:600}.ex .tag span{color:var(--muted)}
+.ex .feat{grid-column:2;grid-row:1/3}
+.ex .feat p{font-size:clamp(1.5rem,2.2vw,1.95rem);font-weight:400;line-height:1.22;letter-spacing:-.02em}
+.ex .feat .tag i{width:150px;height:150px;border-radius:12px;background:var(--soft) url(img/phone.webp) center top/cover}
+.ex .feat .tag i::after{display:none}
+@media (prefers-color-scheme:dark){.ex .feat .tag i{background-image:url(img/phone-dark.webp)}}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);margin-top:72px}
+.stats div{text-align:center;padding:10px 16px;border-left:1px solid var(--line)}
+.stats div:first-child{border-left:0}
+.stats b{display:block;font-size:clamp(2.2rem,4vw,3.2rem);font-weight:400;letter-spacing:-.03em;line-height:1.1}
+.stats span{color:var(--muted)}
+
+/* Fragen */
+.faq{background:var(--soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.qs{max-width:720px;margin:56px auto 0;display:grid;gap:12px}
+details{background:var(--raise);border:1px solid var(--line);border-radius:14px}
+summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:60px;padding:0 22px;font-weight:600;cursor:pointer;font-size:1.04rem}
+summary::-webkit-details-marker{display:none}
+summary i{width:14px;height:14px;position:relative;flex:none;transition:transform .3s}
+summary i::before,summary i::after{content:"";position:absolute;left:0;top:6px;width:14px;height:2px;background:var(--ink)}
+summary i::after{transform:rotate(90deg)}
+details[open] summary i{transform:rotate(45deg)}
+details .a{padding:0 22px 20px;color:var(--muted)}
+
+/* Abschluss */
+.mosaic{display:grid;grid-template-columns:repeat(24,1fr);gap:8px;max-width:980px;margin:0 auto}
+.mosaic i{aspect-ratio:1;border-radius:4px;background:var(--line);opacity:0;transform:scale(.6);transition:opacity .5s,transform .5s,background 1.2s}
+.mosaic i.v{opacity:1;transform:none}
+.mosaic i.e{background:transparent}.mosaic i.k{background:var(--ink)}.mosaic i.m{background:var(--line2)}.mosaic i.r{background:var(--mark)}
+.end{text-align:center}
+.end h2{font-size:clamp(1.6rem,2.6vw,2.2rem);margin-top:44px}
+.end .lead{max-width:30em;margin:14px auto 0}
+.cta{max-width:520px;margin:44px auto 0;padding:34px 32px}
+.cta h3{font-size:2.4rem;letter-spacing:-.03em}
+.cta p{margin-top:12px}
+footer{padding:96px 0 0;overflow:hidden}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.cols h4{margin:0 0 14px;font-weight:400;color:var(--faint);font-size:.9rem}
+.cols a,.cols span{display:block;text-decoration:none;padding:6px 0}
+.cols a:hover{text-decoration:underline}
+.word{font-size:clamp(5rem,18vw,15rem);line-height:.8;letter-spacing:-.06em;text-align:center;color:var(--line);font-weight:500;margin-top:80px;user-select:none;transform:translateY(12%)}
+
+@media (max-width:900px){
+  nav.top{display:none}
+  .wrap{padding:0 20px}
+  section{padding:84px 0}
+  .how{grid-template-columns:1fr;gap:40px}
+  .grid2,.grid3{grid-template-columns:1fr}
+  .ring{grid-template-columns:1fr;gap:12px}
+  .ring>*{grid-column:1!important;grid-row:auto!important;justify-self:stretch!important;transform:none!important;max-width:none}
+  .ring .mid{order:-1;margin-bottom:24px}
+  .ex{grid-template-columns:1fr}.ex .feat{grid-column:auto;grid-row:auto}
+  .stats{grid-template-columns:1fr 1fr;row-gap:28px}.stats div:nth-child(3){border-left:0}
+  .cols{grid-template-columns:1fr}
+  .mosaic{grid-template-columns:repeat(12,1fr);gap:6px}
+  .tabs button{padding:0 12px}
+  .pill{font-size:.82rem;gap:8px;text-align:left}
+  .browser .shot{max-height:560px}
+  .browser .url{display:none}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.reveal,.mosaic i{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<header id="hd"><div class="wrap hd">
+  <a class="logo" href="#top" aria-label="arkitecton, nach oben"><svg viewBox="0 0 30 30" aria-hidden="true"><rect class="mk-ink" x="3" y="20" width="24" height="7"/><rect class="mk-ink" x="7" y="9" width="9" height="11"/><rect class="mk-ink" x="16" y="14" width="7" height="6"/><rect class="mk-red" x="16" y="3" width="6" height="6"/></svg>arkitecton</a>
+  <nav class="top" aria-label="Seite"><a href="#so">So funktioniert es</a><a href="#funktionen">Funktionen</a><a href="#detail">Im Detail</a><a href="#fragen">Fragen</a></nav>
+  <a class="btn" href="../../">Testversion</a>
+</div></header>
+
+<main id="top">
+<div class="hero">
+  <canvas id="ascii" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <a class="pill" href="#so"><b>RECHNUNGEN</b>Prüfen, freigeben und Honorare verfolgen<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>
+    <h1>Rechnungen prüfen. Honorare im Blick.</h1>
+    <p class="lead">Browser-App für Handwerker- und Honorarrechnungen in Schweizer Architekturbüros mit 1 bis 9 Personen. Prüfstatus, Zahlungsfreigaben und Mahnstufen an einem Ort.</p>
+    <div class="card note"><p>arkitecton ist aktuell eine Testversion und nicht zum Kauf verfügbar.</p><p>Du möchtest hören, wenn die App bereit ist? Schreib an <a href="mailto:team@arkitecton.madethis.app">team@arkitecton.madethis.app</a>.</p></div>
+    <div class="stage">
+      <div class="card prompt" aria-hidden="true"><div class="tx" id="typed"></div><div class="row"><i class="sq"></i><i class="sq"></i><span class="go"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div></div>
+      <div class="browser"><div class="bar"><span class="url">rox-design.github.io/arkitecton/</span><span class="dots"><i></i><i></i><i></i></span></div>
+        <div class="shot"><picture><source media="(max-width:600px) and (prefers-color-scheme:dark)" srcset="img/phone-dark.webp"><source media="(max-width:600px)" srcset="img/phone.webp"><source media="(prefers-color-scheme:dark)" srcset="img/hero-dark.webp"><img src="img/hero.webp" width="1800" height="1125" alt="arkitecton am Computer: Rechnungen eines Projekts mit den Kacheln Zu prüfen, Rückfrage, Freigegeben und Bezahlt"></picture></div></div>
+    </div>
+  </div>
+</div>
+
+<section id="so" class="rule"><div class="wrap how">
+  <div class="panel" id="panel">
+    <div class="tabs" role="tablist" aria-label="Ablauf">
+      <button role="tab" id="t0" aria-selected="true" aria-controls="panel"><span>1</span>Erfassen</button>
+      <button role="tab" id="t1" aria-selected="false" aria-controls="panel"><span>2</span>Prüfen</button>
+      <button role="tab" id="t2" aria-selected="false" aria-controls="panel"><span>3</span>Freigeben</button>
+    </div>
+    <h2 id="howT"></h2>
+    <p class="lead" id="howP"></p>
+    <ul class="checks" id="howL"></ul>
+  </div>
+  <div class="photo"><picture><source media="(prefers-color-scheme:dark)" srcset="img/erfassen-dark.webp"><img src="img/erfassen.webp" alt="" data-i="0"></picture><picture><source media="(prefers-color-scheme:dark)" srcset="img/pruefen-dark.webp"><img src="img/pruefen.webp" alt="" data-i="1" class="hide"></picture><picture><source media="(prefers-color-scheme:dark)" srcset="img/freigeben-dark.webp"><img src="img/freigeben.webp" alt="" data-i="2" class="hide"></picture></div>
+</div></section>
+
+<section id="funktionen"><div class="wrap">
+  <div class="center reveal"><span class="eyebrow"><i></i>Sorgfältig prüfen</span><h2>Vom Rechnungseingang bis zur dokumentierten Freigabe</h2><p class="lead">Prüfe Handwerkerrechnungen, dokumentiere Freigaben und behalte offene Honorare mit ihren Mahnstufen im Blick.</p><a class="btn" href="#detail">Funktionen ansehen</a></div>
+  <div class="grid2">
+    <article class="card fc reveal"><div class="fh"><i></i>Prüfung vor Freigabe</div><div class="fb"><div class="art" style="display:block;padding-top:8px"><div class="shapes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><b></b></div><p class="big">Prüfe vor der Freigabe <mark>IBAN, Betrag und Werkvertrag</mark> sowie Rückbehalt und mögliche doppelte Rechnungen.</p></div><h3>Prüfen statt übersehen</h3><p>Prüfungen berücksichtigen IBAN, Betrag, Werkvertrag, Rückbehalt und mögliche doppelte Rechnungen.</p></div></article>
+    <article class="card fc reveal"><div class="fh"><i></i>Der Rechnungsweg</div><div class="fb"><div class="art"><div class="flow" id="flow" aria-hidden="true"><div class="node"><b>Erfassen</b><small>QR oder Dokument</small></div><div class="node"><b>Prüfen</b><small>Angaben abgleichen</small></div><div class="node"><b>Freigeben</b><small>PDF erstellen</small></div><div class="node"><b>Bezahlen</b><small>Durch die Bauherrschaft</small></div></div></div><h3>Jeder Status sichtbar</h3><p>Die Handwerkerrechnungen sind nach Zu prüfen, Rückfrage, Freigegeben und Bezahlt gegliedert.</p></div></article>
+  </div>
+  <div class="grid3">
+    <article class="card fc reveal"><div class="fb"><div class="art" aria-hidden="true"><div class="orb"></div><svg class="cur c1" viewBox="0 0 24 24"><path d="M4 2l16 9-7 2-3 7z"/></svg><svg class="cur c2" viewBox="0 0 24 24"><path d="M4 2l16 9-7 2-3 7z"/></svg><svg class="cur c3" viewBox="0 0 24 24"><path d="M4 2l16 9-7 2-3 7z"/></svg></div><h3>Freigabe als PDF</h3><p>Visum, Zahlungsempfehlung und Zahlungsfreigabe dokumentieren den nächsten Schritt für die Bauherrschaft.</p></div></article>
+    <article class="card fc reveal"><div class="fb"><div class="art" aria-hidden="true"><div class="radar"><i></i></div></div><h3>Eigene Honorare stellen</h3><p>Erstelle Honorarrechnungen mit QR-Einzahlungsschein als PDF.</p></div></article>
+    <article class="card fc reveal"><div class="fb"><div class="art" aria-hidden="true"><div class="lock"><span></span></div></div><h3>Mahnungen im Blick</h3><p>Offene, zur Mahnung fällige und bezahlte Honorare bleiben mit ihren Mahnstufen sichtbar.</p></div></article>
+  </div>
+</div></section>
+
+<section id="detail"><div class="wrap">
+  <div class="ring" id="ring">
+    <div class="card ft r1"><span class="no">01</span><div><b>QR-Erfassung</b><small>Rechnungen aus Kamera, Foto oder PDF erfassen</small><i class="tog" aria-hidden="true"></i></div></div>
+    <div class="card ft r2"><span class="no">02</span><div><b>Rechnungsprüfung</b><small>IBAN, Betrag und Vertragsangaben prüfen</small><i class="tog" aria-hidden="true"></i></div></div>
+    <div class="card ft r3"><span class="no">03</span><div><b>Rückfragen</b><small>Unklare Rechnungen als Rückfrage führen</small><i class="tog" aria-hidden="true"></i></div></div>
+    <div class="mid reveal"><span class="eyebrow"><i></i>Im Detail</span><h2>Sechs Funktionen für den sorgfältigen Umgang mit Rechnungen</h2><a class="btn" href="../../">Zur Testversion</a></div>
+    <div class="card ft r4"><span class="no">04</span><div><b>Zahlungsfreigabe</b><small>Freigaben als PDF für die Bauherrschaft erstellen</small><i class="tog" aria-hidden="true"></i></div></div>
+    <div class="card ft r5"><span class="no">05</span><div><b>Honorarrechnungen</b><small>Eigene Rechnungen mit QR-Einzahlungsschein erstellen</small><i class="tog" aria-hidden="true"></i></div></div>
+    <div class="card ft r6"><span class="no">06</span><div><b>Mahnstufen</b><small>Fällige Mahnungen und offene Honorare überblicken</small><i class="tog" aria-hidden="true"></i></div></div>
+  </div>
+</div></section>
+
+<section id="beispiele" class="rule"><div class="wrap">
+  <div class="center reveal"><span class="eyebrow"><i></i>Beispiele</span><h2>So wird der nächste Schritt sichtbar</h2><p class="lead">Beispielhafte Statusangaben und Dokumentinhalte zeigen, wie du Rechnungen und Honorare im Blick behältst.</p></div>
+  <div class="ex">
+    <div class="card reveal"><p>Beispiel: Diese Handwerkerrechnung steht auf «Zu prüfen». Vor der Freigabe sind Betrag und Werkvertrag abzugleichen.</p><div class="tag"><i></i><b>Prüfstatus</b><span>Nach dem Erfassen</span></div></div>
+    <div class="card feat reveal"><p>Beispiel: Rechnung freigegeben. Die Bauherrschaft übernimmt die Zahlung an den Handwerker.</p><div class="tag"><i role="img" aria-label="arkitecton auf dem Handy"></i><div><b>Zahlungsfreigabe</b><br><span>Nach der Freigabe</span></div></div></div>
+    <div class="card reveal"><p>Beispiel: Die Honorarrechnung ist offen, eine Mahnung ist fällig. Die aktuelle Mahnstufe bleibt bei der Rechnung sichtbar.</p><div class="tag"><i></i><b>Honorarübersicht</b><span>Bei fälliger Mahnung</span></div></div>
+    <div class="card reveal"><p>Beispiel: Die Rechnung steht auf «Rückfrage». Eine Klärung ist nötig, bevor sie zur Zahlung freigegeben wird.</p><div class="tag"><i></i><b>Rückfragen</b><span>Bei offenen Fragen</span></div></div>
+    <div class="card reveal"><p>Beispiel: Die Honorarrechnung wird als PDF mit QR-Einzahlungsschein erstellt. Sie enthält die Angaben für die Zahlung.</p><div class="tag"><i></i><b>Honorarrechnung</b><span>Beim Erstellen</span></div></div>
+  </div>
+  <div class="stats" id="stats">
+    <div><b data-v="1-9">1-9</b><span>Personen pro Büro</span></div>
+    <div><b data-n="2">2</b><span>Arten von Rechnungen</span></div>
+    <div><b data-n="4">4</b><span>Status für Handwerkerrechnungen</span></div>
+    <div><b data-n="0">0</b><span>Anmeldungen in der App</span></div>
+  </div>
+</div></section>
+
+<section id="fragen" class="faq"><div class="wrap">
+  <div class="center reveal"><span class="eyebrow"><i></i>Fragen</span><h2>Vor dem Einstieg</h2><p class="lead">Was du über Daten, Rechnungsabläufe und den Zugang wissen solltest.</p></div>
+  <div class="qs">
+    <details open><summary>Wo liegen meine Daten?<i aria-hidden="true"></i></summary><p class="a">Deine Daten bleiben im Browser: Angaben im lokalen Speicher, Dateien in der Browser-Datenbank. Die App hat keinen Server und benötigt keine Anmeldung. Sicherung und Wiederherstellung findest du im Büroprofil.</p></details>
+    <details><summary>Werden meine Daten zwischen Geräten synchronisiert?<i aria-hidden="true"></i></summary><p class="a">Nein. Eine Synchronisierung zwischen Geräten ist noch nicht verfügbar. Die Daten liegen lokal im jeweiligen Browser.</p></details>
+    <details><summary>Was ist im Zugang enthalten?<i aria-hidden="true"></i></summary><p class="a">Die Testversion enthält alle Funktionen: Rechnungen erfassen und prüfen, Rückfragen, Freigaben und Zahlungsfreigaben als PDF, Honorarrechnungen mit QR-Einzahlungsschein und Mahnstufen, Budget nach BKP und Ausschreibungen.</p></details>
+    <details><summary>Wie erfahre ich, wenn die App bereit ist?<i aria-hidden="true"></i></summary><p class="a">Schreib an team@arkitecton.madethis.app. Du erhältst eine Nachricht, sobald arkitecton verfügbar ist.</p></details>
+    <details><summary>Welche Dateien kann ich verwenden?<i aria-hidden="true"></i></summary><p class="a">Rechnungen als PDF oder Foto mit Schweizer QR-Code, auf dem Handy auch direkt mit dem Dokumentscanner. Budget und Offerten kannst du als Excel einlesen und ausgeben.</p></details>
+    <details><summary>Bezahlt arkitecton die Handwerker?<i aria-hidden="true"></i></summary><p class="a">Nein. Du prüfst und genehmigst die Rechnungen und erstellst die Zahlungsunterlagen. Die Bauherrschaft bezahlt die Handwerker.</p></details>
+  </div>
+</div></section>
+
+<section class="end" id="testversion"><div class="wrap">
+  <div class="mosaic" id="mosaic" aria-hidden="true"></div>
+  <h2>Sorgfalt, die Vertrauen schafft.</h2>
+  <p class="lead">Prüfstatus, Zahlungsfreigaben und Mahnstufen für dein Architekturbüro, direkt im Browser.</p>
+  <div class="card cta reveal"><h3>Testversion</h3><p>arkitecton ist aktuell nicht zum Kauf verfügbar.</p><p>Du möchtest hören, wenn die App bereit ist? Schreib an <a href="mailto:team@arkitecton.madethis.app">team@arkitecton.madethis.app</a>.</p></div>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <div class="cols">
+    <div><h4>Übersicht</h4><a href="#so">So funktioniert es</a><a href="#funktionen">Funktionen</a><a href="#detail">Im Detail</a></div>
+    <div><h4>Wissenswertes</h4><a href="#fragen">Fragen</a><a href="#testversion">Angebot</a></div>
+    <div><h4>Inhaber</h4><a href="mailto:team@arkitecton.madethis.app">team@arkitecton.madethis.app</a><span>Rossano, Inhaber von arkitecton</span></div>
+  </div>
+  <div class="word" aria-hidden="true">arkitecton</div>
+</div></footer>
+
+<script>
+"use strict";
+const RM=matchMedia("(prefers-reduced-motion:reduce)").matches;
+/* Kopfzeile: Linie beim Scrollen */
+const hd=document.getElementById("hd");addEventListener("scroll",()=>hd.classList.toggle("sc",scrollY>8),{passive:true});
+
+/* Einstieg: Zeichenfeld im Hintergrund, leise bewegt */
+(()=>{const c=document.getElementById("ascii"),x=c.getContext("2d"),CH=" .:-+*=#%@CHF0123456789";let w,h,cols,rows,t=0,dpr=Math.min(2,devicePixelRatio||1);
+  const size=()=>{w=c.clientWidth;h=c.clientHeight;c.width=w*dpr;c.height=h*dpr;x.setTransform(dpr,0,0,dpr,0,0);cols=Math.ceil(w/11);rows=Math.ceil(h/18);};
+  const draw=()=>{x.clearRect(0,0,w,h);x.font="13px ui-monospace,Menlo,monospace";x.fillStyle=getComputedStyle(document.documentElement).getPropertyValue("--faint");x.globalAlpha=.45;
+    for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const v=Math.sin(i*.21+t*.9)+Math.cos(j*.33-t*.6)+Math.sin((i+j)*.11+t*.4);if(v<.6)continue;x.fillText(CH[Math.floor((v*7+i*j)%CH.length)],i*11,j*18+12);}
+    t+=.02;if(!RM)requestAnimationFrame(draw);};
+  size();addEventListener("resize",size);draw();})();
+
+/* Einstieg: Satz im Eingabefeld wird getippt */
+(()=>{const el=document.getElementById("typed"),S=["Handwerkerrechnung per QR erfassen und vor der Freigabe prüfen","Zahlungsfreigabe für die Bauherrschaft als PDF erstellen","Honorarrechnung mit QR-Einzahlungsschein stellen"];let s=0,i=0,del=false;
+  if(RM){el.textContent=S[0];return;}
+  const step=()=>{const t=S[s];if(!del){i++;el.textContent=t.slice(0,i);if(i===t.length){del=true;return setTimeout(step,2200);}}else{i-=2;el.textContent=t.slice(0,Math.max(0,i));if(i<=0){del=false;s=(s+1)%S.length;i=0;}}setTimeout(step,del?18:42);};step();})();
+
+/* So funktioniert es: drei Schritte */
+(()=>{const D=[
+  {t:"Die Rechnung ins Projekt aufnehmen",p:"Erfasse Handwerkerrechnungen per QR aus Kamera, Foto oder PDF. Auf dem Handy steht dir auch der Dokumentscanner zur Verfügung.",l:["QR per Kamera","Foto oder PDF","Dokumentscanner auf dem Handy"]},
+  {t:"Angaben vor der Freigabe prüfen",p:"Prüfe IBAN, Betrag, Werkvertrag, Rückbehalt und mögliche Doppel. Bei Unklarheiten hältst du eine Rückfrage fest.",l:["IBAN und Betrag","Werkvertrag und Rückbehalt","Mögliche doppelte Rechnungen"]},
+  {t:"Freigabe für die Bauherrschaft dokumentieren",p:"Gib Rechnungen einzeln oder gemeinsam frei. Erstelle Visum, Zahlungsempfehlung und Zahlungsfreigabe als PDF. Die Bauherrschaft bezahlt die Handwerker.",l:["Einzeln oder gemeinsam freigeben","Visum als PDF","Zahlungsfreigabe für die Bauherrschaft"]}];
+  const tabs=[...document.querySelectorAll('[role="tab"]')],imgs=[...document.querySelectorAll(".photo img")],T=document.getElementById("howT"),P=document.getElementById("howP"),Ul=document.getElementById("howL"),pn=document.getElementById("panel");
+  let cur=0,timer,ticks=[];
+  const fill=k=>{T.textContent=D[k].t;P.textContent=D[k].p;Ul.innerHTML=D[k].l.map(x=>`<li><i></i>${x}</li>`).join("");ticks.forEach(clearTimeout);ticks=[...Ul.children].map((li,n)=>setTimeout(()=>li.classList.add("on"),RM?0:500+n*450));};
+  const show=(k,user)=>{cur=k;tabs.forEach((b,n)=>{b.setAttribute("aria-selected",n===k);b.tabIndex=n===k?0:-1;});imgs.forEach(im=>im.classList.toggle("hide",+im.dataset.i!==k));
+    [T,P,Ul].forEach(e=>e.style.opacity=0);setTimeout(()=>{fill(k);[T,P,Ul].forEach(e=>{e.style.transition="opacity .35s";e.style.opacity=1;});},RM?0:180);if(user)clearInterval(timer);};
+  tabs.forEach((b,n)=>{b.addEventListener("click",()=>show(n,true));b.addEventListener("keydown",e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){const k=(cur+(e.key==="ArrowRight"?1:2))%3;show(k,true);tabs[k].focus();}});});
+  fill(0);if(!RM)timer=setInterval(()=>show((cur+1)%3),7000);})();
+
+/* Sichtbar werden beim Scrollen */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target);}}),{threshold:.18});
+document.querySelectorAll(".reveal").forEach(el=>io.observe(el));
+
+/* Der Rechnungsweg: Schritt für Schritt */
+(()=>{const ns=[...document.querySelectorAll("#flow .node")];let k=0;const tick=()=>{ns.forEach((n,i)=>{n.classList.toggle("on",i<k);n.classList.toggle("now",i===k);});k=(k+1)%(ns.length+1);};tick();if(!RM)setInterval(tick,1400);})();
+
+/* Im Detail: Schalter gehen nacheinander an */
+(()=>{const fs=[...document.querySelectorAll("#ring .ft")];const go=()=>fs.forEach((f,i)=>setTimeout(()=>f.classList.add("on"),RM?0:300+i*260));
+  const o=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)){go();o.disconnect();}},{threshold:.3});o.observe(document.getElementById("ring"));})();
+
+/* Zahlen zählen hoch */
+(()=>{const o=new IntersectionObserver(es=>{if(!es.some(e=>e.isIntersecting))return;o.disconnect();
+  document.querySelectorAll("#stats [data-n]").forEach(b=>{const n=+b.dataset.n;if(RM||!n)return;let v=0;const st=()=>{v++;b.textContent=v;if(v<n)setTimeout(st,140);};b.textContent=0;st();});},{threshold:.4});o.observe(document.getElementById("stats"));})();
+
+/* Fragen: immer nur eine offen */
+document.querySelectorAll("details").forEach(d=>d.addEventListener("toggle",()=>{if(d.open)document.querySelectorAll("details").forEach(o=>{if(o!==d)o.open=false;});}));
+
+/* Abschluss: Mosaik aus Bausteinen wie im Logo */
+(()=>{const m=document.getElementById("mosaic"),N=72;let h="";for(let i=0;i<N;i++){const r=Math.random();h+=`<i class="${r<.16?"k":r<.46?"m":r<.74?"":r>.985?"r":"e"}"></i>`;}m.innerHTML=h;
+  const cells=[...m.children];if(!cells.some(c=>c.classList.contains("r")))cells[29].className="r";
+  const o=new IntersectionObserver(es=>{if(!es.some(e=>e.isIntersecting))return;o.disconnect();cells.forEach((c,i)=>setTimeout(()=>c.classList.add("v"),RM?0:(i%24)*35+Math.floor(i/24)*90));
+    if(!RM)setInterval(()=>{const c=cells[Math.floor(Math.random()*N)];if(c.classList.contains("r"))return;c.classList.toggle("k");},900);},{threshold:.2});o.observe(m);})();
+</script>
+</body>
+</html>

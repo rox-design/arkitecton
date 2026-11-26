@@ -37,8 +37,8 @@ async def main():
     await pg.evaluate("go('rechnungen')");await pg.wait_for_timeout(400)
     fb=await pg.evaluate("PI().filter(i=>i.status==='frei').length")
     await pg.click('[data-k="inv:pruefen"]');await pg.wait_for_timeout(400)  # the button sits in the «Zu prüfen» sheet
-    if await pg.query_selector('#overlay [data-act="bulk-open"]'):
-      await pg.click('#overlay [data-act="bulk-open"]');await pg.wait_for_timeout(500)
+    if await pg.query_selector('[data-act="bulk-open"]'):
+      await pg.click('[data-act="bulk-open"]');await pg.wait_for_timeout(500)
       if await pg.query_selector('#overlay [data-act="bulk-approve"]'):await pg.click('#overlay [data-act="bulk-approve"]');await pg.wait_for_timeout(700)
     fa=await pg.evaluate("PI().filter(i=>i.status==='frei').length");ok('Gemeinsam freigeben',fa>fb,(fb,fa))
     # PDFs

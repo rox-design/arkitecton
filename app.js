@@ -127,7 +127,9 @@ document.addEventListener("click",e=>{
     case "t-link":{const t=T(id);t.link=t.link||{};t.link[el.dataset.d]=el.dataset.f;render();toast(L("Aus Büro-Unterlagen übernommen","Taken from firm documents"));break;}
     case "t-unlink":{const t=T(id);if(t.link)delete t.link[el.dataset.d];openForm("tlink",id,el.dataset.d);break;}
     case "t-doc":{const t=T(el.dataset.t);t.done[el.dataset.d]=!t.done[el.dataset.d];render();break;}
-    case "sheet":closeAll();S.sheet=el.dataset.k;renderOverlay();break;
+    case "sheet":if(isDesk()&&el.closest("#main .stats")){closeAll();S.tsel=S.tsel===el.dataset.k?null:el.dataset.k;render();if(S.tsel){const tp=document.getElementById("tpanel");if(tp)tp.scrollIntoView({block:"nearest",behavior:"smooth"});}break;}
+      closeAll();S.sheet=el.dataset.k;renderOverlay();break;
+    case "tsel-close":{const k=S.tsel;S.tsel=null;render();const t=k&&[...document.querySelectorAll('#main .stats [data-act="sheet"]')].find(e=>e.dataset.k===k);if(t)t.focus();break;}
     case "form":openForm(el.dataset.f,id,el.dataset.w);break;
     case "form-project":openForm("project");break;
     case "form-project-edit":openForm("project",id);break;

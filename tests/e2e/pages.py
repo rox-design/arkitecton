@@ -8,6 +8,7 @@ async def main():
     for mob in [True,False]:
       ctx,pg,errs=await start(b,mobile=mob);tag='Handy' if mob else 'Desktop'
       M='#overlay .mi' if mob else '#pop .popi'
+      SH='#overlay .sheet' if mob else '#tpanel'  # phone: sheet; computer: content below the tiles
       await pg.evaluate("go('profil')");await pg.wait_for_timeout(300)
       ok(f'{tag}: keine Stift- und Papierkorb-Knöpfe pro Dokument',not await pg.query_selector('.drow [data-act="ask"],.drow [data-f="docvalid"]'))
       n0=await pg.evaluate("docsFor('firm','firm').length")
@@ -37,7 +38,7 @@ async def main():
       ok(f'{tag}: alle Kacheln auf Home antippbar',await pg.evaluate("[...document.querySelectorAll('#main .stats .stat')].every(e=>e.tagName==='BUTTON'&&e.dataset.act==='sheet')"))
       for k in ['sum-inv','sum-fee','sum-ten','income']:
         await pg.evaluate("closeAll();render()");await pg.click(f'[data-k="{k}"]');await pg.wait_for_timeout(250)
-        ok(f'{tag}: Home-Kachel {k} öffnet ein Blatt',await pg.evaluate("!!document.querySelector('#overlay .sheet')"))
+        ok(f'{tag}: Home-Kachel {k} öffnet '+('ein Blatt' if mob else 'den Inhalt unter den Kacheln'),await pg.evaluate("!!document.querySelector('"+SH+"')&&!document.querySelector('"+('#tpanel' if mob else '#overlay .sheet')+"')"))
       for tab,pre,keys in [('kred','inv:',['pruefen','rueckfrage','frei','bezahlt']),('deb','fee:',['open','due','paid'])]:
         await pg.evaluate(f"closeAll();S.rtab='{tab}';go('rechnungen')");await pg.wait_for_timeout(250)
         ok(f'{tag}: Rechnungen {tab} ohne «Nächster Schritt»',not await pg.query_selector('#main .tnext'))
@@ -47,12 +48,24 @@ async def main():
           if not t: continue
           n=await pg.evaluate(f"parseInt(document.querySelector('[data-k=\"{pre}{k}\"] .ss').textContent)||1")
           await t.click();await pg.wait_for_timeout(250)
-          ok(f'{tag}: Kachel {pre}{k} zeigt so viele Einträge wie sie zählt',await pg.evaluate("document.querySelectorAll('#overlay .sheet .row').length")==n)
-          btn=await pg.query_selector('#overlay .sheet .bar-actions .btn')
-          if btn: ok(f'{tag}: Knopf im Blatt {pre}{k} über die ganze Breite',await pg.evaluate("(()=>{const b=document.querySelector('#overlay .sheet .bar-actions .btn'),r=b.parentElement.getBoundingClientRect(),q=b.getBoundingClientRect();return Math.abs(r.width-q.width)<2})()"))
+          ok(f'{tag}: Kachel {pre}{k} zeigt so viele Einträge wie sie zählt',await pg.evaluate("document.querySelectorAll('"+SH+" .row').length")==n)
+          btn=await pg.query_selector(SH+' .bar-actions .btn')
+          if btn: ok(f'{tag}: Knopf im Blatt {pre}{k} über die ganze Breite',await pg.evaluate("(()=>{const b=document.querySelector('"+SH+" .bar-actions .btn'),r=b.parentElement.getBoundingClientRect(),q=b.getBoundingClientRect();return Math.abs(r.width-q.width)<2})()"))
         ok(f'{tag}: Rechnungen {tab}: keine Kachel leer (Beispieldaten)',await pg.evaluate("closeAll(),render(),[...document.querySelectorAll('#main .stats .stat')].every(e=>e.tagName==='BUTTON')"))
       await pg.evaluate("closeAll();S.kid=null;go('handwerker')");await pg.wait_for_timeout(250)
       ok(f'{tag}: Handwerker ohne «Nächster Schritt»',not await pg.query_selector('#main .tnext'))
+      if not mob:
+        # computer: tile content opens below the tiles, the tile is marked, a second click or × closes it, leaving the page closes it
+        await pg.evaluate("closeAll();S.tsel=null;D.pid='p1';S.rtab='kred';go('rechnungen')");await pg.wait_for_timeout(200)
+        await pg.click('#main [data-k="inv:pruefen"]');await pg.wait_for_timeout(250)
+        ok('Desktop: Inhalt erscheint direkt unter den Kacheln, kein Blatt',await pg.evaluate("(()=>{const t=document.getElementById('tpanel');return !!t&&t.previousElementSibling.classList.contains('stats')&&!document.querySelector('#overlay .sheet')})()"))
+        ok('Desktop: gewählte Kachel markiert',await pg.evaluate("document.querySelector('#main [data-k=\"inv:pruefen\"]').classList.contains('sel')&&document.querySelector('#main [data-k=\"inv:pruefen\"]').getAttribute('aria-expanded')==='true'"))
+        await pg.click('#main [data-k="inv:pruefen"]');await pg.wait_for_timeout(200)
+        ok('Desktop: zweiter Klick auf die Kachel schliesst',not await pg.query_selector('#tpanel'))
+        await pg.click('#main [data-k="inv:bezahlt"]');await pg.wait_for_timeout(200);await pg.click('#tpanel .x');await pg.wait_for_timeout(200)
+        ok('Desktop: × schliesst',not await pg.query_selector('#tpanel'))
+        await pg.click('#main [data-k="inv:bezahlt"]');await pg.wait_for_timeout(200);await pg.evaluate("go('budget')");await pg.wait_for_timeout(200)
+        ok('Desktop: Seitenwechsel schliesst',not await pg.query_selector('#tpanel'))
       # Handwerker: every tile opens a sheet with exactly the entries it counts; no tile is empty in the example data
       for pid in await pg.evaluate("D.projects.filter(p=>!p.closed&&D.contracts.some(w=>w.pid===p.id)).map(p=>p.id)"):
         await pg.evaluate(f"closeAll();D.pid='{pid}';S.kid=null;go('handwerker')");await pg.wait_for_timeout(250)
@@ -61,11 +74,11 @@ async def main():
           await pg.evaluate("closeAll();render()");await pg.wait_for_timeout(100)
           exp=await pg.evaluate(f"(()=>{{const d=kData();return '{k}'==='missing'?d.kMiss.length:'{k}'==='all'?d.all.length:d.all.filter(d.FL['{k}']).length}})()")
           await pg.click(f'[data-k="kw:{k}"]');await pg.wait_for_timeout(250)
-          ok(f'{tag}: Handwerker-Kachel {k} zeigt so viele Einträge wie sie zählt',await pg.evaluate("document.querySelectorAll('#overlay .sheet .row').length")==exp)
+          ok(f'{tag}: Handwerker-Kachel {k} zeigt so viele Einträge wie sie zählt',await pg.evaluate("document.querySelectorAll('"+SH+" .row').length")==exp)
       await pg.evaluate("closeAll();D.pid='p1';go('handwerker')");await pg.wait_for_timeout(250)
       ok(f'{tag}: Handwerker: keine Liste der Werkverträge unter den Kacheln',await pg.evaluate("document.querySelectorAll('#main .page section .rows .row').length")==await pg.evaluate("kData().loose.length"))
-      await pg.click('[data-k="kw:ret"]');await pg.wait_for_timeout(250);await pg.click('#overlay .sheet .row');await pg.wait_for_timeout(300)
-      ok(f'{tag}: Zeile im Blatt öffnet den Handwerker',await pg.evaluate("!!S.kid&&!document.querySelector('#overlay .sheet')"))
+      await pg.click('[data-k="kw:ret"]');await pg.wait_for_timeout(250);await pg.click(SH+' .row');await pg.wait_for_timeout(300)
+      ok(f'{tag}: Zeile im Blatt öffnet den Handwerker',await pg.evaluate("!!S.kid&&!document.querySelector('#overlay .sheet,#tpanel')"))
       # Budget: every tile opens the BKP table with exactly the positions it counts; nothing below the tiles
       for pid in await pg.evaluate("D.projects.filter(p=>!p.closed&&(p.budget||[]).length).map(p=>p.id)"):
         await pg.evaluate(f"closeAll();D.pid='{pid}';S.kid=null;go('budget')");await pg.wait_for_timeout(250)
@@ -75,11 +88,11 @@ async def main():
           await pg.evaluate("closeAll();render()");await pg.wait_for_timeout(100)
           exp=await pg.evaluate(f"budgetRows().filter(BUD_F['{k}']).length")
           await pg.click(f'[data-k="bud:{k}"]');await pg.wait_for_timeout(250)
-          ok(f'{tag}: Budget-Kachel {k} zeigt so viele Positionen wie sie zählt',await pg.evaluate("document.querySelectorAll('#overlay .sheet .brow').length")==exp)
+          ok(f'{tag}: Budget-Kachel {k} zeigt so viele Positionen wie sie zählt',await pg.evaluate("document.querySelectorAll('"+SH+" .brow').length")==exp)
         if not mob:
-          ok(f'{tag}: Budget-Blatt breit genug für die Tabelle',await pg.evaluate("document.querySelector('#overlay .sheet').getBoundingClientRect().width")>=700)
+          ok(f'{tag}: Budget unter den Kacheln breit genug für die Tabelle',await pg.evaluate("document.querySelector('"+SH+"').getBoundingClientRect().width")>=700)
       await pg.evaluate("closeAll();D.pid='p1';go('budget')");await pg.wait_for_timeout(200)
-      await pg.click('[data-k="bud:over"]');await pg.wait_for_timeout(250);await pg.click('#overlay .sheet .brow');await pg.wait_for_timeout(300)
+      await pg.click('[data-k="bud:over"]');await pg.wait_for_timeout(250);await pg.click(SH+' .brow');await pg.wait_for_timeout(300)
       ok(f'{tag}: Position im Blatt öffnet die Erklärung',await pg.evaluate("!!S.kvx"))
       # existing data with retention 0 already frozen in the invoices: the migration still fills the Rückbehalt tile
       await pg.evaluate("closeAll();S.kid=null;D.contracts.forEach(w=>w.ret=0);D.invoices.forEach(i=>{if(i.type==='akonto'&&counted(i))i.retPct=0;});delete D.mig.retDemo;runMigrations();D.pid='p1';go('handwerker')");await pg.wait_for_timeout(250)

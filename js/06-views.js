@@ -642,5 +642,22 @@ function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]
   app.style.display="";document.querySelector(".rail").style.display="";document.querySelector(".topbar").style.display="";document.getElementById("tabbar").style.display="";
   renderChrome();swipeHint();
   document.getElementById("main").innerHTML=pNav()+({buero:viewFirm,projekte:viewProjekte,uebersicht:viewOverview,rechnungen:viewInvoices,handwerker:viewContractors,budget:viewBudget,ausschreibungen:viewTenders,profil:viewProfil,einstellungen:viewSettings})[S.view]();
-  trimRail();foldSections();renderOverlay();
+  tilePanel();trimRail();foldSections();renderOverlay();
+}
+/* on the computer a tile does not open a sheet: its content opens right below the tiles (same content as the phone sheet).
+   Tapping the tile again or × closes it; leaving the page closes it too */
+const isDesk=()=>!matchMedia("(max-width:820px)").matches;
+function tilePanel(){
+  const here=S.view+"|"+D.pid+"|"+(S.rtab||"");if(S.tselAt!==here){S.tsel=null;S.tselAt=here;}
+  if(!S.tsel||!isDesk())return;
+  const t=[...document.querySelectorAll('#main .stats [data-act="sheet"]')].find(e=>e.dataset.k===S.tsel);if(!t){S.tsel=null;return;}
+  const prev=S.sheet;S.sheet=S.tsel;let html="";try{html=sheetHTML();}finally{S.sheet=prev;}
+  const tpl=document.createElement("template");tpl.innerHTML=html;const sh=tpl.content.querySelector(".sheet");if(!sh)return;
+  const h=sh.querySelector(".ohead h2"),b=sh.querySelector(".obody");
+  b.querySelectorAll('[data-act="close"]').forEach(x=>x.dataset.act="tsel-close");
+  const sec=document.createElement("section");sec.className="tpanel";sec.id="tpanel";sec.setAttribute("aria-labelledby","tpT");
+  sec.innerHTML=`<div class="tph"><h2 id="tpT">${h?h.innerHTML:""}</h2><button type="button" class="x" data-act="tsel-close" aria-label="${L("Schliessen","Close")}">×</button></div><div class="tpb">${b?b.innerHTML:""}</div>`;
+  t.classList.add("sel");t.setAttribute("aria-expanded","true");t.setAttribute("aria-controls","tpanel");
+  document.querySelectorAll('#main .stats [data-act="sheet"]').forEach(e=>{if(e!==t)e.setAttribute("aria-expanded","false");});
+  t.closest(".stats").insertAdjacentElement("afterend",sec);
 }

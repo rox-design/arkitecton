@@ -14,7 +14,7 @@ async def main():
     fl=await pg.evaluate("document.querySelectorAll('.row.flash').length");ok('neue Rechnungen leuchten',fl>0,fl)
     await pg.screenshot(path=os.path.join(tempfile.gettempdir(),'flash.png'))
     # bulk approve + undo
-    await pg.wait_for_timeout(300);await pg.click('[data-k="inv:pruefen"]');await pg.wait_for_timeout(400);await pg.click('#overlay [data-act=bulk-open]');await pg.wait_for_timeout(500);await pg.click('#overlay [data-act=bulk-approve]');await pg.wait_for_timeout(500)
+    await pg.wait_for_timeout(300);await pg.click('[data-k="inv:pruefen"]');await pg.wait_for_timeout(400);await pg.click('[data-act=bulk-open]');await pg.wait_for_timeout(500);await pg.click('#overlay [data-act=bulk-approve]');await pg.wait_for_timeout(500)
     fr=await pg.evaluate("PI().filter(i=>i.status==='frei').length");t=await pg.evaluate("document.getElementById('toast').innerText")
     ok('Meldung mit Rückgängig',('Rückgängig' in t),t.replace('\n',' '))
     await pg.screenshot(path=os.path.join(tempfile.gettempdir(),'undo_toast.png'))

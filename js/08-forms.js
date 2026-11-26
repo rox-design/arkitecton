@@ -308,6 +308,12 @@ function sheetHTML(){
     const top=f==="all"?`<div class="bsum"><span>${L("Reserve","Reserve")}</span><b class="${t.rest<0?"up":""}">${chf(t.rest,false)}</b></div>`:"";
     return sheetBox(({all:t.rev?L("Kostenvoranschlag rev.","Revised estimate"):L("Kostenvoranschlag","Cost estimate"),aw:L("Vergeben","Awarded"),no:L("Nicht vergeben","Not awarded"),over:L("Über Budget","Over budget")})[f]+" · "+li.length,top+budgetTable(li),"wide");}
   /* Entwurf «uebersicht»: a Home tile opens exactly the invoices it counts, across all projects */
+  /* Entwurf «uebersicht»: a Projekte tile opens exactly the projects (or budget positions) it counts */
+  if(/^pj:/.test(S.sheet)){const k=S.sheet.slice(3),ps=projStats().filter(x=>!x.p.closed).filter((PJT[k]||PJT.all).f);
+    const rows=k==="over"?ps.flatMap(x=>x.over).map(({p,r})=>`<button type="button" class="row" data-act="open-project" data-id="${p.id}">${dot("warn")}<span class="rt">BKP ${esc(r.b.bkp)} ${esc(tx(r.b))}</span><span class="rm">${esc(p.name)}</span><span class="ra">${chf(-r.rest,false)}</span><span class="rl l-warn">${L("über KV","over estimate")}</span></button>`).join("")
+      :ps.map(x=>row({act:"open-project",id:x.p.id,c:x.rest<0||x.flc?"warn":"ok",title:esc(x.p.name),meta:esc(x.p.place||""),amt:k==="fl"?chf(x.flc,false):x.kv?chf(x.kv,false):"",label:k==="fl"?x.fl+" "+(x.fl===1?L("Hinweis","finding"):L("Hinweise","findings")):x.kv?x.pct+" % "+L("Kostenstand","cost status"):L("kein Budget","no budget"),lc:k==="fl"?"warn":"n"})).join("");
+    const n=k==="over"?ps.reduce((a,x)=>a+x.over.length,0):ps.length;
+    return sheetBox((PJT[k]||PJT.all).l()+" · "+n,`<div class="rows">${rows}</div>`);}
   if(/^ainv:/.test(S.sheet)){const k=S.sheet.slice(5),li=allInv().filter((AINV[k]||AINV.pruefen).f);
     return sheetBox((AINV[k]||AINV.pruefen).l()+" · "+li.length,`<div class="rows">${li.map(ainvRow).join("")}</div>`);}
   if(/^fee:/.test(S.sheet)){const k=S.sheet.slice(4),all=PF();const li=(k==="open"?all.filter(f=>!f.paid):k==="due"?all.filter(f=>remDue(f)):all.filter(f=>f.paid)).sort((a,b)=>toDate(b.date)-toDate(a.date));

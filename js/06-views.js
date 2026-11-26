@@ -31,6 +31,7 @@ function nextCard(o){
 }
 /* all projects in one place, each row with its most urgent point */
 function viewProjekte(){
+  if(DRAFT==="uebersicht")return viewProjekteDraft();
   const ps=D.projects.map(p=>withP(p.id,()=>{const fo=PF().filter(f=>!f.paid);return {p,n:unpaid(PI()).length,sum:toPay(PI()),fl:flags().length,rem:fo.filter(f=>remDue(f)).length};}));
   const top=x=>x.rem?[x.rem+" "+(x.rem===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")),"crit"]:x.fl?[x.fl+" "+L("Mehrkosten","extra costs"),"warn"]:x.n?[x.n+" "+L("offen","open"),"n"]:[L("nichts offen","nothing open"),"ok"];
   const act=ps.filter(x=>!x.p.closed),dn=ps.filter(x=>x.p.closed);
@@ -38,6 +39,59 @@ function viewProjekte(){
   return `<div class="page">${ph("",L("Projekte","Projects"),"",ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"'))}
     <div class="rows">${rows||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div>
     ${foldRows(L("Abgeschlossene Projekte","Completed projects"),dn.map(x=>row({act:"open-project",id:x.p.id,c:"ok",title:esc(x.p.name),meta:x.p.place?esc(x.p.place):"",amt:"",label:""})).join(""),dn.length)}
+  </div>`;
+}
+/* Entwurf «uebersicht»: the state of every project, for the Projekte page and its tile sheets */
+function projStats(){
+  return D.projects.map(p=>withP(p.id,()=>{const rows=budgetRows(),t=totals(rows),fl=flags(),fo=PF().filter(f=>!f.paid);
+    return {p,kv:t.kv,billed:t.billed,rest:t.rest,pct:t.kv?Math.round(t.billed/t.kv*100):0,fl:fl.length,flc:flagSum(fl),open:unpaid(PI()).length,over:rows.filter(r=>r.over).map(r=>({p,r})),fees:fo.reduce((a,f)=>a+feeTotal(f),0)};}));
+}
+const PJT={all:{l:()=>L("Laufende Projekte","Active projects"),f:x=>true},kv:{l:()=>L("Kostenvoranschlag","Cost estimate"),f:x=>x.kv>0},fl:{l:()=>L("Mehrkosten","Extra costs"),f:x=>x.flc>0},over:{l:()=>L("Über Budget","Over budget"),f:x=>x.over.length>0}};
+const projCard=x=>{const p=x.p,bar=x.kv?Math.min(100,x.pct):0,warn=x.rest<0;
+  const facts=[x.kv?L("Reserve ","Reserve ")+chf(x.rest,false):L("kein Budget","no budget"),x.flc?L("Mehrkosten ","Extra costs ")+chf(x.flc,false):"",x.open?x.open+" "+L("offen","open"):""].filter(Boolean);
+  return `<button type="button" class="pcard" data-act="open-project" data-id="${p.id}"><span class="pc-h"><b>${esc(p.name)}</b><span>${esc(p.place||"")}</span></span>
+    <span class="pc-k"><span class="pc-v">${x.kv?x.pct+" %":"–"}</span><span class="pc-l">${x.kv?L("Kostenstand von ","Cost status of ")+chf(x.kv,false):L("noch kein Kostenvoranschlag","no cost estimate yet")}</span></span>
+    <span class="pc-bar${warn?" warn":""}"><i style="width:${bar}%"></i></span>
+    <span class="pc-f">${facts.map((f,i)=>`<span class="${i===0&&warn?"l-warn":i===1?"l-warn":""}">${f}</span>`).join("")}</span></button>`;};
+function viewProjekteDraft(){
+  const ps=projStats(),act=ps.filter(x=>!x.p.closed),dn=ps.filter(x=>x.p.closed);
+  const kv=act.reduce((a,x)=>a+x.kv,0),bil=act.reduce((a,x)=>a+x.billed,0),flc=act.reduce((a,x)=>a+x.flc,0),ov=act.reduce((a,x)=>a+x.over.length,0);
+  const tile=(k,v,ss,c)=>{const n=act.filter(PJT[k].f).length,inner=`<span class="sl">${PJT[k].l()}</span><span class="sv${c&&n?" "+c:""}">${n?v:"–"}</span><span class="ss">${n?ss:L("keine","none")}</span>`;
+    return n?`<button type="button" class="stat" data-act="sheet" data-k="pj:${k}" aria-haspopup="dialog">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
+  return `<div class="page">${ph("",L("Projekte","Projects"),"",ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"'))}
+    <div class="stats s4">${tile("all",act.length,act.length===1?L("Projekt","project"):L("Projekte","projects"))}${tile("kv",chf(kv,false),kv?Math.round(bil/kv*100)+" % "+L("Kostenstand","cost status"):"")}${tile("fl",chf(flc,false),act.filter(PJT.fl.f).length+" "+L("Projekte","projects"),"warn")}${tile("over",ov,ov===1?L("Position","item"):L("Positionen","items"),"warn")}</div>
+    <div class="pcards">${act.map(projCard).join("")||`<div class="empty">${L("Noch keine Projekte.","No projects yet.")}</div>`}</div>
+    ${foldRows(L("Abgeschlossene Projekte","Completed projects"),dn.map(x=>row({act:"open-project",id:x.p.id,c:"ok",title:esc(x.p.name),meta:x.p.place?esc(x.p.place):"",amt:"",label:""})).join(""),dn.length)}
+  </div>`;
+}
+/* Entwurf «uebersicht»: the project itself. The tiles show the state of the tabs and jump there; invoices live on Home and in Rechnungen */
+function viewOverviewDraft(){
+  const p=P(); if(!p) return noProject();
+  const t=totals(budgetRows()),fl=flags(),flSum=flagSum(fl),pct=t.kv?Math.round(t.billed/t.kv*100):0;
+  const upl=unpaid(PI()),fo=PF().filter(f=>!f.paid),feeSum=fo.reduce((a,f)=>a+feeTotal(f),0),rm=fo.filter(f=>remDue(f)).length,nW=PC().length,sumW=PC().reduce((a,w)=>a+(w.sum||0),0);
+  const tl=(act,ex,l,v,ss,c)=>`<button type="button" class="stat" data-act="${act}"${ex||""}><span class="sl">${l}</span><span class="sv${c?" "+c:""}">${v}</span><span class="ss">${ss}</span></button>`;
+  const pts=[];
+  missingTasks().forEach(x=>pts.push({act:"open-k",ex:`data-id="${x.k.id}"`,c:"warn",title:esc(x.k.name),meta:L("Fehlt: ","Missing: ")+x.m.join(", "),label:""}));
+  docsOfProject(p.id).map(d=>[d,docValid(d)]).filter(([d,v])=>v&&v.c!=="ok").forEach(([d,v])=>{const k=d.kid&&K(d.kid);pts.push({act:"doc-open",ex:`data-id="${d.id}"`,c:v.c,title:esc(k?k.name:d.name),meta:esc(dkShort(docKind(d)))+(docKind(d)==="gs"?L(" · Mängel rügen"," · report defects"):L(" · neu verlangen"," · request new")),label:v.t});});
+  const shown=S.allFlags?fl:fl.slice(0,3);
+  const flagRows=shown.map(f=>row({act:f.act,id:f.id,v:f.v,c:f.c,title:esc(f.t),meta:esc(f.m),amt:f.chf===null?"":chf(f.chf,false),label:""})).join("");
+  const addr=[p.client,p.cStreet,[p.cZip,p.cCity].filter(Boolean).join(" ")].filter(Boolean).map(esc).join(", ");
+  const info=[[L("Bauherrschaft","Client"),addr||`<span class="l-n">${L("noch nicht erfasst","not recorded yet")}</span>`],[L("Ort","Place"),esc(p.place||"")||`<span class="l-n">${L("noch nicht erfasst","not recorded yet")}</span>`],[L("Beschreibung","Description"),esc(p.desc||"")||`<span class="l-n">${L("noch nicht erfasst","not recorded yet")}</span>`]];
+  return `<div class="page">
+    ${ph("",L("Übersicht","Overview"),"","")}
+    ${startSteps()}
+    <div class="stats s4">
+      ${tl("to-pay","",L("Rechnungen","Invoices"),upl.length,upl.length?openTop(upl):L("nichts offen","nothing open"))}
+      ${tl("nav",' data-v="handwerker"',L("Handwerker","Contractors"),nW,nW?chf(sumW,false):L("keine Werkverträge","no contracts"))}
+      ${tl("nav",' data-v="budget"',L("Budget","Budget"),t.kv?pct+" %":"–",t.kv?L("von ","of ")+chf(t.kv,false):L("kein Budget","no budget"))}
+      ${tl("to-fees","",L("Honorar","Fees"),chf(feeSum,false),rm?rm+" "+(rm===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):fo.length+" "+L("offen","open"),rm?"crit":"")}
+    </div>
+    ${nextCard({key:"proj:"+p.id,items:pts})}
+    <section id="flags" class="tsec"><div class="sh"><h2>${L("Mehrkosten","Extra costs")}</h2><span class="cnt">${fl.length}</span>${fl.length?tSum(L("Total ","Total ")+chf(flSum,false),"warn"):tSum(L("keine","none"),"ok")}</div><div class="rows">${flagRows||`<div class="empty"><span>${L("Keine Mehrkosten. arkitecton vergleicht jede Rechnung mit Werkvertrag, Offerte und Budget.","No extra costs. arkitecton compares each invoice with contract, offer and budget.")}</span></div>`}</div>
+      ${fl.length>3?`<button type="button" class="more" data-act="all-flags">${S.allFlags?L("Weniger anzeigen","Show less"):L("Alle anzeigen","Show all")}</button>`:""}</section>
+    <section class="pinfo"><div class="sh"><h2>${L("Projekt","Project")}</h2><span class="right">${ib("edit",L("Projekt bearbeiten","Edit project"),'data-act="form-project-edit" data-id="'+p.id+'"')}</span></div>
+      <dl>${info.map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl></section>
+    ${docsFold(docsGrouped("project",p.id,L("Projektdokumente","Project documents"),L("Pläne, Bewilligungen, Kostenvoranschlag mit ＋ ablegen.","Store plans, permits and estimates with ＋.")),docsOfProject(p.id))}
   </div>`;
 }
 /* ---------- Entwurf «uebersicht»: Home als Übersicht aller Rechnungen über alle Projekte ---------- */
@@ -115,6 +169,7 @@ function viewFirm(){
   </div>`;
 }
 function viewOverview(){
+  if(DRAFT==="uebersicht")return viewOverviewDraft();
   const p=P(); if(!p) return noProject();
   const t=totals(budgetRows());
   const toCheck=PI().filter(i=>!counted(i)).sort((a,b)=>toDate(a.due)-toDate(b.due));

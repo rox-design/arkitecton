@@ -110,10 +110,9 @@ const ainvRow=x=>row({act:"p-open",id:x.id,c:x.c,title:esc(x.who),meta:esc(x.pna
 function viewFirmDraft(){
   const today=TODAY.toLocaleDateString(S.lang==="de"?"de-CH":"en-GB",{weekday:"long",day:"numeric",month:"long"});
   const all=allInv();
-  const tile=k=>{const li=all.filter(AINV[k].f),n=li.length,sum=li.reduce((a,x)=>a+x.amt,0),inner=`<span class="sl"><i class="dot l-${k==="pruefen"?"warn":k==="rueckfrage"?"crit":k==="frei"?"acc":"crit"}"></i>${AINV[k].l()}</span><span class="sv">${n}</span><span class="ss">${n?chf(sum,false):L("keine","none")}</span>`;
-    return n?`<button type="button" class="stat" data-act="sheet" data-k="ainv:${k}" aria-haspopup="dialog">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
-  const fs=S.aif||"open",ft=S.ait||"all";
-  const li=all.filter(x=>(fs==="all"||x.open)&&(ft==="all"||x.kind===ft));
+  const fs=S.aif||"open",ft=S.ait||"all",byT=x=>ft==="all"||x.kind===ft;
+  /* status filter above the table: Offen, the four states that need the architect (with their count), Alle */
+  const li=all.filter(x=>byT(x)&&(fs==="all"?true:fs==="open"?x.open:AINV[fs]?AINV[fs].f(x):x.open));
   const chip=(grp,v,l,cur)=>`<button type="button" class="chip${cur===v?" on":""}" data-act="aif" data-g="${grp}" data-f="${v}" aria-pressed="${cur===v}">${l}</button>`;
   const head=`<div class="ainv-h"><span>${L("Rechnung","Invoice")}</span><span>${L("Projekt","Project")}</span><span>${L("Typ","Type")}</span><span class="r">${L("Betrag","Amount")}</span><span>${L("Status","Status")}</span><span class="r">${L("Mahnstufe","Reminder")}</span></div>`;
   const trow=x=>`<button type="button" class="ainv-r" data-act="p-open" data-id="${x.id}" data-p="${x.pid}" data-k="${x.kind}"><span><b>${esc(x.who)}</b><small>${esc(x.no)} · ${fdate(x.date)}</small></span><span>${esc(x.pname)}</span><span>${x.kind==="inv"?L("Handwerker","Contractor"):L("Honorar","Fee")}</span><span class="r">${chf(x.amt,false)}</span><span><i class="pillst l-${x.c}"><i class="dot"></i>${x.lab}</i></span><span class="r mute">${x.rem||""}</span></button>`;
@@ -126,14 +125,26 @@ function viewFirmDraft(){
     ${ph(esc(today),L("Übersicht","Overview"),"","")}
     <p class="hov-lead">${L("Alle Rechnungen auf einen Blick, mit Status, Freigaben und Mahnstufen.","All invoices at a glance, with status, approvals and reminder levels.")}</p>
     ${dataNotice()}${startSteps()}
-    <div class="stats s4">${tile("pruefen")}${tile("rueckfrage")}${tile("frei")}${tile("fdue")}</div>
+    ${homeTiles()}
     ${nextCard({key:"home",items:pts})}
     <section class="ainv"><div class="sh"><h2>${L("Alle Rechnungen","All invoices")}</h2><span class="cnt">${li.length}</span></div>
-      <div class="chips" role="group" aria-label="${L("Filter","Filter")}">${chip("s","open",L("Offen","Open"),fs)}${chip("s","all",L("Alle","All"),fs)}<span class="sep"></span>${chip("t","all",L("Beide","Both"),ft)}${chip("t","inv",L("Handwerker","Contractor"),ft)}${chip("t","fee",L("Honorar","Fee"),ft)}</div>
+      <div class="chips" role="group" aria-label="${L("Filter","Filter")}">${chip("s","open",L("Offen","Open"),fs)}${Object.keys(AINV).map(k=>{const n=all.filter(x=>byT(x)&&AINV[k].f(x)).length;return n?chip("s",k,AINV[k].l()+" "+n,fs):"";}).join("")}${chip("s","all",L("Alle","All"),fs)}<span class="sep"></span>${chip("t","all",L("Beide","Both"),ft)}${chip("t","inv",L("Handwerker","Contractor"),ft)}${chip("t","fee",L("Honorar","Fee"),ft)}</div>
       <div class="ainv-t">${head}${li.map(trow).join("")||`<div class="empty"><span>${L("Keine Rechnungen für diesen Filter.","No invoices for this filter.")}</span></div>`}</div>
       <div class="rows ainv-m">${li.map(ainvRow).join("")}</div>
     </section>
   </div>`;
+}
+/* the four tiles of Home: open invoices and fees per project, tenders, income; shared by Home and the draft */
+function homeTiles(){
+  const ps=D.projects.map(p=>withP(p.id,()=>{const chk=unpaid(PI()),fo=PF().filter(f=>!f.paid);return {chk,sum:toPay(PI()),fees:fo.reduce((a,f)=>a+feeTotal(f),0),rem:fo.filter(f=>remDue(f)).length};}));
+  const feeOpen=ps.reduce((a,x)=>a+x.fees,0),remN=ps.reduce((a,x)=>a+x.rem,0),tot=ps.reduce((a,x)=>a+x.sum,0);
+  const tl=D.tenders.filter(x=>!closedT(x)&&daysTo(x.due)>=0),fitN=tl.filter(x=>fitOf(x).fit==="ok").length;
+  return `<div class="stats${FEES().length?" s4":""}">
+      ${(t=>`<button type="button" class="stat" data-act="sheet" data-k="sum-inv" aria-haspopup="dialog">${t}</button>`)(`<span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${openTop(ps.flatMap(x=>x.chk))}</span>`)}
+      ${(t=>`<button type="button" class="stat" data-act="sheet" data-k="sum-fee" aria-haspopup="dialog">${t}</button>`)(`<span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung","no reminder")}</span>`)}
+      <button type="button" class="stat" data-act="sheet" data-k="sum-ten" aria-haspopup="dialog"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${fitN?fitN+" "+L("passend","suitable"):L("keine passend","none suitable")}</span></button>
+      ${FEES().length?`<button type="button" class="stat" data-act="sheet" data-k="income" aria-haspopup="dialog"><span class="sl">${L("Einnahmen","Income")}</span><span class="sv">${chf(Math.round(incomeSection("sum")),false)}</span><span class="ss">${L("12 Monate","12 months")}</span></button>`:""}
+    </div>`;
 }
 function viewFirm(){
   if(DRAFT==="uebersicht")return viewFirmDraft();
@@ -159,12 +170,7 @@ function viewFirm(){
   return `<div class="page">
     ${ph(esc(today),esc(name),"","")}
     ${dataNotice()}${startSteps()}
-    <div class="stats${FEES().length?" s4":""}">
-      ${(t=>`<button type="button" class="stat" data-act="sheet" data-k="sum-inv" aria-haspopup="dialog">${t}</button>`)(`<span class="sl">${L("Offene Rechnungen","Open invoices")}</span><span class="sv">${chf(tot,false)}</span><span class="ss">${openTop(ps.flatMap(x=>x.chk))}</span>`)}
-      ${(t=>`<button type="button" class="stat" data-act="sheet" data-k="sum-fee" aria-haspopup="dialog">${t}</button>`)(`<span class="sl">${L("Zu erhalten","To receive")}</span><span class="sv">${chf(feeOpen,false)}</span><span class="ss${remN?" l-crit":""}">${remN?remN+" "+(remN===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):L("keine Mahnung","no reminder")}</span>`)}
-      <button type="button" class="stat" data-act="sheet" data-k="sum-ten" aria-haspopup="dialog"><span class="sl">${L("Ausschreibungen","Tenders")}</span><span class="sv">${tl.length}</span><span class="ss">${fitN?fitN+" "+L("passend","suitable"):L("keine passend","none suitable")}</span></button>
-      ${FEES().length?`<button type="button" class="stat" data-act="sheet" data-k="income" aria-haspopup="dialog"><span class="sl">${L("Einnahmen","Income")}</span><span class="sv">${chf(Math.round(incomeSection("sum")),false)}</span><span class="ss">${L("12 Monate","12 months")}</span></button>`:""}
-    </div>
+    ${homeTiles()}
     ${nextCard({key:"home",items:pts})}
   </div>`;
 }

@@ -62,7 +62,7 @@ const pNav=()=>{if(!pInProj())return "";const p=P();
 /* in a project the page header disappears (the tab names the page, actions sit in «···» next to the project name);
    only the invoice switch stays, as content of that page. A contractor's own page keeps its header. */
 /* the grey bar that marks a draft, with the way back to the normal app */
-const DRAFTS=()=>({uebersicht:L("Home als Übersicht aller Rechnungen, Projekte als Karten, Projekt-Übersicht neu, Kacheln mit Schatten, ganze Breite, schwarze Leiste","Home as overview of all invoices, projects as cards, new project overview, raised tiles, full width, black rail")});
+const DRAFTS=()=>({uebersicht:L("Home mit Tabelle aller Rechnungen, Projekte als Karten, Projekt-Übersicht neu, Kacheln mit Schatten, ganze Breite, schwarze Leiste","Home as overview of all invoices, projects as cards, new project overview, raised tiles, full width, black rail")});
 const draftBar=()=>DRAFTS()[DRAFT]?`<div class="draftbar"><span><b>${L("Entwurf","Draft")}</b> · ${DRAFTS()[DRAFT]}</span><a href="?entwurf=aus${location.hash}">${L("Entwurf beenden","End draft")}</a></div>`:"";
 const ph=(eyebrow,title,lead,tools)=>{if(!pInProj())return draftBar()+phx(eyebrow,title,lead,tools);
   if(S.kid||S.wid)return phx(eyebrow,title,lead,tools);

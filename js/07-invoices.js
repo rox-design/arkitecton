@@ -146,7 +146,7 @@ async function decodeQR(file){
   }finally{URL.revokeObjectURL(url);}
 }
 let pdfLib=null;
-function loadPdfJs(){if(pdfLib)return pdfLib;pdfLib=new Promise((res,rej)=>{if(window.pdfjsLib)return res(window.pdfjsLib);const sc=document.createElement("script");sc.src="vendor/pdf.min.js";sc.onload=()=>{try{window.pdfjsLib.GlobalWorkerOptions.workerSrc="vendor/pdf.worker.min.js";res(window.pdfjsLib);}catch(e){rej(e);}};sc.onerror=e=>{pdfLib=null;rej(e);};document.head.appendChild(sc);});return pdfLib;}
+function loadPdfJs(){if(pdfLib)return pdfLib;pdfLib=new Promise((res,rej)=>{if(window.pdfjsLib)return res(window.pdfjsLib);const sc=document.createElement("script");sc.src=ROOT+"vendor/pdf.min.js";sc.onload=()=>{try{window.pdfjsLib.GlobalWorkerOptions.workerSrc=ROOT+"vendor/pdf.worker.min.js";res(window.pdfjsLib);}catch(e){rej(e);}};sc.onerror=e=>{pdfLib=null;rej(e);};document.head.appendChild(sc);});return pdfLib;}
 const isPdf=f=>f&&(f.type==="application/pdf"||/\.pdf$/i.test(f.name||""));
 async function decodePdfQR(file){
   const lib=await loadPdfJs();const doc=await lib.getDocument({data:await file.arrayBuffer()}).promise;

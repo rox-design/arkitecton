@@ -1,6 +1,6 @@
 """Shared helpers for the end-to-end checks. Needs a local server in the repo: python3 -m http.server 8766"""
 import os,sys
-URL=os.environ.get("ARK_URL","http://localhost:8766/")
+URL=os.environ.get("ARK_URL","http://localhost:8766/app/")
 R=[]
 def ok(name,cond,info=''):R.append(('OK ' if cond else 'FAIL ')+name+(' '+str(info) if info and not cond else ''))
 def done():

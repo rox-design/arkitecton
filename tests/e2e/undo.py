@@ -5,7 +5,7 @@ def ok(n,c,i=''):R.append(('OK ' if c else 'FAIL ')+n+' '+str(i))
 async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch();ctx=await b.new_context(viewport={'width':390,'height':844},is_mobile=True,has_touch=True);pg=await ctx.new_page();errs=[];pg.on('pageerror',lambda e:errs.append(str(e)))
-    await pg.goto('http://localhost:8766/?raum=un');await pg.evaluate('localStorage.clear()');await pg.goto('http://localhost:8766/?raum=un')
+    await pg.goto('http://localhost:8766/app/?raum=un');await pg.evaluate('localStorage.clear()');await pg.goto('http://localhost:8766/app/?raum=un')
     await pg.click('[data-act="start-example"]');await pg.wait_for_timeout(2000)
     async def act(a,**kw):
       await pg.evaluate("([a,kw])=>{const b=document.createElement('button');b.dataset.act=a;Object.entries(kw).forEach(([k,v])=>b.dataset[k]=v);document.body.appendChild(b);b.click();b.remove()}",[a,kw]);await pg.wait_for_timeout(500)

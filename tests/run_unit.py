@@ -3,7 +3,7 @@ Usage: python3 -m http.server 8766 (in the repo), then python3 tests/run_unit.py
 Prints each failed check and exits with 1 if any fail."""
 import asyncio,sys,os
 from playwright.async_api import async_playwright
-URL=os.environ.get("ARK_URL","http://localhost:8766/")
+URL=os.environ.get("ARK_URL","http://localhost:8766/app/")
 async def main():
   async with async_playwright() as p:
     b=await p.chromium.launch();pg=await b.new_page();errs=[];pg.on('pageerror',lambda e:errs.append(str(e)))

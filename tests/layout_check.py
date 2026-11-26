@@ -3,7 +3,7 @@
 Fails on: page errors, horizontal overflow, cut-off tile values, elements outside the screen, tap targets under 40 px on phone."""
 import asyncio,sys
 from playwright.async_api import async_playwright
-URL="http://localhost:8766/"
+URL="http://localhost:8766/app/"
 VIEWS=["buero","ausschreibungen","uebersicht","rechnungen","handwerker","budget","einstellungen"]
 CHECK="""(phone)=>{const m=document.getElementById('main'),out=[];const vis=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden'};
  if(m.scrollWidth>m.clientWidth+1)out.push('horizontal overflow '+m.scrollWidth+'>'+m.clientWidth);

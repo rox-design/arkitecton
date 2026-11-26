@@ -3,9 +3,9 @@ from playwright.async_api import async_playwright
 VIEW=sys.argv[1];MOB=sys.argv[2]=="m"
 SKIP={"reset-all","wipe","demo-reset"}
 async def fresh(pg):
-  await pg.goto('http://localhost:8766/'); await pg.evaluate("localStorage.clear()"); await pg.goto('http://localhost:8766/')
+  await pg.goto('http://localhost:8766/app/'); await pg.evaluate("localStorage.clear()"); await pg.goto('http://localhost:8766/app/')
   await pg.click('[data-act="start-example"]'); await pg.wait_for_timeout(250)
-  await pg.goto('http://localhost:8766/#'+VIEW); await pg.wait_for_timeout(250)
+  await pg.goto('http://localhost:8766/app/#'+VIEW); await pg.wait_for_timeout(250)
 async def main():
   out=[]
   async with async_playwright() as p:

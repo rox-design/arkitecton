@@ -27,7 +27,7 @@ const clean=s=>String(s==null?"":s).replace(/[|~]/g," ").trim();
 async function sealUrl(text){
   const sk=await sealKey(),key=await crypto.subtle.importKey("jwk",sk.priv,{name:"ECDSA",namedCurve:"P-256"},false,["sign"]);
   const msg=new TextEncoder().encode(text),sig=await crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},key,msg);
-  const base=/github\.io$/.test(location.hostname)?"https://rox-design.github.io/arkitecton/pruefen.html":new URL("pruefen.html",location.href.split(/[?#]/)[0]).href;
+  const base=/github\.io$/.test(location.hostname)?"https://rox-design.github.io/arkitecton/pruefen.html":new URL(ROOT+"pruefen.html",location.href.split(/[?#]/)[0]).href;
   return base+"#"+b64u(msg)+"."+b64u(compressPub(sk.pub))+"."+b64u(sig);
 }
 /* visum numbers: one per approved invoice, counted per year */

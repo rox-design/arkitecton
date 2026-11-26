@@ -23,7 +23,7 @@ Live: https://rox-design.github.io/arkitecton/ · Inhaber: Rox (rox-design).
 - Grössere Gestaltungsänderungen zuerst als Entwurf hinter `?entwurf=<name>` (Konstante `DRAFT` in `js/01-core.js`), Rox prüft, erst dann fest übernehmen.
 
 ## Technik
-- Statische Web-App ohne Build, GitHub Pages. Skripte in `index.html` in dieser Reihenfolge: `bkp.js`, `js/01-core.js` … `js/11-bids.js`, `app.js`. Alle teilen einen globalen Namensraum.
+- Statische Web-App ohne Build, GitHub Pages. Startseite `index.html` ist die Landingpage (Testversion und Anmelden öffnen die App; alte App-Links mit #Bereich oder ?entwurf= leitet sie nach `app/` weiter). Die App liegt in `app/index.html` und lädt die Skripte aus dem Stamm (`../`), zur Laufzeit geladene Dateien über `ROOT`. Skripte in `app/index.html` in dieser Reihenfolge: `bkp.js`, `js/01-core.js` … `js/11-bids.js`, `app.js`. Alle teilen einen globalen Namensraum.
 - Daten: ein Objekt `D` in localStorage (`KEY`), Dateien in IndexedDB (`FDB`). Speichern nur über `saveData()` (Revisionsprüfung gegen andere Tabs).
 - Neue Felder oder Beispieldaten: Migration in `runMigrations()` mit eigenem Flag `D.mig.<name>`, Beispieldaten nur wenn `D.example`.
 - Neue Objekte: `newId("<präfix>")` (zufällig, UUID). Bestehende Kennungen nie umschreiben.
@@ -35,11 +35,14 @@ Live: https://rox-design.github.io/arkitecton/ · Inhaber: Rox (rox-design).
 
 ## Ablauf bei jeder Änderung
 1. Lokaler Server im Repo: `python3 -m http.server 8766`
-2. Version in `index.html` erhöhen (alle `?v=` gleich): `sed -i 's/ALT/NEU/g' index.html`, Format `JJJJMMTT` plus Buchstabe.
+2. Version in `app/index.html` erhöhen (alle `?v=` gleich): `sed -i 's/ALT/NEU/g' app/index.html`, Format `JJJJMMTT` plus Buchstabe.
 3. `tests/check_all.sh` (Unit-Tests und Layout, Tippziele mindestens 40 px). Bei grösseren Änderungen zusätzlich `tests/run_e2e.sh` (Abläufe, Seitenmuster, Navigation, mehrere Tabs, eingeschleuster Code, Barrierefreiheit, 320 px).
 4. Vor dem Melden jede betroffene Seite gegen die abgemachten Muster prüfen und Rox das Ergebnis zeigen, nicht nur die Tests.
 5. Selbst im Browser ansehen (Desktop und Handy, auch 320 px), bevor es Rox gemeldet wird.
 6. Commit mit klarer Beschreibung, dann `git push` auf `main`. Rox den Link mit `?v=<Version>` geben.
+
+## Anmeldung
+- Heute (Entscheid 27.11.2026): «Anmelden» auf der Landingpage öffnet die App direkt, ohne Konto. Später mit dem Server: echte Anmeldung (Variante c).
 
 ## Offene Punkte
 Siehe `BACKLOG.md` (u.a. Signaturschlüssel des Prüfsiegels auf den Server beim Server-Entscheid, Offline-Start, Linter).

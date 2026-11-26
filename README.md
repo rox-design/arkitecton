@@ -6,7 +6,7 @@ Bauadministration für kleine Architekturbüros: Handwerker, Werkverträge, Rech
 
 ## Starten
 
-Die App ist eine statische Website ohne Build-Schritt: `index.html`, `styles.css`, `app.js`.
+Statische Website ohne Build-Schritt: `index.html` ist die Landingpage, die App liegt in `app/index.html` (mit `styles.css`, `js/`, `app.js` im Stamm).
 
 Lokal: `python3 -m http.server` im Ordner starten und `http://localhost:8000` öffnen.
 Die Live-Kamera braucht HTTPS (zum Beispiel GitHub Pages) oder `localhost`.

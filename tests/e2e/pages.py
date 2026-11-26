@@ -66,6 +66,14 @@ async def main():
         ok('Desktop: × schliesst',not await pg.query_selector('#tpanel'))
         await pg.click('#main [data-k="inv:bezahlt"]');await pg.wait_for_timeout(200);await pg.evaluate("go('budget')");await pg.wait_for_timeout(200)
         ok('Desktop: Seitenwechsel schliesst',not await pg.query_selector('#tpanel'))
+        # the page must not move when a tile opens or closes its content
+        await pg.evaluate("D.pid='p1';S.rtab='kred';go('rechnungen')");await pg.wait_for_timeout(200)
+        await pg.evaluate("document.getElementById('main').scrollTop=120");await pg.wait_for_timeout(100)
+        y0=await pg.evaluate("document.querySelector('#main .stats').getBoundingClientRect().top")
+        for k in ['inv:bezahlt','inv:pruefen','inv:bezahlt']:
+          await pg.click(f'#main [data-k="{k}"]');await pg.wait_for_timeout(200)
+        await pg.click('#tpanel .x');await pg.wait_for_timeout(200)
+        ok('Desktop: Kacheln öffnen und schliessen ohne dass die Seite springt',abs(await pg.evaluate("document.querySelector('#main .stats').getBoundingClientRect().top")-y0)<3)
       # Handwerker: every tile opens a sheet with exactly the entries it counts; no tile is empty in the example data
       for pid in await pg.evaluate("D.projects.filter(p=>!p.closed&&D.contracts.some(w=>w.pid===p.id)).map(p=>p.id)"):
         await pg.evaluate(f"closeAll();D.pid='{pid}';S.kid=null;go('handwerker')");await pg.wait_for_timeout(250)
@@ -98,6 +106,9 @@ async def main():
       await pg.evaluate("closeAll();S.kid=null;D.contracts.forEach(w=>w.ret=0);D.invoices.forEach(i=>{if(i.type==='akonto'&&counted(i))i.retPct=0;});delete D.mig.retDemo;runMigrations();D.pid='p1';go('handwerker')");await pg.wait_for_timeout(250)
       ok(f'{tag}: Rückbehalt-Kachel auch in bestehenden Daten gefüllt',await pg.evaluate("!!document.querySelector('#main [data-k=\"kw:ret\"]')"))
       await pg.evaluate("closeAll();S.kid=null;render()")
+      await pg.evaluate("closeAll();D.pid='p1';go('uebersicht')");await pg.wait_for_timeout(200)
+      await pg.click('.pback');await pg.wait_for_timeout(250)
+      ok(f'{tag}: im Projekt führt «Projekte» oben zurück zur Projektliste',await pg.evaluate("S.view")=='projekte')
       ok(f'{tag}: Keine JS-Fehler',not errs,errs[:3])
       await ctx.close()
     await b.close()

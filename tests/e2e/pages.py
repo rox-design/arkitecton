@@ -114,6 +114,8 @@ async def main():
       await pg.evaluate("closeAll();D.pid='p1';go('handwerker');S.kid=D.contractors[0].id;render()");await pg.wait_for_timeout(200)
       ok(f'{tag}: Handwerker im Projekt zeigt seinen Namen sichtbar',await pg.evaluate("(()=>{const h=document.querySelector('#main .page>.ph h1');return !!h&&h.textContent===D.contractors[0].name&&h.getBoundingClientRect().width>20})()"))
       await pg.evaluate("closeAll();S.kid=null;render()")
+      await pg.evaluate("closeAll();S.kid=null;go('buero')");await pg.wait_for_timeout(200)
+      ok(f'{tag}: Alle Rechnungen erscheinen nur einmal (Tabelle am Computer, Zeilen auf dem Handy)',await pg.evaluate("[...document.querySelectorAll('.ainv-t,.ainv-m')].filter(e=>e.getClientRects().length).length")==1)
       ok(f'{tag}: Keine JS-Fehler',not errs,errs[:3])
       await ctx.close()
     await b.close()

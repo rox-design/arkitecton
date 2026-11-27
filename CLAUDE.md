@@ -24,7 +24,7 @@ Live: https://rox-design.github.io/arkitecton/ · Inhaber: Rox (rox-design).
 - Grössere Gestaltungsänderungen zuerst als Entwurf hinter `?entwurf=<name>` (Konstante `DRAFT` in `js/01-core.js`), Rox prüft, erst dann fest übernehmen.
 
 ## Technik
-- Statische Web-App ohne Build, GitHub Pages. Startseite `index.html` ist die Landingpage (Testversion und Anmelden öffnen die App; alte App-Links mit #Bereich oder ?entwurf= leitet sie nach `app/` weiter). Die App liegt in `app/index.html` und lädt die Skripte aus dem Stamm (`../`), zur Laufzeit geladene Dateien über `ROOT`. Skripte in `app/index.html` in dieser Reihenfolge: `bkp.js`, `js/01-core.js` … `js/11-bids.js`, `app.js`. Alle teilen einen globalen Namensraum.
+- Statische Web-App ohne Build, GitHub Pages. Startseite `index.html` ist die Landingpage (Testversion öffnet die App, Anmelden die Maske in `login/`; alte App-Links mit #Bereich oder ?entwurf= leitet sie nach `app/` weiter). Die App liegt in `app/index.html` und lädt die Skripte aus dem Stamm (`../`), zur Laufzeit geladene Dateien über `ROOT`. Skripte in `app/index.html` in dieser Reihenfolge: `bkp.js`, `js/01-core.js` … `js/11-bids.js`, `app.js`. Alle teilen einen globalen Namensraum.
 - Daten: ein Objekt `D` in localStorage (`KEY`), Dateien in IndexedDB (`FDB`). Speichern nur über `saveData()` (Revisionsprüfung gegen andere Tabs).
 - Neue Felder oder Beispieldaten: Migration in `runMigrations()` mit eigenem Flag `D.mig.<name>`, Beispieldaten nur wenn `D.example`.
 - Neue Objekte: `newId("<präfix>")` (zufällig, UUID). Bestehende Kennungen nie umschreiben.
@@ -43,7 +43,7 @@ Live: https://rox-design.github.io/arkitecton/ · Inhaber: Rox (rox-design).
 6. Commit mit klarer Beschreibung, dann `git push` auf `main`. Rox immer den Link der Landingpage geben (https://rox-design.github.io/arkitecton/), bei Änderungen an der App zusätzlich den App-Link mit `?v=<Version>`.
 
 ## Anmeldung
-- Heute (Entscheid 27.11.2026): «Anmelden» auf der Landingpage öffnet die App direkt, ohne Konto. Später mit dem Server: echte Anmeldung (Variante c).
+- Seit 27.11.2026: «Anmelden» auf der Landingpage öffnet die Anmeldemaske `login/index.html` (Passwort oder Link per E-Mail). Noch ohne Server: die Maske prüft die Eingaben, meldet ehrlich, dass Konten mit dem Server kommen, und führt zur Testversion. Mit dem Server: echte Anmeldung (Variante c).
 
 ## Offene Punkte
 Siehe `BACKLOG.md` (u.a. Signaturschlüssel des Prüfsiegels auf den Server beim Server-Entscheid, Offline-Start, Linter).

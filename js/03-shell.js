@@ -65,7 +65,8 @@ const pNav=()=>{if(!pInProj())return "";const p=P();
 const DRAFTS=()=>({});
 const draftBar=()=>DRAFTS()[DRAFT]?`<div class="draftbar"><span><b>${L("Entwurf","Draft")}</b> · ${DRAFTS()[DRAFT]}</span><a href="${location.pathname}?entwurf=aus${location.hash}">${L("Entwurf beenden","End draft")}</a></div>`:"";
 const ph=(eyebrow,title,lead,tools)=>{if(!pInProj())return draftBar()+phx(eyebrow,title,lead,tools);
-  if(S.kid||S.wid)return phx(eyebrow,title,lead,tools);
+  /* a contractor or contract inside a project keeps its own visible title below the tabs */
+  if(S.kid||S.wid)return phx(eyebrow,title,lead,tools).replace('<header class="ph"','<header class="ph pdet"');
   const seg=(String(tools||"").match(/<div class="seg"[\s\S]*?<\/div>/)||[""])[0];
   return seg?`<header class="ph phseg"><h1 class="srh">${title}</h1><div class="tools">${seg}</div></header>`:`<h1 class="srh">${title}</h1>`;};
 /* the main action of the tab as «＋» beside the project name; the overview has none */

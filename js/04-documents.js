@@ -225,6 +225,8 @@ function runMigrations(){
     const S_={t1:"qes",t2:"qes",t3:"scan",t4:"qes",t5:"qes",t6:"qes",t7:"qes",t8:"papier"};(D.tenders||[]).forEach(t=>{if(!t.sig&&S_[t.id])t.sig=S_[t.id];});}}
   if(!D.mig.crew){D.mig.crew=1;if(D.example)seedCrews();}
   if(!D.mig.bids){D.mig.bids=1;if(D.example&&window.indexedDB)seedBids().then(render).catch(e=>console.error(e));}
+  /* example data: the weighted qualification criteria of t2 are all assessed, so every criterion shows its rating */
+  if(!D.mig.gekDemo){D.mig.gekDemo=1;if(D.example)(D.tenders||[]).filter(x=>x.id==="t2").forEach(x=>(x.gek||[]).forEach(z=>{if(!z.me)z.me="w";}));}
   if(!D.mig.closedMail){D.mig.closedMail=1;if(D.example)[["Gemeinde Wädenswil, Bauamt","bauamt@waedenswil.example"],["Bauversicherung Zürichsee AG","schaden@bauversicherung-zs.example"]].forEach(([n,e])=>{const k=D.contractors.find(x=>x.name===n);if(k&&!k.email)k.email=e;});}
   /* signatures point to people in the office team: name and title are kept once, in the team */
   if(!D.mig.kvr){D.mig.kvr=1;const p0=D.example&&(D.projects||[]).find(p=>p.id==="p1"),b=p0&&(p0.budget||[]).find(x=>x.bkp==="285");if(b&&b.kvr==null&&b.kv===36000)b.kvr=41000;}

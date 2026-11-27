@@ -140,8 +140,9 @@ section{display:flex;flex-direction:column}
 .checks label{cursor:pointer}
 .cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:48px}
 .bar-actions{display:flex;justify-content:flex-end;gap:12px;flex-wrap:wrap}
-.notice{display:flex;gap:12px;align-items:baseline;font-size:.9375rem}
-.notice .ic{flex:none;transform:translateY(3px)}
+.notice{display:flex;gap:12px;align-items:flex-start;font-size:.9375rem;line-height:1.5}
+/* the icon sits centred on the first line of text, also when the text wraps */
+.notice .ic{flex:none;margin-top:calc((.9375rem * 1.5 - 18px) / 2)}
 
 /* overlay: drawer, sheet, modal */
 #overlay{position:fixed;inset:0;display:none;z-index:30}

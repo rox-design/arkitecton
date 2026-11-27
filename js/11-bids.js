@@ -237,7 +237,7 @@ async function seedBids(){
       zk:[{typ:"preis",t:L(...ZKT.preis),w:30,me:"m"},{typ:"analyse",t:L(...ZKT.analyse),w:40,me:""},{typ:"team",t:L(...ZKT.team),w:30,me:"s"}]}));
     await pdf("t6","Teilnahmeantrag Alterszentrum.pdf",["Teilnahmeantrag","Neubau Alterszentrum",F],ad(-40),{submitted:true,phase:1});}
   /* t2 is a selective procedure still in phase 1: weighted qualification criteria and documents from the firm folder */
-  const t2=T.find(t=>t.id==="t2");if(t2){t2.pq=t2.pq||{max:5};if(!t2.gek)t2.gek=[{typ:"ref",t:L(...ZKT.ref),w:50,me:"s"},{typ:"team",t:L(...ZKT.team),w:30,me:"m"},{typ:"analyse",t:L("Auftragsverständnis (1 A4)","Understanding of the task (1 A4)"),w:20,me:""}];
+  const t2=T.find(t=>t.id==="t2");if(t2){t2.pq=t2.pq||{max:5};if(!t2.gek)t2.gek=[{typ:"ref",t:L(...ZKT.ref),w:50,me:"s"},{typ:"team",t:L(...ZKT.team),w:30,me:"m"},{typ:"analyse",t:L("Auftragsverständnis (1 A4)","Understanding of the task (1 A4)"),w:20,me:"w"}];
     [["d8","Handelsregisterauszug","Commercial register extract"],["d11","Nachweis Berufshaftpflichtversicherung","Professional liability insurance"],["d10","Betreibungsregisterauszug (max. 3 Monate alt)","Debt enforcement extract (max. 3 months)"]].forEach(([id,de,en])=>{if(!t2.docs.some(d=>d.id===id))t2.docs.push({id,de,en});});}
   /* t5 waits for the award: its files were the submission */
   seedCrews();

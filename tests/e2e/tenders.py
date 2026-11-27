@@ -15,6 +15,8 @@ async def main():
     ok('Aufklappen von Hand',not await pg.evaluate("document.querySelector('section[data-fk=elig]').classList.contains('folded')"))
     await pg.evaluate("render()");await pg.wait_for_timeout(100)
     ok('Aufgeklappt bleibt nach neuem Zeichnen',not await pg.evaluate("document.querySelector('section[data-fk=elig]').classList.contains('folded')"))
+    ok('Vollständig eingeschätzte Kriterien sind zugeklappt',await pg.evaluate("document.querySelector('section[data-fk=gek]').classList.contains('folded')"))
+    await pg.click('section[data-fk=gek] .fold');await pg.wait_for_timeout(100)
     await pg.click('section[data-fk=gek] .zkrow details.inf summary');await pg.wait_for_timeout(100)
     ok('Tipp öffnet sich',await pg.evaluate("document.querySelector('section[data-fk=gek] details.inf').open"))
     ok('Zuschlagskriterien erst in Phase 2',not await pg.query_selector('section[data-fk=zk]'))

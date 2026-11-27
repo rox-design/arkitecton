@@ -40,7 +40,7 @@ Live: https://rox-design.github.io/arkitecton/ · Inhaber: Rox (rox-design).
 3. `tests/check_all.sh` (Unit-Tests und Layout, Tippziele mindestens 40 px). Bei grösseren Änderungen zusätzlich `tests/run_e2e.sh` (Abläufe, Seitenmuster, Navigation, mehrere Tabs, eingeschleuster Code, Barrierefreiheit, 320 px).
 4. Vor dem Melden jede betroffene Seite gegen die abgemachten Muster prüfen und Rox das Ergebnis zeigen, nicht nur die Tests.
 5. Selbst im Browser ansehen (Desktop und Handy, auch 320 px), bevor es Rox gemeldet wird.
-6. Commit mit klarer Beschreibung, dann `git push` auf `main`. Rox den Link mit `?v=<Version>` geben.
+6. Commit mit klarer Beschreibung, dann `git push` auf `main`. Rox immer den Link der Landingpage geben (https://rox-design.github.io/arkitecton/), bei Änderungen an der App zusätzlich den App-Link mit `?v=<Version>`.
 
 ## Anmeldung
 - Heute (Entscheid 27.11.2026): «Anmelden» auf der Landingpage öffnet die App direkt, ohne Konto. Später mit dem Server: echte Anmeldung (Variante c).

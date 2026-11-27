@@ -670,10 +670,11 @@ function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]
   tilePanel();trimRail();foldSections();renderOverlay();
 }
 /* on the computer a tile does not open a sheet: its content opens right below the tiles (same content as the phone sheet).
-   Tapping the tile again or × closes it; leaving the page closes it too */
+   Tapping the tile again or × closes it; leaving the page closes it too. In the Handwerker tab the first tile (Werkverträge) is open on arrival, so the contracts list is there right away */
+const TSEL_START={handwerker:"kw:all"};
 const isDesk=()=>!matchMedia("(max-width:820px)").matches;
 function tilePanel(){
-  const here=S.view+"|"+D.pid+"|"+(S.rtab||"");if(S.tselAt!==here){S.tsel=null;S.tselAt=here;}
+  const here=S.view+"|"+D.pid+"|"+(S.rtab||"");if(S.tselAt!==here){S.tsel=TSEL_START[S.view]||null;S.tselAt=here;}
   if(!S.tsel||!isDesk())return;
   const t=[...document.querySelectorAll('#main .stats [data-act="sheet"]')].find(e=>e.dataset.k===S.tsel);if(!t){S.tsel=null;return;}
   const prev=S.sheet;S.sheet=S.tsel;let html="";try{html=sheetHTML();}finally{S.sheet=prev;}

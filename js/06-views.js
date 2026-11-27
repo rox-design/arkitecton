@@ -242,7 +242,7 @@ function viewContractor(k){
   if(S.wid&&W(S.wid)&&W(S.wid).k===k.id){
     const w=W(S.wid);
     const bi=S.cmpBack&&INV(S.cmpBack.inv);
-    body=`${bi?`<button type="button" class="back" data-act="back-inv">← ${L("Zurück zur Rechnung ","Back to invoice ")}${esc(bi.no)}</button>`:backBtn("back-w",L("Alle Verträge","All contracts"))}
+    body=`${bi?`<button type="button" class="back" data-act="back-inv">${BACK_I}${L("Zurück zur Rechnung ","Back to invoice ")}${esc(bi.no)}</button>`:backBtn("back-w",L("Alle Verträge","All contracts"))}
       <div class="ctx">${esc(PJ(w.pid).name)} · BKP ${w.bkp} ${esc(bName(w.bkp))}</div>${cmpBody(w)}`;
   } else if(S.ktab==="konto"){
     const oi=invOf(all).filter(i=>i.status!=="bezahlt"&&live(i)),open=oi.reduce((a,i)=>a+payout(i),0),gross=oi.reduce((a,i)=>a+net(i),0),oret=r2(gross-open);
@@ -515,7 +515,7 @@ function viewPerson(m,tsw){
   const rows=(nowC.length?nowC:pastC.slice(0,1)).map(cRow).join("")+foldRows(L("Frühere Stationen","Earlier positions"),(nowC.length?pastC:pastC.slice(1)).map(cRow).join(""),(nowC.length?pastC:pastC.slice(1)).length);
   const xs=(m.extra||[]).filter(x=>XQ[x]);
   return `<div class="page">
-    <button type="button" class="back" data-act="back-m">← ${L("Büroprofil","Office profile")}</button>
+    <button type="button" class="back" data-act="back-m">${BACK_I}${L("Büroprofil","Office profile")}</button>
     ${ph(L("Team","Team")+(cr?" · "+tx(ROLES[cr]):""),esc(m.name),esc(m.qual||""),ib("edit",L("Person bearbeiten","Edit person"),`data-act="form" data-f="person" data-id="${m.id}"`))}
     <div class="stats">${st(L("Berufserfahrung","Experience"),tot?yrs(tot):"–",tot?L("seit ","since ")+startY(m):L("Werdegang erfassen","add career"))}${st(L("Als Projektleiter","As project lead"),pl?yrs(pl):"–",pl?L("Projektleitung","project management"):L("keine Erfahrung erfasst","none recorded"))}${st(L("Als Bauleiter","As site manager"),bl?yrs(bl):"–",xs.includes("blfa")?tx(XQ.blfa):bl?L("Bauleitung","site management"):L("keine Erfahrung erfasst","none recorded"))}</div>
     <section><div class="sh"><h2>${L("Werdegang","Career")}</h2><span class="cnt">${car.length}</span><span class="right"><button type="button" class="ghost" data-act="form" data-f="career" data-id="${m.id}">+ ${L("Station","Position")}</button></span></div><div class="rows">${rows||`<div class="empty"><span>${L("Noch kein Werdegang. Erfassen Sie die Rollen mit Jahren, auch bei früheren Arbeitgebern.","No career yet. Add roles with years, including former employers.")}</span></div>`}</div></section>

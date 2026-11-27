@@ -23,7 +23,9 @@ const startView=v=>{S.from=null;S.kid=null;S.wid=null;S.tid=null;S.mid=null;S.cm
   if(v==="rechnungen"){S.rtab="kred";S.filter="pruefen";S.ffilter="open";}
   if(v==="handwerker")S.kfilter="";if(v==="budget")S.bfilter="";if(v==="ausschreibungen"){S.tfilter="open";}if(v==="profil")S.pfilter="refs";};
 const fromHere=target=>{S.from=S.view!==target?{view:S.view,top:document.getElementById("main").scrollTop}:null;};
-const backBtn=(act,label)=>S.from?`<button type="button" class="back" data-act="back-from">← ${vName(S.from.view)}</button>`:`<button type="button" class="back" data-act="${act}">← ${label}</button>`;
+/* every back link looks the same: chevron and label, like «‹ Projekte» above the project name */
+const BACK_I=`<span aria-hidden="true">‹</span>`;
+const backBtn=(act,label)=>S.from?`<button type="button" class="back" data-act="back-from">${BACK_I}${vName(S.from.view)}</button>`:`<button type="button" class="back" data-act="${act}">${BACK_I}${label}</button>`;
 function go(v){if(!VIEWS.includes(v))v="uebersicht";closeAll();if(v!==S.view)S.mid=null;if(v!=="handwerker")S.cmpBack=null;S.view=v;if(v!=="handwerker")S.kid=null;if(v!=="ausschreibungen")S.tid=null;try{history.replaceState(null,"",location.pathname+location.search+"#"+v);}catch(e){}render();document.getElementById("main").scrollTop=0;}
 const openForm=(f,id,w)=>{const keepDrawer=S.drawer;closeAll();S.form={f,id:id||null,w:w||null,back:keepDrawer};renderOverlay();};
 

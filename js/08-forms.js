@@ -344,7 +344,10 @@ function sheetWrap(d,items){
     <div class="obody"><div class="menu">${items}</div>${d.note?`<span class="fine" style="color:var(--faint);font-size:.78rem">${esc(d.note)}</span>`:""}</div></div>`;
 }
 
-function renderOverlay(){queueMicrotask(()=>{if(S.form&&S.form.f==="fee")feeCalcUpdate();});queueMicrotask(()=>{const q=document.getElementById("qtext");if(q&&!q.dataset.top){q.scrollTop=0;q.dataset.top="1";}});queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
+/* an SVG chart scales with its width; its labels must not: --k undoes the scale so they stay 12 px */
+function fitCharts(){document.querySelectorAll(".income .chart svg").forEach(s=>{const vb=s.viewBox.baseVal,w=s.getBoundingClientRect().width;if(vb&&vb.width&&w)s.style.setProperty("--k",(vb.width/w).toFixed(3));});}
+window.addEventListener("resize",()=>requestAnimationFrame(fitCharts));
+function renderOverlay(){queueMicrotask(fitCharts);queueMicrotask(()=>{if(S.form&&S.form.f==="fee")feeCalcUpdate();});queueMicrotask(()=>{const q=document.getElementById("qtext");if(q&&!q.dataset.top){q.scrollTop=0;q.dataset.top="1";}});queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
   const o=document.getElementById("overlay");let h="";
   if(S.dscan) h=dscanHTML(); else if(S.form) h=formHTML(); else if(S.bulk) h=bulkHTML(); else if(S.modal) h=captureHTML(); else if(S.sheet) h=sheetHTML(); else if(S.kvx) h=kvHTML(); else if(S.drawer&&INV(S.drawer)) h=drawerHTML(INV(S.drawer)); else if(S.fdrawer&&FE(S.fdrawer)) h=feeDrawerHTML(FE(S.fdrawer));
   o.innerHTML=h;o.classList.toggle("on",!!h);{const t=document.getElementById("toast");if(t){t.classList.toggle("top",!!h);if(h&&t.dataset.hint)t.classList.remove("on");}}

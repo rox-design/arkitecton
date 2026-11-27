@@ -70,7 +70,9 @@ main{overflow:auto;overflow-x:hidden;height:100%}
 .ph .eyebrow{grid-column:1/-1;font-size:.78rem;color:var(--muted);letter-spacing:.01em}
 .ph .lead{grid-column:1/-1;margin:-6px 0 0;color:var(--muted);font-size:1.125rem}
 .ph .tools{display:flex;gap:10px}
-.back{all:unset;cursor:pointer;color:var(--muted);font-size:.875rem;margin-bottom:-36px}
+.back{all:unset;cursor:pointer;display:inline-flex;width:fit-content;align-items:center;gap:6px;min-height:40px;color:var(--muted);font-size:.875rem;margin-bottom:-36px}
+.back span,.pback span{font-size:1.2rem;line-height:1}
+.back:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:6px}
 .back:hover{color:var(--ink)}
 
 /* stats */
@@ -408,7 +410,7 @@ details.site>summary .sc{white-space:nowrap;margin-left:0}
 .income .chart{margin:10px 0 6px}
 .income svg{width:100%;height:auto;display:block;overflow:visible}
 .income .gl{stroke:var(--line);stroke-width:1}
-.income .ax{fill:var(--faint);font-size:12px}
+.income .ax{fill:var(--faint);font-size:calc(12px * var(--k,1))}
 .income .hit{fill:transparent}
 .income .col:hover .hit{fill:var(--hover)}
 .income .two{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:22px}

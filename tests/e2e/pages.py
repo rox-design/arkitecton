@@ -64,7 +64,7 @@ async def main():
         ok('Desktop: zweiter Klick auf die Kachel schliesst',not await pg.query_selector('#tpanel'))
         await pg.click('#main [data-k="inv:bezahlt"]');await pg.wait_for_timeout(200);await pg.click('#tpanel .x');await pg.wait_for_timeout(200)
         ok('Desktop: × schliesst',not await pg.query_selector('#tpanel'))
-        await pg.click('#main [data-k="inv:bezahlt"]');await pg.wait_for_timeout(200);await pg.evaluate("go('budget')");await pg.wait_for_timeout(200)
+        await pg.click('#main [data-k="inv:bezahlt"]');await pg.wait_for_timeout(200);await pg.evaluate("go('uebersicht')");await pg.wait_for_timeout(200)
         ok('Desktop: Seitenwechsel schliesst',not await pg.query_selector('#tpanel'))
         # the page must not move when a tile opens or closes its content
         await pg.evaluate("D.pid='p1';S.rtab='kred';go('rechnungen')");await pg.wait_for_timeout(200)
@@ -97,15 +97,16 @@ async def main():
       for pid in await pg.evaluate("D.projects.filter(p=>!p.closed&&(p.budget||[]).length).map(p=>p.id)"):
         await pg.evaluate(f"closeAll();D.pid='{pid}';S.kid=null;go('budget')");await pg.wait_for_timeout(250)
         ok(f'{tag}: Budget {pid}: alle Kacheln antippbar, keine leer',await pg.evaluate("[...document.querySelectorAll('#main .stats .stat')].every(e=>e.tagName==='BUTTON'&&e.dataset.act==='sheet')"))
-        ok(f'{tag}: Budget {pid}: unter den Kacheln nichts, was in den Blättern steht',await pg.evaluate("!document.querySelector('#main .tnext,#main .brow,#main .bgroup')"))
+        ok(f'{tag}: Budget {pid}: unter den Kacheln nichts, was in den Blättern steht',await pg.evaluate("![...document.querySelectorAll('#main .tnext,#main .brow,#main .bgroup')].some(e=>!e.closest('#tpanel'))"))
+        if not mob: ok(f'Desktop: Budget {pid} öffnet mit dem Kostenvoranschlag unter den Kacheln',await pg.evaluate("S.tsel==='bud:all'&&document.querySelectorAll('#tpanel .brow').length===budgetRows().length"))
         for k in ['all','aw','no','over']:
-          await pg.evaluate("closeAll();render()");await pg.wait_for_timeout(100)
+          await pg.evaluate("closeAll();S.tsel=null;render()");await pg.wait_for_timeout(100)
           exp=await pg.evaluate(f"budgetRows().filter(BUD_F['{k}']).length")
           await pg.click(f'[data-k="bud:{k}"]');await pg.wait_for_timeout(250)
           ok(f'{tag}: Budget-Kachel {k} zeigt so viele Positionen wie sie zählt',await pg.evaluate("document.querySelectorAll('"+SH+" .brow').length")==exp)
         if not mob:
           ok(f'{tag}: Budget unter den Kacheln breit genug für die Tabelle',await pg.evaluate("document.querySelector('"+SH+"').getBoundingClientRect().width")>=700)
-      await pg.evaluate("closeAll();D.pid='p1';go('budget')");await pg.wait_for_timeout(200)
+      await pg.evaluate("closeAll();D.pid='p1';go('budget');S.tsel=null;render()");await pg.wait_for_timeout(200)
       await pg.click('[data-k="bud:over"]');await pg.wait_for_timeout(250);await pg.click(SH+' .brow');await pg.wait_for_timeout(300)
       ok(f'{tag}: Position im Blatt öffnet die Erklärung',await pg.evaluate("!!S.kvx"))
       # existing data with retention 0 already frozen in the invoices: the migration still fills the Rückbehalt tile

@@ -670,8 +670,8 @@ function render(){queueMicrotask(()=>document.querySelectorAll('input[type=file]
   tilePanel();trimRail();foldSections();renderOverlay();
 }
 /* on the computer a tile does not open a sheet: its content opens right below the tiles (same content as the phone sheet).
-   Tapping the tile again or × closes it; leaving the page closes it too. In the Handwerker tab the first tile (Werkverträge) is open on arrival, so the contracts list is there right away */
-const TSEL_START={handwerker:"kw:all"};
+   Tapping the tile again or × closes it; leaving the page closes it too. In Handwerker and Budget the first tile (Werkverträge, Kostenvoranschlag) is open on arrival, so its list is there right away */
+const TSEL_START={handwerker:"kw:all",budget:"bud:all"};
 const isDesk=()=>!matchMedia("(max-width:820px)").matches;
 function tilePanel(){
   const here=S.view+"|"+D.pid+"|"+(S.rtab||"");if(S.tselAt!==here){S.tsel=TSEL_START[S.view]||null;S.tselAt=here;}

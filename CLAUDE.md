@@ -35,6 +35,7 @@ Live: https://rox-design.github.io/arkitecton/ · Inhaber: Rox (rox-design).
 - Fristen und Daten in lokaler Zeit (`iso`, `TODAY`, `addDays`, `daysTo`), nie `toISOString()` für Kalendertage.
 
 ## Ablauf bei jeder Änderung
+0. Vor dem Ändern einer Funktion die Auswirkungen mit Graphify prüfen (Verbindung «Graphify», Repo `rox-design/arkitecton`): `graphify_impact` für betroffene Funktionen, `graphify_callers` für Aufrufer. Der Graph wird nach jedem Push neu gebaut; stimmt sein `commitSha` nicht mit `git rev-parse HEAD` überein, geänderte Dateien selbst lesen. Graphify kennt keine CSS-Regeln und keine Aktionen über `data-act`: dafür weiterhin in `styles.css` und `app.js` suchen und alle Seiten vergleichen (sichtbare Elemente vorher und nachher).
 1. Lokaler Server im Repo: `python3 -m http.server 8766`
 2. Version in `app/index.html` erhöhen (alle `?v=` gleich): `sed -i 's/ALT/NEU/g' app/index.html`, Format `JJJJMMTT` plus Buchstabe.
 3. `tests/check_all.sh` (Unit-Tests und Layout, Tippziele mindestens 40 px). Bei grösseren Änderungen zusätzlich `tests/run_e2e.sh` (Abläufe, Seitenmuster, Navigation, mehrere Tabs, eingeschleuster Code, Barrierefreiheit, 320 px).

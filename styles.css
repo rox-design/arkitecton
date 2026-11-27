@@ -1367,3 +1367,9 @@ section.tsec.foldable>.sh>.fold{grid-row:1/3;grid-column:5;margin-left:0}
 .pback:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:6px}
 @media (max-width:960px){.hov-lead{margin-top:-28px}}
 #main{overflow-anchor:none}
+/* desktop lists: all rows share one set of columns, and the last column grows to the longest label (e.g. «Garantie endet in 45 Tagen») instead of running past the edge */
+@media (min-width:821px){
+  .rows:has(>.row:not(.brow)){display:grid;grid-template-columns:12px minmax(0,1.15fr) minmax(0,1fr) minmax(132px,max-content) minmax(116px,max-content);column-gap:16px}
+  .rows:has(>.row:not(.brow))>*{grid-column:1/-1}
+  .rows:has(>.row:not(.brow))>.row:not(.brow){grid-template-columns:subgrid}
+}

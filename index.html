@@ -230,6 +230,18 @@ footer{padding:96px 0 0;overflow:hidden}
 }
 @media (max-width:480px){.hd{gap:10px}.acts{gap:6px}.acts .btn{padding:0 14px;font-size:.88rem}}
 @media (max-width:380px){.logo .lw{display:none}}
+/* access code dialog: the test version opens only with a code */
+.gate{border:0;padding:0;border-radius:24px;background:var(--raise);color:var(--ink);width:min(420px,calc(100vw - 32px));box-shadow:0 30px 80px rgba(0,0,0,.25)}
+.gate::backdrop{background:rgba(20,20,20,.45)}
+.gate form{display:flex;flex-direction:column;gap:14px;padding:28px}
+.gate h2{margin:0;font-size:1.5rem;font-weight:500;letter-spacing:-.02em}
+.gate p{margin:0;color:var(--muted)}
+.gate label{font-size:.875rem;color:var(--muted)}
+.gate input{font:inherit;font-size:1.0625rem;min-height:48px;padding:0 14px;border:1px solid var(--line2);border-radius:12px;background:var(--bg);color:var(--ink);text-transform:uppercase;letter-spacing:.04em}
+.gate input:focus{outline:2px solid var(--ink);outline-offset:1px}
+.gate .msg{min-height:1.4em;margin:0;color:#b8321a;font-size:.9375rem}
+.gate .row{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.gate .row .btn{flex:1 1 auto;font:inherit;font-weight:500;cursor:pointer}
 /* small phones: the three steps fit in one row without the number circles */
 @media (max-width:400px){.ex>*,.ex .card *,.fc *{min-width:0}.ex .card{padding:20px}.ex .card p{overflow-wrap:break-word;hyphens:auto}.flow{gap:16px 20px}.stats>div{min-width:0;padding:10px 8px}.stats span{overflow-wrap:break-word;hyphens:auto}.ft b,.ex .tag b{hyphens:auto;overflow-wrap:break-word}.tabs{display:flex;gap:2px}.tabs button{flex:1 1 auto;justify-content:center;padding:0 8px;gap:0;font-size:.9rem}.tabs button span{display:none}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.reveal,.mosaic i,.radar i{opacity:1;transform:none}}
@@ -398,5 +410,27 @@ document.querySelectorAll("details").forEach(d=>d.addEventListener("toggle",()=>
   const o=new IntersectionObserver(es=>{if(!es.some(e=>e.isIntersecting))return;o.disconnect();cells.forEach((c,i)=>setTimeout(()=>c.classList.add("v"),RM?0:(i%24)*35+Math.floor(i/24)*90));
     if(!RM)setInterval(()=>{const c=cells[Math.floor(Math.random()*N)];if(c.classList.contains("r"))return;c.classList.toggle("k");},900);},{threshold:.2});o.observe(m);})();
 </script>
+<dialog class="gate" id="gate" aria-labelledby="gateT">
+  <form method="dialog" id="gateF" novalidate>
+    <h2 id="gateT">Zugangscode</h2>
+    <p id="gateP">arkitecton ist in der Testphase. Gib den Code ein, den du erhalten hast.</p>
+    <label for="gateC">Code</label>
+    <input id="gateC" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+    <p class="msg" id="gateM" role="alert"></p>
+    <div class="row"><button type="button" class="btn ghost" id="gateX">Abbrechen</button><button type="submit" class="btn">Öffnen</button></div>
+  </form>
+</dialog>
+<script src="access.js?v=20261128c"></script>
+<script>/* the test version and the login open only with a valid access code */
+(function(){
+  var g=document.getElementById("gate"),f=document.getElementById("gateF"),c=document.getElementById("gateC"),m=document.getElementById("gateM"),p=document.getElementById("gateP"),target="app/";
+  var EXP="Dein Testzugang ist abgelaufen. Für einen neuen Zugang melde dich bei Rossano.";
+  function open(to,expired){target=to||"app/";m.textContent=expired?EXP:"";c.value="";g.showModal();c.focus();}
+  document.addEventListener("click",function(e){var a=e.target.closest('a[href="app/"],a[href="login/"]');if(!a)return;if(ACCESS.state()==="ok")return;e.preventDefault();open(a.getAttribute("href"),ACCESS.state()==="expired");});
+  document.getElementById("gateX").addEventListener("click",function(){g.close();});
+  f.addEventListener("submit",function(e){e.preventDefault();var v=c.value.trim();if(!v){m.textContent="Bitte den Code eingeben.";c.focus();return;}
+    ACCESS.check(v).then(function(r){if(r==="ok"){location.href=target;return;}m.textContent=r==="expired"?EXP:"Dieser Code stimmt nicht. Bitte prüfe die Schreibweise.";c.select();});});
+  var q=new URLSearchParams(location.search).get("zugang");if(q){history.replaceState(null,"",location.pathname+location.hash);open("app/",q==="abgelaufen"||ACCESS.state()==="expired");}
+})();</script>
 </body>
 </html>

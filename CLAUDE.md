@@ -46,5 +46,8 @@ Live: https://rox-design.github.io/arkitecton/ · Inhaber: Rox (rox-design).
 ## Anmeldung
 - Seit 27.11.2026: «Anmelden» auf der Landingpage öffnet die Anmeldemaske `login/index.html` (Passwort oder Link per E-Mail). Noch ohne Server: die Maske prüft die Eingaben, meldet ehrlich, dass Konten mit dem Server kommen, und führt zur Testversion. Mit dem Server: echte Anmeldung (Variante c).
 
+## Testzugang
+- Seit 28.11.2026: Testversion und Anmeldung öffnen sich nur mit Zugangscode (`access.js`, Codes als SHA-256 mit Ablauf). Die Landingpage fragt den Code ab, die App prüft ihn beim Öffnen und jede Minute und schickt ohne gültigen Code zur Startseite. Auf localhost ausgeschaltet (einschalten mit `localStorage arkitecton:gate=1`). Nur eine Hürde, keine echte Sicherheit: echte Sperre mit dem Server.
+
 ## Offene Punkte
 Siehe `BACKLOG.md` (u.a. Signaturschlüssel des Prüfsiegels auf den Server beim Server-Entscheid, Offline-Start, Linter).

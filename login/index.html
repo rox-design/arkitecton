@@ -15,7 +15,7 @@
 body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:16px/1.5 var(--font);-webkit-font-smoothing:antialiased}
 a{color:inherit}
 :focus-visible{outline:2px solid var(--ink);outline-offset:3px;border-radius:6px}
-.draft{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:5;background:var(--mark);color:#fff;font-size:.8rem;font-weight:600;letter-spacing:.04em;padding:6px 14px;border-radius:999px}
+.draft{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:5;background:#b8321a;color:#fff;font-size:.8rem;font-weight:600;letter-spacing:.04em;padding:6px 14px;border-radius:999px}
 .split{display:grid;grid-template-columns:minmax(380px,1fr) minmax(420px,1.1fr);min-height:100vh}
 
 /* linke Seite: schwarz wie die Leiste der App, Logo weiss, rotes Quadrat */
@@ -71,7 +71,7 @@ input[aria-invalid="true"]{border-color:var(--crit)}
 </style>
 </head>
 <body>
-<div class="draft" role="note">Testversion<span class="dl"> · Anmeldung folgt mit dem Server</span></div>
+<aside class="draft" aria-label="Hinweis">Testversion<span class="dl"> · Anmeldung folgt mit dem Server</span></aside>
 <div class="split">
   <aside class="side" aria-hidden="false">
     <a class="logo" href="../"><svg viewBox="0 0 30 30" aria-hidden="true"><rect fill="#f4f4f1" x="3" y="20" width="24" height="7"/><rect fill="#f4f4f1" x="7" y="9" width="9" height="11"/><rect fill="#f4f4f1" x="16" y="14" width="7" height="6"/><rect fill="#ff4a2b" x="16" y="3" width="6" height="6"/></svg>arkitecton</a>

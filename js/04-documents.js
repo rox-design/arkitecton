@@ -206,9 +206,13 @@ function runMigrations(){
   if(!D.mig.fees){if(!(D.fees||[]).length)addDemoFees();D.mig.fees=1;}
   if(!D.mig.income){addIncomeHistory();D.mig.income=1;}
   if(!D.mig.fillEmpty){D.mig.fillEmpty=1;D.projects.filter(p=>!p.closed&&!D.contracts.some(w=>w.pid===p.id)&&!FEES().some(f=>f.pid===p.id)).forEach(seedProjectDemo);}
-  if(!D.mig.projs){D.mig.projs=1;[["Umbau Villa Seeblick","Küsnacht","Bauherrschaft Keller","Sanierung Gebäudehülle"],["Anbau Schulhaus Au","Wädenswil","Gemeinde Wädenswil","Erweiterung um 2 Klassenzimmer"]].forEach(([n,pl,cl,de])=>{if(!D.projects.some(p=>p.name===n))D.projects.push({id:newId("p"),name:n,place:pl,client:cl,desc:de,closed:true,budget:[]});});}
+  if(!D.mig.projs){D.mig.projs=1;[["Umbau Villa Seeblick","Küsnacht","M. und S. Keller","Sanierung Gebäudehülle"],["Anbau Schulhaus Au","Wädenswil","Gemeinde Wädenswil","Erweiterung um 2 Klassenzimmer"]].forEach(([n,pl,cl,de])=>{if(!D.projects.some(p=>p.name===n))D.projects.push({id:newId("p"),name:n,place:pl,client:cl,desc:de,closed:true,budget:[]});});}
   if(!D.mig.closedDemo){D.mig.closedDemo=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&!D.contracts.some(w=>w.pid===pa.id))seedClosedDemo(pa);}
   if(!D.mig.closedFees){D.mig.closedFees=1;const pa=D.example&&D.projects.find(p=>p.name==="Anbau Schulhaus Au"&&p.closed);if(pa&&D.contracts.some(w=>w.pid===pa.id)&&!D.contracts.some(w=>w.pid===pa.id&&w.bkp==="511"))seedClosedFees(pa);}
+  /* example data: the second closed project has contracts, invoices and fees too, so no tile is empty */
+  if(!D.mig.villaDemo){D.mig.villaDemo=1;const pv=D.example&&D.projects.find(p=>p.name==="Umbau Villa Seeblick"&&p.closed);if(pv&&!D.contracts.some(w=>w.pid===pv.id))seedVillaDemo(pv);}
+  /* example data: cost estimate names outside BKP 2 (112 Demolition, 421 Garden works) exist in English too */
+  if(!D.mig.bkpEn){D.mig.bkpEn=1;D.projects.forEach(p=>(p.budget||[]).forEach(b=>{const s=EX_BKP_EXTRA.find(x=>x[0]===b.bkp);if(s&&b.de===s[1]&&(!b.en||b.en===b.de))b.en=s[2];}));}
   /* contractor documents get their project when the contractor works on exactly one, so they also show on that project */
   if(!D.mig.docs2){D.mig.docs2=1;DOCS().forEach(d=>{if(d.scope!=="contractor")return;const ps=[...new Set(D.contracts.filter(w=>w.k===d.ref).map(w=>w.pid))];d.kind=d.kind||guessDocKind(d.name);if(ps.length===1){d.scope="doc";d.kid=d.ref;d.pid=ps[0];d.ref=ps[0];}});}
   if(!D.mig.docs3){D.mig.docs3=1;DOCS().forEach(d=>{if(d.kind==="br"&&/baugesuch|bewilligung|auflage/i.test(d.name))d.kind="bw";});
@@ -337,9 +341,9 @@ function viewFees(){
   const shown=S.ffilter==="all"?list:G[S.ffilter];
   const tot=a=>a.reduce((x,f)=>x+feeTotal(f),0),nInv=n=>n===1?L("1 Rechnung","1 invoice"):n+" "+L("Rechnungen","invoices");
   const T={open:[L("Zu erhalten","To receive"),chf(tot(G.open),false),nInv(G.open.length),""],
-    due:[L("Mahnung fällig","Reminder due"),G.due.length?chf(tot(G.due),false):"–",G.due.length?nInv(G.due.length):L("keine","none"),G.due.length?" crit":""],
+    due:[L("Mahnung fällig","Reminder due"),G.due.length?chf(tot(G.due),false):"0",G.due.length?nInv(G.due.length):L("keine","none"),G.due.length?" crit":""],
     paid:[L("Bezahlt","Paid"),chf(tot(G.paid),false),nInv(G.paid.length),""]};
-  const tile=k=>{const [l,v,ss,c]=T[k],n=G[k].length,sel=S.ffilter===k,inner=`<span class="sl">${l}</span><span class="sv${c}">${v}</span><span class="ss">${ss}</span>`;
+  const tile=k=>{const [l,v,ss,c]=T[k],n=G[k].length,inner=`<span class="sl">${l}</span><span class="sv${c}">${v}</span><span class="ss">${ss}</span>`;
     return n?`<button type="button" class="stat" data-act="sheet" data-k="fee:${k}" aria-haspopup="dialog">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   const fRow=f=>{const st=feeState(f);return row({act:"open-fee",id:f.id,c:st.c,title:esc(f.title||L("Honorar","Fee")),meta:esc(f.no)+" · "+fdate(f.date),amt:chf(feeTotal(f),false),label:st.t,lc:st.c});};
   const paidF=S.ffilter==="all"?shown.filter(f=>f.paid):[];

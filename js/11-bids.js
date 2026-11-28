@@ -13,10 +13,7 @@ const bidName=t=>phaseOf(t)===1?L("Teilnahmeantrag","Request to participate"):L(
 const tFiles=(t,flag)=>DOCS().filter(d=>d.scope==="tender"&&d.ref===t.id&&d[flag]);
 const pctTxt=v=>(v>0?"+":"")+String(v).replace(".",",")+" %";
 function tRes(t){const r=t.res||{},pct=(a,b)=>a&&b?Math.round((a/b-1)*1000)/10:null;return Object.assign({},r,{dLow:pct(r.own,r.low),dWin:t.status==="verloren"?pct(r.own,r.win):null});}
-/* over all decided tenders: how often the office wins, and how far its price was from the winning price when it lost */
-function bidStats(){const dec=D.tenders.filter(t=>t.status==="gewonnen"||t.status==="verloren"),won=dec.filter(t=>t.status==="gewonnen").length;
-  const gaps=dec.map(t=>tRes(t).dWin).filter(x=>x!=null),avg=gaps.length?Math.round(gaps.reduce((a,x)=>a+x,0)/gaps.length*10)/10:null;
-  return {n:dec.length,won,avg,gaps:gaps.length};}
+
 /* firm documents that fit a requested tender document, matched by the usual names */
 const FIRMKEYS=[/handelsregister/i,/betreibung/i,/haftpflicht|versicherung/i,/ahv|sozial/i,/referenzliste/i,/porträt|portrait/i,/lebenslauf|curriculum/i];
 function firmMatch(label){const fd=docsFor("firm","firm");for(const re of FIRMKEYS){if(re.test(label)){const m=fd.find(x=>re.test(x.name));if(m)return m;}}return null;}
@@ -87,7 +84,7 @@ function tenderTasks(){
     add(t,k.c,k.c==="crit"?L("QES fehlt im Büro","No QES in the office"):L("Zweite QES fehlt","Second QES missing"),L("bis ","by ")+fdate(t.due),{meta:n===1?tx(t.title):L(n+" Ausschreibungen verlangen eine QES",n+" tenders require a QES")});}
   return out.sort((a,b)=>({crit:0,warn:1,n:2}[a.c]-{crit:0,warn:1,n:2}[b.c]));
 }
-function tenderTaskRows(){return tenderTasks().map(x=>row({act:"open-t",id:x.t.id,c:x.c,title:esc(x.title),meta:esc(x.meta||tx(x.t.title)),amt:"",label:x.label,lc:x.c})).join("");}
+
 
 /* the steps after the submission: what was submitted, the opening minutes, the decision, the appeal deadline, and the comparison */
 function tenderAfter(t){

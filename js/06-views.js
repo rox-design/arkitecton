@@ -39,13 +39,13 @@ const PJT={all:{l:()=>L("Laufende Projekte","Active projects"),f:x=>true},kv:{l:
 const projCard=x=>{const p=x.p,bar=x.kv?Math.min(100,x.pct):0,warn=x.rest<0;
   const facts=[x.kv?L("Reserve ","Reserve ")+chf(x.rest,false):L("kein Budget","no budget"),x.flc?L("Mehrkosten ","Extra costs ")+chf(x.flc,false):"",x.open?x.open+" "+L("offen","open"):""].filter(Boolean);
   return `<button type="button" class="pcard" data-act="open-project" data-id="${p.id}"><span class="pc-h"><b>${esc(p.name)}</b><span>${esc(p.place||"")}</span></span>
-    <span class="pc-k"><span class="pc-v">${x.kv?x.pct+" %":"–"}</span><span class="pc-l">${x.kv?L("Kostenstand von ","Cost status of ")+chf(x.kv,false):L("noch kein Kostenvoranschlag","no cost estimate yet")}</span></span>
+    <span class="pc-k"><span class="pc-v">${x.kv?x.pct+" %":"0 %"}</span><span class="pc-l">${x.kv?L("Kostenstand von ","Cost status of ")+chf(x.kv,false):L("noch kein Kostenvoranschlag","no cost estimate yet")}</span></span>
     <span class="pc-bar${warn?" warn":""}"><i style="width:${bar}%"></i></span>
     <span class="pc-f">${facts.map((f,i)=>`<span class="${i===0&&warn?"l-warn":i===1?"l-warn":""}">${f}</span>`).join("")}</span></button>`;};
 function viewProjekte(){
   const ps=projStats(),act=ps.filter(x=>!x.p.closed),dn=ps.filter(x=>x.p.closed);
   const kv=act.reduce((a,x)=>a+x.kv,0),bil=act.reduce((a,x)=>a+x.billed,0),flc=act.reduce((a,x)=>a+x.flc,0),ov=act.reduce((a,x)=>a+x.over.length,0);
-  const tile=(k,v,ss,c)=>{const n=act.filter(PJT[k].f).length,inner=`<span class="sl">${PJT[k].l()}</span><span class="sv${c&&n?" "+c:""}">${n?v:"–"}</span><span class="ss">${n?ss:L("keine","none")}</span>`;
+  const tile=(k,v,ss,c)=>{const n=act.filter(PJT[k].f).length,inner=`<span class="sl">${PJT[k].l()}</span><span class="sv${c&&n?" "+c:""}">${n?v:"0"}</span><span class="ss">${n?ss:L("keine","none")}</span>`;
     return n?`<button type="button" class="stat" data-act="sheet" data-k="pj:${k}" aria-haspopup="dialog">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   return `<div class="page">${ph("",L("Projekte","Projects"),"",ib("plus",L("Projekt erfassen","Add project"),'data-act="form-project"'))}
     <div class="stats s4">${tile("all",act.length,act.length===1?L("Projekt","project"):L("Projekte","projects"))}${tile("kv",chf(kv,false),kv?Math.round(bil/kv*100)+" % "+L("Kostenstand","cost status"):"")}${tile("fl",chf(flc,false),act.filter(PJT.fl.f).length+" "+L("Projekte","projects"),"warn")}${tile("over",ov,ov===1?L("Position","item"):L("Positionen","items"),"warn")}</div>
@@ -72,7 +72,7 @@ function viewOverview(){
     <div class="stats s4">
       ${tl("to-pay","",L("Rechnungen","Invoices"),upl.length,upl.length?openTop(upl):L("nichts offen","nothing open"))}
       ${tl("nav",' data-v="handwerker"',L("Handwerker","Contractors"),nW,nW?chf(sumW,false):L("keine Werkverträge","no contracts"))}
-      ${tl("nav",' data-v="budget"',L("Budget","Budget"),t.kv?pct+" %":"–",t.kv?L("von ","of ")+chf(t.kv,false):L("kein Budget","no budget"))}
+      ${tl("nav",' data-v="budget"',L("Budget","Budget"),t.kv?pct+" %":"0 %",t.kv?L("von ","of ")+chf(t.kv,false):L("kein Budget","no budget"))}
       ${tl("to-fees","",L("Honorar","Fees"),chf(feeSum,false),rm?rm+" "+(rm===1?L("Mahnung fällig","reminder due"):L("Mahnungen fällig","reminders due")):fo.length+" "+L("offen","open"),rm?"crit":"")}
     </div>
     ${nextCard({key:"proj:"+p.id,items:pts})}
@@ -111,8 +111,8 @@ function viewFirm(){
   tenderTasks().forEach(x=>pts.push({c:x.c,title:esc(x.title),meta:esc(x.meta||tx(x.t.title)),label:x.label,act:"open-t",ex:`data-id="${x.t.id}"`}));
   docsFor("firm","firm").map(d=>[d,docValid(d)]).filter(([,v])=>v&&v.c!=="ok").forEach(([d,v])=>pts.push({c:v.c,title:L("Unterlage erneuern","Renew document"),meta:esc(d.name),label:v.t,act:"nav",ex:'data-v="profil"'}));
   return `<div class="page hov">
-    ${ph(esc(today),L("Übersicht","Overview"),"","")}
-    <p class="hov-lead">${L("Alle Rechnungen auf einen Blick, mit Status, Freigaben und Mahnstufen.","All invoices at a glance, with status, approvals and reminder levels.")}</p>
+    ${ph(esc(today),vName("buero"),"","")}
+    <p class="hov-lead">${L("Rechnungen, Ausschreibungen und Einnahmen des Büros auf einen Blick.","The office's invoices, tenders and income at a glance.")}</p>
     ${dataNotice()}${startSteps()}
     ${homeTiles()}
     ${nextCard({key:"home",items:pts})}
@@ -153,13 +153,13 @@ function viewInvoices(){
   const iRow=i=>{const w=W(i.w),k=K(w.k),dd=daysTo(i.due);return row({act:"open-inv",id:i.id,c:STATUS[i.status].c,title:esc(k.name),meta:typeLabel(i)+" · "+esc(i.no),amt:chf(pay?payout(i):i.gross,false),label:byDue?dueText(dd):stLabel(i.status),lc:byDue?dueTone(dd):STATUS[i.status].c});};
   const paidI=S.filter==="all"?list.filter(i=>i.status==="bezahlt"):[];
   const rows=list.filter(i=>!paidI.includes(i)).map(iRow).join("")+foldRows(L("Bezahlt","Paid"),paidI.map(iRow).join(""),paidI.length);
-  const clean=S.filter==="pruefen"?list.filter(cleanInv):[];
+  
   /* no «Nächster Schritt» here: the tiles open exactly those invoices, and «gemeinsam freigeben» sits in the «Zu prüfen» sheet */
   const bulkBar="";
   const more=`<button type="button" class="ib" title="${L("Weitere Aktionen","More actions")}" aria-label="${L("Weitere Aktionen","More actions")}" data-act="sheet" data-k="rechnungen">${ico("more")}</button>`;
   return `<div class="page invp">
     ${ph(esc(p.name),L("Rechnungen","Invoices"),"",sw+`<span class="deskonly">${ib("plus",L("Rechnung erfassen: QR-Rechnung als PDF oder Foto","Add invoice: QR-bill as PDF or photo"),'data-act="capture"')}</span>`+more)}
-    <div class="stats s4">${["pruefen","rueckfrage","frei","bezahlt"].map(f=>{const li=of(f),n=li.length,sum=f==="zahlen"?toPay(li):li.reduce((a,i)=>a+i.gross,0),sel=S.filter===f;const inner=`<span class="sl">${fLabel(f)}</span><span class="sv">${n?chf(sum,false):"–"}</span><span class="ss">${n===1?L("1 Rechnung","1 invoice"):n?n+" "+L("Rechnungen","invoices"):L("keine","none")}</span>`;return n?`<button type="button" class="stat" data-act="sheet" data-k="inv:${f}" aria-haspopup="dialog">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;}).join("")}</div>
+    <div class="stats s4">${["pruefen","rueckfrage","frei","bezahlt"].map(f=>{const li=of(f),n=li.length,sum=f==="zahlen"?toPay(li):li.reduce((a,i)=>a+i.gross,0);const inner=`<span class="sl">${fLabel(f)}</span><span class="sv">${n?chf(sum,false):"0"}</span><span class="ss">${n===1?L("1 Rechnung","1 invoice"):n?n+" "+L("Rechnungen","invoices"):L("keine","none")}</span>`;return n?`<button type="button" class="stat" data-act="sheet" data-k="inv:${f}" aria-haspopup="dialog">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;}).join("")}</div>
     <section><div class="sh"><h2>${S.filter==="all"?L("Alle Rechnungen","All invoices"):fLabel(S.filter)}</h2><span class="cnt">${list.length}</span>${pay&&list.some(i=>retention(i)>0)?infoBtn("ret",L("Beträge","Amounts")):""}<span class="right">${S.filter==="frei"&&list.length?`<button type="button" class="ghost" data-act="pay-pdf-all">${L("Zahlungsfreigabe an Bauherrschaft (PDF)","Payment release to client (PDF)")}</button>`:""}${S.filter==="all"||!all.length?"":`<button type="button" class="ghost" data-act="filter" data-f="all">${L("Alle anzeigen","Show all")} (${all.length})</button>`}</span></div>${infoBox("ret",`<p>${L("Die Beträge sind nach Abzug des Rückbehalts: so viel wird ausbezahlt.","Amounts are after retention: this is what is paid out.")}</p>`)}${bulkBar}<div class="rows">${rows||(all.length?`<div class="empty">${L("Keine Rechnungen mit diesem Status.","No invoices with this status.")}</div>`:`<div class="empty"><span>${L("Noch keine Rechnungen in diesem Projekt. Scannen Sie den QR-Zahlteil einer Handwerker-Rechnung.","No invoices in this project yet. Scan the QR payment part of a contractor invoice.")}</span></div>`)}</div>${addRow(L("Rechnung erfassen","Add invoice"),'data-act="capture"')}</section>
   </div>`;
 }
@@ -179,20 +179,13 @@ function viewContractors(){
   if(S.kid&&K(S.kid)) return viewContractor(K(S.kid));
   if(!P()) return noProject(); /* same empty state as Rechnungen and Budget */
   const p=P(),{all,loose,kMiss,T,FL}=kData();
-  const kf="",onlyMiss=false; /* tiles open a sheet; the list below stays unfiltered */
-  const shown=kf?all.filter(FL[kf]):all, shownLoose=kf==="missing"?loose.filter(k=>missingOf(k).length):kf?[]:loose;
-  const missTxt=k=>{const m=missingOf(k);return m.length?`<span class="mwarn">${m.length===1?L(m[0]+" fehlt",m[0]+" missing"):L(m.length+" Angaben fehlen",m.length+" details missing")}</span>`:"";};
-  const rows=shown.map(x=>{const sum=x.w.sum||0,pc=sum?Math.round(x.billed/sum*100):0,over=sum&&x.billed>sum;
-      return row({act:"open-k",id:x.k.id,c:over?"crit":x.billed?"ok":"n",title:esc(x.k.name),meta:"BKP "+x.w.bkp+" "+esc(bName(x.w.bkp)),amt:kf==="billed"?chf(x.billed,false):kf==="ret"?chf(x.ret,false):chf(sum,false),
-        label:`<span class="kprog${over?" over":""}"><span class="kbar"><i style="width:${Math.min(100,pc)}%"></i></span><span>${kf==="ret"?retPct(x.w)+" % "+L("Rückbehalt","retention"):pc+" %"}</span>${missTxt(x.k)}</span>`,lc:over?"crit":"n"});}).join("")
-    +shownLoose.map(k=>row({act:"open-k",id:k.id,c:"n",title:esc(k.name),meta:L("Noch kein Werkvertrag","No contract yet")+(missingOf(k).length?" · "+missTxt(k):""),amt:"",label:L("Werkvertrag erfassen","Add contract"),lc:"n"})).join("");
-  const tile=(f,l,v,ss,n)=>{const sel=kf===f,inner=`<span class="sl">${l}</span><span class="sv">${n?v:"–"}</span><span class="ss">${n?ss:L("keine","none")}</span>`;return n?`<button type="button" class="stat" data-act="sheet" data-k="kw:${f||"all"}" aria-haspopup="dialog">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
+  const tile=(f,l,v,ss,n)=>{const inner=`<span class="sl">${l}</span><span class="sv">${n?v:"0"}</span><span class="ss">${n?ss:L("keine","none")}</span>`;return n?`<button type="button" class="stat" data-act="sheet" data-k="kw:${f||"all"}" aria-haspopup="dialog">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   const nV=all.length;
   const missTile=kMiss.length?`<button type="button" class="stat" data-act="sheet" data-k="kw:missing" aria-haspopup="dialog"><span class="sl">${L("Angaben fehlen","Details missing")}</span><span class="sv warn">${kMiss.length}</span><span class="ss">${kMiss.length===1?L("1 Handwerker","1 contractor"):kMiss.length+" "+L("Handwerker","contractors")}</span></button>`
-    :`<div class="stat ftile off"><span class="sl">${L("Angaben fehlen","Details missing")}</span><span class="sv">–</span><span class="ss">${L("alles vollständig","all complete")}</span></div>`;
+    :`<div class="stat ftile off"><span class="sl">${L("Angaben fehlen","Details missing")}</span><span class="sv">0</span><span class="ss">${L("alles vollständig","all complete")}</span></div>`;
   const more=`<button type="button" class="ib" title="${L("Weitere Aktionen","More actions")}" aria-label="${L("Weitere Aktionen","More actions")}" data-act="sheet" data-k="handwerker">${ico("more")}</button>`;
   const plus=ib("plus",L("Handwerker erfassen","Add contractor"),'data-act="sheet" data-k="k-add"');
-  const head=`<div class="sh"><h2>${({billed:L("Mit Abrechnungen","With billing"),ret:L("Mit Rückbehalt","With retention"),missing:L("Angaben fehlen","Details missing")})[kf]||L("Alle Werkverträge","All contracts")}</h2><span class="cnt">${shown.length+shownLoose.length}</span><span class="right">${kf?`<button type="button" class="ghost" data-act="kfilter" data-f="">${L("Alle anzeigen","Show all")} (${nV+loose.length})</button>`:""}</span></div>`;
+  
   /* no «Nächster Schritt» here: the tiles open exactly these contractors (same rule as Rechnungen) */
   /* no list of contracts below the tiles: the tile «Werkverträge» opens them. Only contractors without a contract
      (not counted by any tile) and the empty state remain here */
@@ -209,7 +202,7 @@ function cmpBody(w){
   const c=compare(w);
   const op=w.offerPdf,opd=op&&DOCS().find(d=>d.id===op.doc);
   const pdfIn=lbl=>`<label class="btn${lbl?"":" primary"}">${lbl||L("Offerte als PDF","Offer as PDF")}<input type="file" accept="application/pdf,.pdf" data-imp="offerpdf" data-id="${w.id}"></label>`;
-  if(!c&&op) return `<div class="stats"><div class="stat"><span class="sl">${L("Offerte","Offer")}</span><span class="sv">${chf(op.sum,false)}</span><span class="ss">${L("als PDF, ","as PDF, ")+fdate(op.date)}</span></div><div class="stat"><span class="sl">${L("Vertragssumme","Contract sum")}</span><span class="sv">${w.sum?chf(w.sum,false):"–"}</span><span class="ss">${w.sum&&r2(w.sum)!==r2(op.sum)?L("weicht von der Offerte ab","differs from the offer"):L("im Werkvertrag","in the contract")}</span></div></div>
+  if(!c&&op) return `<div class="stats"><div class="stat"><span class="sl">${L("Offerte","Offer")}</span><span class="sv">${chf(op.sum,false)}</span><span class="ss">${L("als PDF, ","as PDF, ")+fdate(op.date)}</span></div><div class="stat"><span class="sl">${L("Vertragssumme","Contract sum")}</span><span class="sv">${w.sum?chf(w.sum,false):L("fehlt","missing")}</span><span class="ss">${w.sum&&r2(w.sum)!==r2(op.sum)?L("weicht von der Offerte ab","differs from the offer"):L("im Werkvertrag","in the contract")}</span></div></div>
     <section class="docs"><div class="sh"><h2>${L("Offerte","Offer")}</h2></div>${opd?`<div class="dlist"><div class="drow"><button type="button" class="dopen" data-act="doc-open" data-id="${opd.id}"><span class="dk">PDF</span><span class="dn">${esc(opd.name)}</span><span class="dm">${fsize(opd.size||0)} · ${fdate(opd.date)}</span></button></div></div>`:""}
     <div class="empty"><span>${L("Positionen mit der Schlussabrechnung vergleichen: Offerte zusätzlich aus Excel laden.","To compare items with the final account: also load the offer from Excel.")}</span><div style="display:flex;gap:10px;flex-wrap:wrap">${pdfIn(L("Anderes PDF","Other PDF"))}<label class="btn">${L("Positionen aus Excel","Items from Excel")}<input type="file" accept=".xlsx,.xls,.csv" data-imp="offer" data-id="${w.id}"></label></div></div></section>`;
   if(!c) return `<section><div class="empty"><span>${L("Noch keine Offerte. Am einfachsten als PDF, so wie sie vom Handwerker kommt.","No offer yet. Easiest as PDF, as it comes from the contractor.")}</span><div style="display:flex;gap:10px;flex-wrap:wrap">${pdfIn()}<label class="btn">${L("Offerte aus Excel","Offer from Excel")}<input type="file" accept=".xlsx,.xls,.csv" data-imp="offer" data-id="${w.id}"></label>${D.example&&w.id==="w6"?`<button type="button" class="btn" data-act="ex-offer">${L("Beispiel laden","Load example")}</button>`:""}<button type="button" class="btn" data-act="x-template">${L("Leere Vorlage","Blank template")}</button></div></div></section>`;
@@ -218,8 +211,8 @@ function cmpBody(w){
   const rows=list.map(r=>`<div class="row static">${dot(r.kind==="new"?"crit":r.kind==="more"?"warn":r.kind==="less"?"ok":"n")}<span class="rt">${esc(r.text)}</span><span class="rm">Pos ${esc(r.pos)} · ${q(r)}</span><span class="ra">${c.hasFinal?`<span class="${r.diff>0?"up":r.diff<0?"down":""}">${r.diff?sgn(r.diff):"0.00"}</span>`:nf2.format(r.oa)}</span><span class="rl"></span></div>`).join("");
   return `<div class="stats">
       <div class="stat"><span class="sl">${L("Offerte","Offer")}</span><span class="sv">${chf(c.ot,false)}</span><span class="ss">${c.rows.filter(r=>r.kind!=="new").length} ${L("Positionen","items")}</span></div>
-      <div class="stat"><span class="sl">${L("Schlussabrechnung","Final account")}</span><span class="sv">${c.hasFinal?chf(c.ft,false):"–"}</span><span class="ss">${c.hasFinal?c.changed+" "+L("Abweichungen","differences"):L("noch nicht geladen","not loaded yet")}</span></div>
-      <div class="stat"><span class="sl">${L("Differenz","Difference")}</span><span class="sv${c.hasFinal&&c.diff>0?" warn":""}">${c.hasFinal?(c.diff>0?"+":c.diff<0?"−":"")+chf(Math.abs(c.diff),false):"–"}</span><span class="ss">${c.hasFinal&&c.ot?(c.diff/c.ot*100>0?"+":"")+(c.diff/c.ot*100).toFixed(1)+"%":""}</span></div>
+      <div class="stat"><span class="sl">${L("Schlussabrechnung","Final account")}</span><span class="sv">${c.hasFinal?chf(c.ft,false):L("offen","open")}</span><span class="ss">${c.hasFinal?c.changed+" "+L("Abweichungen","differences"):L("noch nicht geladen","not loaded yet")}</span></div>
+      <div class="stat"><span class="sl">${L("Differenz","Difference")}</span><span class="sv${c.hasFinal&&c.diff>0?" warn":""}">${c.hasFinal?(c.diff>0?"+":c.diff<0?"−":"")+chf(Math.abs(c.diff),false):L("offen","open")}</span><span class="ss">${c.hasFinal&&c.ot?(c.diff/c.ot*100>0?"+":"")+(c.diff/c.ot*100).toFixed(1)+"%":""}</span></div>
     </div>
     <section><div class="sh"><h2>${c.hasFinal&&!S.cmpAll?L("Abweichungen","Differences"):L("Alle Positionen","All items")}</h2><span class="cnt">${list.length}</span>${c.hasFinal?`<button type="button" class="ghost right" data-act="cmp-all">${S.cmpAll?L("Nur Abweichungen","Differences only"):L("Alle Positionen","All items")}</button>`:""}</div><div class="rows">${rows}</div>
     ${!c.hasFinal?`<div class="empty"><div style="display:flex;gap:10px;flex-wrap:wrap"><label class="btn primary">${L("Schlussabrechnung aus Excel","Final account from Excel")}<input type="file" accept=".xlsx,.xls,.csv" data-imp="final" data-id="${w.id}"></label>${D.example&&w.id==="w6"?`<button type="button" class="btn" data-act="ex-final">${L("Beispiel laden","Load example")}</button>`:""}</div></div>`:""}</section>`;
@@ -249,7 +242,7 @@ function viewContractor(k){
     const top=all.length?`<div class="total"><span>${L("Offen","Open")}</span><span class="tv">${chf(open,false)}</span>${oret>0?`<span class="ts">${L("nach Rückbehalt ","after retention ")+chf(oret,false)}</span>`:oret<0?`<span class="ts">${L("mit Rückbehalt ","incl. retention ")+chf(-oret,false)}</span>`:""}</div>`:"";
     body=top+KCARD()+addHere+byState(pid=>{
       const ws=all.filter(w=>w.pid===pid),inv=invOf(ws),multi=ws.length>1;
-      const stats=ws.map(w=>{const iv=inv.filter(i=>i.w===w.id),billed=iv.filter(counted).reduce((a,i)=>a+net(i),0),paid=iv.filter(i=>i.status==="bezahlt").reduce((a,i)=>a+payout(i),0),ret=iv.filter(counted).reduce((a,i)=>a+retention(i),0);
+      const stats=ws.map(w=>{const iv=inv.filter(i=>i.w===w.id),paid=iv.filter(i=>i.status==="bezahlt").reduce((a,i)=>a+payout(i),0),ret=iv.filter(counted).reduce((a,i)=>a+retention(i),0);
         /* the retention tile only where the contract has one */
         return `${multi?`<div class="ctx">BKP ${w.bkp} ${esc(bName(w.bkp))}</div>`:""}<div class="stats">
         <button type="button" class="stat" data-act="form" data-f="contract" data-id="${k.id}" data-w="${w.id}"><span class="sl">${L("Werkvertrag","Contract")}</span><span class="sv">${w.sum?chf(w.sum,false):"–"}</span><span class="ss">BKP ${w.bkp}</span></button>
@@ -304,7 +297,7 @@ function viewBudget(){
   const p=P(); if(!p) return noProject();
   const allRows=budgetRows(), t=totals(allRows), nP=n=>n===1?L("1 Position","1 item"):n+" "+L("Positionen","items");
   /* each tile opens a sheet with exactly the positions it counts */
-  const bt=(f,l,v,ss,c)=>{const n=allRows.filter(BUD_F[f]).length,inner=`<span class="sl">${l}</span><span class="sv${c||""}">${n?v:"–"}</span><span class="ss">${ss}</span>`;return n?`<button type="button" class="stat" data-act="sheet" data-k="bud:${f}" aria-haspopup="dialog">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
+  const bt=(f,l,v,ss,c)=>{const n=allRows.filter(BUD_F[f]).length,inner=`<span class="sl">${l}</span><span class="sv${c||""}">${n?v:"0"}</span><span class="ss">${ss}</span>`;return n?`<button type="button" class="stat" data-act="sheet" data-k="bud:${f}" aria-haspopup="dialog">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   const sumB=(f,g)=>allRows.filter(BUD_F[f]).reduce((a,r)=>a+g(r),0);
   /* no «Nächster Schritt» and no table below: the tiles open exactly these positions. Only the empty state remains */
   const empty=allRows.length?"":`<section><div class="rows"><div class="empty"><span>${L("Noch kein Kostenvoranschlag. Erfassen Sie die BKP-Positionen mit Betrag, daran misst arkitecton alle Rechnungen.","No cost estimate yet. Add the BKP items with amounts; arkitecton measures every invoice against them.")}</span></div></div>${addRow(L("BKP-Position erfassen","Add BKP item"),'data-act="form" data-f="bkp"')}</section>`;
@@ -332,7 +325,7 @@ function trashProject(id){const p=D.projects.find(x=>x.id===id);if(!p)return;con
 function restoreTrash(tid){const e=(D.trash||[]).find(x=>x.id===tid);if(!e)return;D.projects.push(e.p);D.contracts.push(...e.contracts);D.invoices.push(...e.invoices);D.fees=(D.fees||[]).concat(e.fees);D.trash=D.trash.filter(x=>x.id!==tid);if(!D.pid)D.pid=e.p.id;}
 function setNavMode(m){try{localStorage.setItem("arkitecton:nav",m);}catch(e){}document.getElementById("app").classList.toggle("rail-min",m==="min");}
 function viewSettings(){
-  const st=SET(),f=D.firm||{};
+  const st=SET();
   const seg=(name,cur,opts)=>`<div class="seg" role="group">${opts.map(([v,l])=>`<button type="button" data-act="${name}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`).join("")}</div>`;
   const num=(id,v,unit,lbl)=>`<label class="setnum"><input id="${id}" data-set="${id}" inputmode="numeric" autocomplete="off" value="${v}" aria-label="${esc(lbl)}"><span>${unit}</span></label>`;
   const row=(t,hint,ctrl)=>`<div class="setrow"><div><div class="st">${t}</div>${hint?`<div class="sh2">${hint}</div>`:""}</div><div class="sc">${ctrl}</div></div>`;
@@ -445,7 +438,7 @@ function viewProfil(){
   const TL={refs:[L("Referenzen","References"),O.refs.length,O.refs.length?L("bis ","up to ")+mio(maxC):L("noch keine","none yet")],
     pub:[L("Öffentlich","Public"),G.pub.length,L("Bauherrschaft","client")],
     sugg:[L("Vorschläge","Suggestions"),sugg.length,L("aus Projekten","from projects")]};
-  const tile=k=>{const [l,v,ss]=TL[k],n=G[k].length,sel=S.pfilter===k,inner=`<span class="sl">${l}</span><span class="sv">${v||"–"}</span><span class="ss">${ss}</span>`;
+  const tile=k=>{const [l,v,ss]=TL[k],n=G[k].length,sel=S.pfilter===k,inner=`<span class="sl">${l}</span><span class="sv">${v||"0"}</span><span class="ss">${ss}</span>`;
     return n||k==="refs"?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="pfilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   const refRow=r=>row({act:"form",id:r.id,c:r.pub?"acc":"n",title:esc(tx(r)),meta:[esc(r.client||""),r.type&&RTYPE[r.type]?tx(RTYPE[r.type]):"",r.phases?"SIA "+esc(r.phases):""].filter(Boolean).join(" · "),amt:r.cost?mio(r.cost):"",label:r.running?L("laufend","ongoing"):String(r.year||""),lc:"n"}).replace('data-act="form"','data-act="form" data-f="ref"');
   const sRow=p=>row({act:"form",c:"n",title:esc(p.name),meta:[esc(p.place||""),esc(p.client||"")].filter(Boolean).join(" · "),amt:"",label:L("Als Referenz übernehmen","Use as reference"),lc:"acc"}).replace('data-act="form"','data-act="form" data-f="ref" data-w="'+p.id+'"');
@@ -490,8 +483,8 @@ function viewTenders(){
     partner:[L("Nur mit Partner","Only with partner"),String(G.partner.length),nT(G.partner.length),G.partner.length?" warn":""],
     done:(()=>{const dec=D.tenders.filter(t=>t.status==="gewonnen"||t.status==="verloren"),won=dec.filter(t=>t.status==="gewonnen").length,pend=D.tenders.filter(t=>t.status==="eingereicht").length;
       const lost=dec.length-won,ss=[lost?lost+" "+L("ohne Zuschlag","not awarded"):"",pend?pend+" "+L("ausstehend","pending"):""].filter(Boolean).join(" · ")||(won?nT(won):L("noch kein Entscheid","no decision yet"));
-      return [L("Zuschlag erhalten","Contract awarded"),won?String(won):"–",ss,won?" ok":""];})()};
-  const tile=k=>{const [l,v,ss,c]=TL[k],n=G[k].length,sel=S.tfilter===k,inner=`<span class="sl">${l}</span><span class="sv${c}">${n?v:"–"}</span><span class="ss">${ss}</span>`;
+      return [L("Zuschlag erhalten","Contract awarded"),won?String(won):"0",ss,won?" ok":""];})()};
+  const tile=k=>{const [l,v,ss,c]=TL[k],n=G[k].length,sel=S.tfilter===k,inner=`<span class="sl">${l}</span><span class="sv${c}">${n?v:"0"}</span><span class="ss">${ss}</span>`;
     return n?`<button type="button" class="stat ftile${sel?" sel":""}" data-act="tfilter" data-f="${k}" aria-pressed="${sel}">${inner}</button>`:`<div class="stat ftile off">${inner}</div>`;};
   /* next step: the tender with the nearest deadline, its open points lead straight into the right section */
   const card=(()=>{if(!next)return nextCard({});const nd=daysTo(next.due),op=docsOf(next).filter(d=>!d.done),ft=fitOf(next).fit;
@@ -510,14 +503,14 @@ function viewPerson(m,tsw){
   const cr=curRole(m),car=(m.career||[]).slice().sort((a,b)=>(b.to||9999)-(a.to||9999)||b.from-a.from);
   const st=(l,v,ss)=>`<div class="stat"><span class="sl">${l}</span><span class="sv">${v}</span><span class="ss">${ss}</span></div>`;
   const pl=roleYears(m,"pl"),bl=roleYears(m,"bl"),tot=roleYears(m);
-  const cRow=c=>{const i=m.career.indexOf(c);return row({act:"form",id:m.id,c:c.to?"n":"ok",title:tx(ROLES[c.role]||{de:c.role,en:c.role}),meta:esc(c.firm||""),amt:c.from+" – "+(c.to||L("heute","today")),label:yrs(spanY(c)),lc:"n"}).replace('data-act="form"','data-act="form" data-f="career" data-w="'+i+'"');};
+  const cRow=c=>{const i=m.career.indexOf(c);return row({act:"form",id:m.id,c:c.to?"n":"ok",title:tx(ROLES[c.role]||{de:c.role,en:c.role}),meta:esc(c.firm||""),amt:c.from+L(" bis "," to ")+(c.to||L("heute","today")),label:yrs(spanY(c)),lc:"n"}).replace('data-act="form"','data-act="form" data-f="career" data-w="'+i+'"');};
   const nowC=car.filter(c=>!c.to),pastC=car.filter(c=>c.to);
   const rows=(nowC.length?nowC:pastC.slice(0,1)).map(cRow).join("")+foldRows(L("Frühere Stationen","Earlier positions"),(nowC.length?pastC:pastC.slice(1)).map(cRow).join(""),(nowC.length?pastC:pastC.slice(1)).length);
   const xs=(m.extra||[]).filter(x=>XQ[x]);
   return `<div class="page">
     <button type="button" class="back" data-act="back-m">${BACK_I}${L("Büroprofil","Office profile")}</button>
     ${ph(L("Team","Team")+(cr?" · "+tx(ROLES[cr]):""),esc(m.name),esc(m.qual||""),ib("edit",L("Person bearbeiten","Edit person"),`data-act="form" data-f="person" data-id="${m.id}"`))}
-    <div class="stats">${st(L("Berufserfahrung","Experience"),tot?yrs(tot):"–",tot?L("seit ","since ")+startY(m):L("Werdegang erfassen","add career"))}${st(L("Als Projektleiter","As project lead"),pl?yrs(pl):"–",pl?L("Projektleitung","project management"):L("keine Erfahrung erfasst","none recorded"))}${st(L("Als Bauleiter","As site manager"),bl?yrs(bl):"–",xs.includes("blfa")?tx(XQ.blfa):bl?L("Bauleitung","site management"):L("keine Erfahrung erfasst","none recorded"))}</div>
+    <div class="stats">${st(L("Berufserfahrung","Experience"),tot?yrs(tot):"0",tot?L("seit ","since ")+startY(m):L("Werdegang erfassen","add career"))}${st(L("Als Projektleiter","As project lead"),pl?yrs(pl):"0",pl?L("Projektleitung","project management"):L("keine Erfahrung erfasst","none recorded"))}${st(L("Als Bauleiter","As site manager"),bl?yrs(bl):"–",xs.includes("blfa")?tx(XQ.blfa):bl?L("Bauleitung","site management"):L("keine Erfahrung erfasst","none recorded"))}</div>
     <section><div class="sh"><h2>${L("Werdegang","Career")}</h2><span class="cnt">${car.length}</span><span class="right"><button type="button" class="ghost" data-act="form" data-f="career" data-id="${m.id}">+ ${L("Station","Position")}</button></span></div><div class="rows">${rows||`<div class="empty"><span>${L("Noch kein Werdegang. Erfassen Sie die Rollen mit Jahren, auch bei früheren Arbeitgebern.","No career yet. Add roles with years, including former employers.")}</span></div>`}</div></section>
     <section><div class="sh"><h2>${L("Zusatzqualifikationen","Additional qualifications")}</h2><span class="cnt">${xs.length}</span></div><div class="rows">${xs.map(x=>`<div class="row static">${dot("ok")}<span class="rt">${tx(XQ[x])}</span><span class="rm"></span><span class="ra"></span><span class="rl"></span></div>`).join("")||`<div class="empty"><span>${L("Keine erfasst. Über den Stift oben ergänzen.","None yet. Add them with the pencil above.")}</span></div>`}</div></section>
   </div>`;
@@ -582,7 +575,7 @@ function tenderPoints(t,open,fit){const out=[],add=(c,title,meta,label,k,act,ex)
   const key=phs===1?"gek":"zk",nz=(t[key]||[]).filter(z=>!z.me).length;if(nz&&t.status==="arbeit")add("n",L("Kriterien einschätzen","Assess the criteria"),L("zeigt, wo Sie Punkte holen","shows where you earn points"),"",key);
   return out;}
 function tenderNext(t,docs,open,fit){
-  const c=closedT(t),phs=phaseOf(t),dd=daysTo(t.due),it=[];
+  const c=closedT(t),dd=daysTo(t.due),it=[];
   const item=(cc,title,meta,label,act,ex)=>it.push(`<button type="button" class="row" data-act="${act}" ${ex}>${dot(cc)}<span class="rt">${title}</span><span class="rm">${meta||""}</span><span class="ra"></span><span class="rl l-${cc}">${label||""}</span></button>`);
   const go=k=>`data-k="${k}"`;
   let title,when="",acts="";

@@ -26,7 +26,7 @@ const KC=kid=>D.contracts.filter(w=>w.k===kid);
 const counted=i=>i.status==="frei"||i.status==="bezahlt";
 /* the most urgent state of open invoices in one short phrase, for tiles */
 const openTop=list=>{const n=st=>list.filter(i=>i.status===st).length,q=n("rueckfrage"),c=n("pruefen"),f=n("frei");return c?c+" "+L("zu prüfen","to check"):q?q+" "+L("Rückfrage","queried"):f?f+" "+L("freigegeben","approved"):L("nichts offen","nothing open");};
-const openSub=list=>{const n=st=>list.filter(i=>i.status===st).length,c=n("pruefen"),q=n("rueckfrage"),f=n("frei");return [c?c+" "+L("zu prüfen","to check"):"",q?q+" "+L("Rückfrage","queried"):"",f?f+" "+L("freigegeben","approved"):""].filter(Boolean).join(" · ")||L("nichts offen","nothing open");};
+
 /* "Offene Rechnungen" (open invoices) means the same everywhere; the client pays them after the architect releases them: every unpaid invoice, as the amount actually paid out */
 const unpaid=list=>list.filter(i=>live(i)&&i.status!=="bezahlt");
 const toPay=list=>r2(unpaid(list).reduce((a,i)=>a+payout(i),0));
@@ -58,7 +58,7 @@ const dot=c=>`<i class="dot d-${c}" aria-hidden="true"></i>`;
 const dayWord=n=>n===1?L("Tag","day"):L("Tagen","days");
 const dueText=dd=>dd<0?L("seit "+(-dd)+" "+dayWord(-dd)+" überfällig","overdue by "+(-dd)+" "+(-dd===1?"day":"days")):dd===0?L("heute fällig","due today"):L("fällig in "+dd+" "+dayWord(dd),"due in "+dd+" "+(dd===1?"day":"days"));
 const dueTone=dd=>dd<0?"crit":dd<=7?"warn":"n";
-const subTitle=t=>`<h3 class="subh">${t}</h3>`;
+
 const foldRows=(title,html,n)=>n?`<details class="pdone hdone"><summary>${title} <span class="cnt">${n}</span></summary><div class="rows">${html}</div></details>`:"";
 const isFlash=id=>!!(id&&S.flash&&Date.now()<S.flash.until&&S.flash.ids.includes(id));
 const row=o=>`<button type="button" class="row${isFlash(o.id)?" flash":""}" data-act="${o.act}"${o.id?` data-id="${o.id}"`:""}${o.v?` data-v="${o.v}"`:""}>${dot(o.c)}<span class="rt">${o.title}</span><span class="rm">${o.meta||""}</span><span class="ra">${o.amt||""}</span><span class="rl l-${o.lc||o.c}">${o.label||""}</span></button>`;

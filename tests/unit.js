@@ -147,7 +147,7 @@ test("Ausschreibung: Zuschlag und Beschwerdefrist",()=>{
   eq(appealEnd("2026-11-10"),"2026-11-30","20 Tage ab Verfügung");
   const lost=tender("t1",{status:"verloren",res:{at:ad(-5),own:110000,win:100000,low:95000}}),won=tender("t2",{status:"gewonnen",res:{at:ad(-30),own:80000,win:80000}});D.tenders=[lost,won];
   near(tRes(lost).dWin,10,"10 % über dem Zuschlagspreis");eq(tRes(won).dWin,null,"gewonnen: kein Abstand");
-  eq(bidStats().won,1,"1 gewonnen");eq(bidStats().n,2,"von 2 entschieden");
+
   yes(tenderTasks().some(x=>x.t.id==="t1"&&/Beschwerdefrist/.test(x.title)),"verloren: Beschwerdefrist läuft");
   yes(!tenderTasks().some(x=>x.t.id==="t2"),"gewonnen vor 30 Tagen: Frist vorbei, keine Aufgabe");});
 test("Ausschreibung: selektives Verfahren und Status",()=>{

@@ -49,7 +49,7 @@ function formDef(){
     if(!team.length)return {title:L("Unterschriften","Signatures"),noSubmit:true,body:`<div class="f wide"><span class="hint">${L("Unterschreiben können Personen aus dem Team. Noch ist niemand erfasst.","People from the team can sign. Nobody has been added yet.")}</span><button type="button" class="btn primary" data-act="sig-person">${L("Person erfassen","Add person")}</button></div>`};
     return {title:L("Unterschriften","Signatures"),body:`<div class="f wide"><span class="hint">${L("Architekt und Bauleitung unterschreiben die Zahlungsfreigabe, dazu kommt die Bauherrschaft. Beim Kostenstand unterschreiben die beiden für das Büro. Name und Titel kommen aus dem Team, die Funktion legen Sie hier fest.","Architect and site management sign the payment release, plus the client. On the cost status both sign for the office. Name and title come from the team; set the role here.")}</span></div>`
       +[0,1].map(n=>{const g=G[n]||{};return `<div class="f wide"><span class="l sgh">${n?L("2. Unterschrift · Bauleitung","2nd signature · site management"):L("1. Unterschrift · Architekt","1st signature · architect")}</span></div>`
-        +`<div class="f"><label for="fSg${n}m">${L("Person","Person")}</label><select id="fSg${n}m"><option value="">${L("– niemand –","– nobody –")}</option>${team.map(m=>`<option value="${m.id}"${m.id===g.m?" selected":""}>${esc(m.name)}${m.qual?" · "+esc(m.qual):""}</option>`).join("")}</select></div>`
+        +`<div class="f"><label for="fSg${n}m">${L("Person","Person")}</label><select id="fSg${n}m"><option value="">${L("Niemand","Nobody")}</option>${team.map(m=>`<option value="${m.id}"${m.id===g.m?" selected":""}>${esc(m.name)}${m.qual?" · "+esc(m.qual):""}</option>`).join("")}</select></div>`
         +fld("fSg"+n+"r",L("Funktion","Role"),g.role||"",{ph:n?L("z. B. Inhaberin","e.g. owner"):L("z. B. Projektleiter","e.g. project lead")});}).join("")
       +`<div class="f wide"><button type="button" class="ghost" data-act="sig-person">+ ${L("Person erfassen","Add person")}</button></div>`};}
   if(F.f==="person"){const m=D.office.team.find(x=>x.id===F.id)||{extra:[]};
@@ -293,7 +293,7 @@ function sheetHTML(){
     const act=f==="frei"&&li.length?`<div class="bar-actions"><button type="button" class="btn primary" data-act="pay-pdf-all">${L("Zahlungsfreigabe an Bauherrschaft (PDF)","Payment release to client (PDF)")}</button></div>`:f==="pruefen"&&li.filter(cleanInv).length>1?`<div class="bar-actions"><button type="button" class="btn primary" data-act="bulk-open">${li.filter(cleanInv).length} ${L("ohne Hinweise gemeinsam freigeben","without remarks: approve together")}</button></div>`:"";
     return sheetBox(stLabel(f)+" · "+li.length,`<div class="rows">${rows}</div>${act}`);}
   /* a Handwerker tile opens exactly the contracts or contractors it counts; a row opens the contractor */
-  if(/^kw:/.test(S.sheet)){const f=S.sheet.slice(3),{all,loose,kMiss,FL}=kData();
+  if(/^kw:/.test(S.sheet)){const f=S.sheet.slice(3),{all,kMiss,FL}=kData();
     let rows;
     if(f==="missing")rows=kMiss.map(k=>row({act:"open-k",id:k.id,c:"warn",title:esc(k.name),meta:L("Fehlt: ","Missing: ")+esc(missingOf(k).join(", ")),amt:"",label:"",lc:"warn"})).join("");
     else{const li=f==="all"?all:all.filter(FL[f]);
@@ -347,7 +347,7 @@ function sheetWrap(d,items){
 /* an SVG chart scales with its width; its labels must not: --k undoes the scale so they stay 12 px */
 function fitCharts(){document.querySelectorAll(".income .chart svg").forEach(s=>{const vb=s.viewBox.baseVal,w=s.getBoundingClientRect().width;if(vb&&vb.width&&w)s.style.setProperty("--k",(vb.width/w).toFixed(3));});}
 window.addEventListener("resize",()=>requestAnimationFrame(fitCharts));
-function renderOverlay(){queueMicrotask(fitCharts);queueMicrotask(()=>{if(S.form&&S.form.f==="fee")feeCalcUpdate();});queueMicrotask(()=>{const q=document.getElementById("qtext");if(q&&!q.dataset.top){q.scrollTop=0;q.dataset.top="1";}});queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";}));
+function renderOverlay(){queueMicrotask(fitCharts);queueMicrotask(()=>{if(S.form&&S.form.f==="fee")feeCalcUpdate();});queueMicrotask(()=>{const q=document.getElementById("qtext");if(q&&!q.dataset.top){q.scrollTop=0;q.dataset.top="1";}});queueMicrotask(()=>document.querySelectorAll('input[type=file]').forEach(x=>{if(!x.title)x.title=" ";if(!x.getAttribute("aria-label")){const l=x.closest("label");x.setAttribute("aria-label",((l&&(l.getAttribute("aria-label")||l.dataset.tip||l.textContent.trim()))||L("Datei wählen","Choose file")).slice(0,80));}}));
   const o=document.getElementById("overlay");let h="";
   if(S.dscan) h=dscanHTML(); else if(S.form) h=formHTML(); else if(S.bulk) h=bulkHTML(); else if(S.modal) h=captureHTML(); else if(S.sheet) h=sheetHTML(); else if(S.kvx) h=kvHTML(); else if(S.drawer&&INV(S.drawer)) h=drawerHTML(INV(S.drawer)); else if(S.fdrawer&&FE(S.fdrawer)) h=feeDrawerHTML(FE(S.fdrawer));
   o.innerHTML=h;o.classList.toggle("on",!!h);{const t=document.getElementById("toast");if(t){t.classList.toggle("top",!!h);if(h&&t.dataset.hint)t.classList.remove("on");}}

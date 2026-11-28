@@ -17,10 +17,9 @@ einstellungen:'<g stroke-width="1.35"><path d="M4 6.5h2.4M10.6 6.5H20"/><circle 
 scan:'<path d="M3.5 7.5v-3a1 1 0 0 1 1-1h3"/><path d="M16.5 3.5h3a1 1 0 0 1 1 1v3"/><path d="M20.5 16.5v3a1 1 0 0 1-1 1h-3"/><path d="M7.5 20.5h-3a1 1 0 0 1-1-1v-3"/><rect x="7" y="7" width="4" height="4" rx=".6"/><rect x="13" y="7" width="4" height="4" rx=".6"/><rect x="7" y="13" width="4" height="4" rx=".6"/><path d="M13.5 13.5h1.2v1.2h-1.2zM16 16h1v1h-1zM13.5 16.3h.9"/>',
 pin:'<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M9 4.5v15"/>'};
 /* one rail row: the link plus quick actions that appear on hover (desktop) */
-const NAV_PLUS=()=>({ausschreibungen:["form","tender",L("Ausschreibung erfassen","Add tender")],uebersicht:["form-project","",L("Projekt erfassen","Add project")],rechnungen:["capture","",L("QR scannen","Scan QR")],handwerker:["form","contractor",L("Handwerker erfassen","Add contractor")],budget:["form","bkp",L("BKP-Position erfassen","Add BKP item")]});
-const NAV_MORE=()=>({uebersicht:L("Projekt bearbeiten, Kostenübersicht","Edit project, cost overview"),rechnungen:L("Ohne QR, Honorar, Excel","Without QR, fee, Excel"),handwerker:L("Importieren, Excel","Import, Excel"),budget:L("Excel-Auswertungen","Excel reports"),ausschreibungen:L("Excel-Listen","Excel lists")});
-function navRow(v,extra=""){const pl=NAV_PLUS()[v],mo=NAV_MORE()[v];
-  return `<div class="nrow" style="--na:${(pl?24:0)+(mo?24:0)}px"><button type="button" data-act="nav" data-v="${v}"${S.view===v?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span>${extra}</button><span class="nact">${pl?`<button type="button" class="na" data-act="${pl[0]}"${pl[1]?` data-f="${pl[1]}"`:""} data-tip="${pl[2]}" aria-label="${pl[2]}">+</button>`:""}${mo?`<button type="button" class="na" data-act="nmore" data-v="${v}" data-tip="${mo}" aria-label="${L("Weitere Aktionen","More actions")}">···</button>`:""}</span></div>`;}
+
+
+
 const navIco=v=>`<svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICO[v]}</svg>`;
 const vName=v=>({buero:"Home",projekte:L("Projekte","Projects"),uebersicht:L("Projekt","Project"),rechnungen:L("Rechnungen","Invoices"),handwerker:L("Handwerker","Contractors"),budget:"Budget",ausschreibungen:L("Ausschreibungen","Tenders"),profil:L("Büroprofil","Office profile"),einstellungen:L("Einstellungen","Settings")})[v];
 function renderChrome(){
@@ -47,6 +46,8 @@ function renderChrome(){
   const tbd=v=>`<button type="button" data-act="nav" data-v="${v}"${navCur(v)?' aria-current="page"':""}>${navIco(v)}<span>${vName(v)}</span></button>`;
   const fnv=document.getElementById("firmNav");if(fnv)fnv.innerHTML=TABS.map(v=>`<div class="nrow">${tbd(v)}</div>`).join("");
   document.getElementById("app").classList.add("navd");
+  /* every navigation landmark gets its own name, so screen readers can tell them apart */
+  [["firmNav",L("Bereiche","Areas")],["nav",L("Projekt","Project")],["footNav",L("Einstellungen und Ansicht","Settings and view")],["tabbar",L("Bereiche","Areas")]].forEach(([id,l])=>{const e=document.getElementById(id);if(e)e.setAttribute("aria-label",l);});
   /* raised tiles with shadow, full width and the black rail (fest seit 27.11.2026) */
   document.getElementById("app").classList.add("tiles-up");
   document.getElementById("tabbar").innerHTML=TABS.map(tbd).join("")+(S.view==="rechnungen"&&S.rtab!=="deb"?`<button type="button" class="tabscan" data-act="scan-menu" aria-label="${L("Scannen: QR-Rechnung oder Dokument","Scan: QR-bill or document")}" title="${L("Scannen","Scan")}">${navIco("scan")}</button>`:"");
@@ -187,7 +188,7 @@ function seedProjectDemo(p){
 function seedClosedDemo(p){
   const ad=n=>addDays(iso(TODAY),n);
   const kid=(n,st,z,c,iban,em,ph)=>{let k=D.contractors.find(x=>x.name===n);if(!k){k={id:newId("k"),name:n,street:st||"",zip:z||"",city:c||"",iban:iban||"",email:em||"",phone:ph||""};D.contractors.push(k);}return k.id;};
-  const cat=c=>{const s=STD_BKP.find(x=>x[0]===c);return s?[s[1],s[2]]:[bkpCat(c)||"BKP "+c,bkpCat(c)||"BKP "+c];};
+  const cat=c=>{const s=STD_BKP.find(x=>x[0]===c)||EX_BKP_EXTRA.find(x=>x[0]===c);return s?[s[1],s[2]]:[bkpCat(c)||"BKP "+c,bkpCat(c)||"BKP "+c];};
   Object.assign(p,{client:p.client||"Gemeinde Wädenswil",cstreet:p.cstreet||"Florhofstrasse 3",czip:p.czip||"8820",ccity:p.ccity||"Wädenswil"});
   /* [bkp, cost estimate, contractor, contract sum, akonto amounts, final invoice] */
   const plan=[
@@ -222,6 +223,29 @@ function seedClosedFees(p){
     const w={id:newId("w"),pid:p.id,k:k.id,bkp,sum,ret:0};D.contracts.push(w);D.invoices.push({id:newId("i"),no,w:w.id,type:"schluss",n:0,date:ad(day),due:ad(day+30),gross:sum,status:"bezahlt",ref:""});};
   mk("511","Gemeinde Wädenswil, Bauamt","Florhofstrasse 3","8820","Wädenswil","CH09 0070 0110 0001 2345 6",13860,-600,"BA-2025-0412","bauamt@waedenswil.example");
   mk("531","Bauversicherung Zürichsee AG","Seestrasse 101","8810","Horgen","CH27 0900 0000 8765 4321 0",7050,-590,"POL-77310","schaden@bauversicherung-zs.example");
+}
+/* closed example 2: Umbau Villa Seeblick, refurbishment of the building envelope, finished and paid, so its tiles are not empty */
+function seedVillaDemo(p){
+  const ad=n=>addDays(iso(TODAY),n);
+  const kid=(n,st,z,c,iban,em)=>{let k=D.contractors.find(x=>x.name===n);if(!k){k={id:newId("k"),name:n,street:st||"",zip:z||"",city:c||"",iban:iban||"",email:em||"",phone:""};D.contractors.push(k);}return k.id;};
+  Object.assign(p,{client:p.client&&p.client!=="Bauherrschaft Keller"?p.client:"M. und S. Keller",cstreet:p.cstreet||"Seestrasse 140",czip:p.czip||"8700",ccity:p.ccity||"Küsnacht"});
+  /* [bkp, cost estimate, contractor, contract sum, akonto, final invoice] */
+  const plan=[["221",96000,["Fenster Frei AG"],92800,[50000],44100],
+    ["222",38000,["Spenglerei Bachmann GmbH","Bahnhofstrasse 9","8700","Küsnacht","CH58 0070 0110 0044 5566 1","info@spenglerei-bachmann.example"],36400,[],37200],
+    ["224",72000,["Dachtechnik Wyss GmbH","Gewerbestrasse 12","8804","Au ZH","CH12 0900 0000 8044 1122 3"],69500,[40000],30900],
+    ["226",64000,["Fassaden Gut AG","Industriestrasse 18","8706","Meilen","CH39 0483 5012 3456 7800 9","info@fassaden-gut.example"],61200,[30000],29700]];
+  p.budget=plan.map(([b,kv])=>{const s=STD_BKP.find(x=>x[0]===b)||[b,"BKP "+b,"BKP "+b];return {bkp:b,de:s[1],en:s[2],kv};});
+  let n=0;const ref=()=>"21 00000 00047 "+String(61000+(++n)*29).padStart(5,"0")+" 20250 "+String(40000+n*13).slice(-5);
+  plan.forEach(([b,,k,sum,ak,fin],j)=>{const w={id:newId("w"),pid:p.id,k:kid(...k),bkp:b,sum,ret:5};D.contracts.push(w);
+    const pre=["VF","VS","VD","VG"][j];let d=-430+j*9;
+    ak.forEach((g,x)=>{D.invoices.push({id:newId("i"),no:pre+"-2025-"+String(300+j*10+x),w:w.id,type:"akonto",n:x+1,date:ad(d),due:ad(d+30),gross:g,status:"bezahlt",ref:ref()});d+=60;});
+    D.invoices.push({id:newId("i"),no:pre+"-2025-"+String(390+j),w:w.id,type:"schluss",n:0,date:ad(d+25),due:ad(d+55),gross:fin,status:"bezahlt",ref:ref()});});
+  const byY={};FEES().forEach(f=>{const y=String(f.no).slice(0,4);byY[y]=Math.max(byY[y]||0,parseInt(String(f.no).slice(5),10)||0);});
+  const fee=(day,title,lines,paidAfter)=>{const y=String(ad(day)).slice(0,4);byY[y]=(byY[y]||0)+1;const no=y+"-"+String(byY[y]).padStart(3,"0"),r=makeRef(no);
+    FEES().push({id:newId("h"),pid:p.id,no,date:ad(day),title,lines,vat:!!D.firm.vat,vatRate:8.1,refType:r.type,ref:r.ref,rem:[],paid:ad(day+paidAfter),log:[{d:ad(day),t:L("Erstellt","Created")},{d:ad(day+paidAfter),t:L("Zahlung eingegangen","Payment received")}]});};
+  fee(-520,L("Honorar Projekt und Ausschreibung","Fee design and tendering"),[{t:L("Phasen Bauprojekt und Ausschreibung","Design and tendering"),q:1,u:L("pauschal","lump sum"),p:18500}],27);
+  fee(-300,L("Honorar Ausführung, Akonto","Fee execution, progress payment"),[{t:L("Bauleitung","Site supervision"),q:90,u:"h",p:145}],30);
+  fee(-150,L("Honorar Schlussrechnung","Final fee invoice"),[{t:L("Bauleitung und Abschluss","Site supervision and completion"),q:60,u:"h",p:145}],24);
 }
 /* ---------- income picture ---------- */
 function addIncomeHistory(){

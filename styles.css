@@ -4,7 +4,7 @@
 /* Layout: studio calm. One plane, hairlines instead of boxes, large light headings, a strict 12-column rhythm.
    Desktop: text rail left. Phone: slim top bar, bottom bar with the scan button in the middle. */
 :root{
-  --bg:#fafaf8; --raise:#ffffff; --ink:#141414; --muted:#66665f; --faint:#73736c; --line:#e6e6e1; --hover:#f1f1ed;
+  --bg:#fafaf8; --raise:#ffffff; --ink:#141414; --muted:#66665f; --faint:#6b6b64; --line:#e6e6e1; --hover:#f1f1ed;
   --mark:#e03a1e;
   --ok:#2f7d4f; --warn:#9a5c00; --crit:#c8321c; --acc:#2f4ad0;
   --font:"Instrument Sans","Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
@@ -74,6 +74,8 @@ main{overflow:auto;overflow-x:hidden;height:100%}
 .back span,.pback span{font-size:1.2rem;line-height:1}
 .back:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:6px}
 .back:hover{color:var(--ink)}
+/* long action labels at the bottom of a sheet wrap instead of being cut on narrow phones */
+#overlay .btn{white-space:normal;text-align:center;height:auto;min-height:44px;line-height:1.25;padding-top:8px;padding-bottom:8px}
 
 /* stats */
 .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px}

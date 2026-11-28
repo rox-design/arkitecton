@@ -27,7 +27,7 @@ function drawerHTML(i){
   const issues=cs.filter(c=>c.s!=="ok"), oks=cs.filter(c=>c.s==="ok");
   const ICON={ok:"✓",warn:"!",crit:"✕",info:"i"}, ret=retention(i);
   const li=c=>`<li><span class="ic ${c.s}" aria-hidden="true">${ICON[c.s]}</span><span>${esc(c.t)}${c.link?` <button type="button" class="ghost" style="padding:0;margin-left:6px;text-decoration:underline" data-act="open-cmp" data-id="${c.link}">${L("Vergleich","Comparison")}</button>`:""}${c.fix?` <button type="button" class="ghost" style="padding:0;margin-left:6px;text-decoration:underline" data-act="query">${L("Anfragen","Request")}</button> <button type="button" class="ghost" style="padding:0;margin-left:10px;text-decoration:underline" data-act="form" data-f="contractor" data-id="${c.fix}">${L("Selbst ergänzen","Add yourself")}</button>`:""}</span></li>`;
-  const retLine=i.type==="akonto"?[L("Rückbehalt ","Retention ")+invPct(i)+"%","− "+nf2.format(ret)]:i.type==="schluss"?[L("Freigabe Rückbehalt","Retention released"),"+ "+nf2.format(-ret)]:[L("Rückbehalt","Retention"),"0.00"];
+  
   const cr=cs.find(c=>c.s==="crit"),why=cr?`<span class="act-hint">${cr.need?L("Erst ergänzen: ","First add: ")+esc(cr.need):L("Erst Doppelrechnung klären","Resolve the duplicate first")}</span>`:"";
   const money=cs.some(c=>c.money&&c.s==="warn"),apLbl=money?L("Trotzdem freigeben","Approve anyway"):L("Freigeben","Approve");
   let actions="";

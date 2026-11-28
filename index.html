@@ -41,7 +41,7 @@ p{margin:0}
 header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid transparent;transition:border-color .3s}
 header.sc{border-bottom-color:var(--line)}
 .hd{display:flex;align-items:center;justify-content:space-between;height:72px;gap:24px}
-.logo{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:600;font-size:1.125rem;letter-spacing:-.01em}
+.logo{display:flex;align-items:center;min-height:40px;min-width:40px;gap:10px;text-decoration:none;font-weight:600;font-size:1.125rem;letter-spacing:-.01em}
 .logo svg{width:28px;height:28px}
 .mk-ink{fill:var(--ink)}.mk-red{fill:var(--mark)}
 nav.top{display:flex;gap:6px}
@@ -70,7 +70,7 @@ nav.top a:hover{color:var(--ink);background:var(--soft)}
 @keyframes blink{50%{opacity:0}}
 .browser{position:relative;border:1px solid var(--line);border-bottom:0;border-radius:20px 20px 0 0;background:var(--soft);padding:12px 12px 0;overflow:hidden}
 .browser .bar{display:flex;align-items:center;gap:12px;padding:4px 4px 12px}
-.browser .url{font-size:.85rem;color:var(--faint);border:1px solid var(--line);background:var(--raise);border-radius:999px;padding:6px 16px}
+.browser .url{font-size:.85rem;color:var(--muted);border:1px solid var(--line);background:var(--raise);border-radius:999px;padding:6px 16px}
 .browser .dots{margin-left:auto;display:flex;gap:7px}.browser .dots i{width:11px;height:11px;border-radius:50%;background:var(--line2)}
 .browser .shot{position:relative;border-radius:12px 12px 0 0;overflow:hidden;border:1px solid var(--line);border-bottom:0;max-height:620px}
 .browser .shot img{display:block;width:100%;height:auto}
@@ -123,7 +123,7 @@ section{padding:120px 0}
 .flow{display:grid;grid-template-columns:1fr 1fr;gap:18px 56px;width:min(420px,100%)}
 .node{position:relative;padding:14px 18px;border:1px solid var(--line);background:var(--soft);border-radius:12px}
 .node:nth-child(even){transform:translateY(34px)}
-.node b{display:block;font-weight:500}.node small{color:var(--faint);font-size:.85rem}
+.node b{display:block;font-weight:500}.node small{color:var(--muted);font-size:.85rem}
 .node::after{content:"";position:absolute;right:-6px;top:-6px;width:12px;height:12px;background:var(--line2);transition:background .3s}
 .node.on::after{background:var(--ink)}.node.now::after{background:var(--mark)}
 .orb{width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--line2),var(--faint));box-shadow:0 30px 60px -20px rgba(0,0,0,.25)}
@@ -204,7 +204,7 @@ details .a{padding:0 22px 20px;color:var(--muted)}
 .cta p{margin-top:12px}
 footer{padding:96px 0 0;overflow:hidden}
 .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
-.cols h4{margin:0 0 14px;font-weight:400;color:var(--faint);font-size:.9rem}
+.cols h4{margin:0 0 14px;font-weight:400;color:var(--muted);font-size:.9rem}
 .cols a,.cols span{display:block;text-decoration:none;padding:6px 0}
 .cols a:hover{text-decoration:underline}
 .word{font-size:clamp(5rem,18vw,15rem);line-height:.8;letter-spacing:-.06em;text-align:center;color:var(--line);font-weight:500;margin-top:80px;user-select:none;transform:translateY(12%)}
@@ -230,6 +230,8 @@ footer{padding:96px 0 0;overflow:hidden}
 }
 @media (max-width:480px){.hd{gap:10px}.acts{gap:6px}.acts .btn{padding:0 14px;font-size:.88rem}}
 @media (max-width:380px){.logo .lw{display:none}}
+/* small phones: the three steps fit in one row without the number circles */
+@media (max-width:400px){.ex>*,.ex .card *,.fc *{min-width:0}.ex .card{padding:20px}.ex .card p{overflow-wrap:break-word;hyphens:auto}.flow{gap:16px 20px}.stats>div{min-width:0;padding:10px 8px}.stats span{overflow-wrap:break-word;hyphens:auto}.ft b,.ex .tag b{hyphens:auto;overflow-wrap:break-word}.tabs{display:flex;gap:2px}.tabs button{flex:1 1 auto;justify-content:center;padding:0 8px;gap:0;font-size:.9rem}.tabs button span{display:none}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.reveal,.mosaic i,.radar i{opacity:1;transform:none}}
 </style>
 </head>

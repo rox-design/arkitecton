@@ -285,9 +285,9 @@ const SWIPE={list:SWIPE_TABS,includes(v){return SWIPE_TABS.includes(swTab(v));},
   new MutationObserver(()=>requestAnimationFrame(upd)).observe(document.getElementById("topProj"),{childList:true,characterData:true,subtree:true});
 })();
 /* ---------- tooltips in the navigation (desktop) ---------- */
-(function(){let tm=null,cur=null;const tip=document.createElement("div");tip.id="tip";tip.setAttribute("role","tooltip");document.body.appendChild(tip);
+(function(){let tm=null,cur=null;const tip=document.createElement("div");tip.id="tip";tip.setAttribute("aria-hidden","true");document.body.appendChild(tip);
   const hide=()=>{clearTimeout(tm);tm=null;cur=null;tip.classList.remove("on");};
-  document.addEventListener("mouseover",e=>{let t=e.target.closest("[data-tip],.ib[title],button[title],label[title]");if(t&&!t.closest(".app,#overlay"))t=null;if(t&&t.title){t.dataset.tip=t.title;t.removeAttribute("title");}if(t===cur)return;hide();if(!t||!window.matchMedia("(hover:hover)").matches)return;cur=t;
+  document.addEventListener("mouseover",e=>{let t=e.target.closest("[data-tip],.ib[title],button[title],label[title]");if(t&&!t.closest(".app,#overlay"))t=null;if(t&&t.title){t.dataset.tip=t.title;if(!t.getAttribute("aria-label")&&!t.textContent.trim())t.setAttribute("aria-label",t.title);t.removeAttribute("title");}if(t===cur)return;hide();if(!t||!window.matchMedia("(hover:hover)").matches)return;cur=t;
     tm=setTimeout(()=>{if(S.pop)return;tip.textContent=t.dataset.tip;tip.classList.add("on");const r=t.getBoundingClientRect(),w=tip.offsetWidth;
       tip.style.left=Math.min(innerWidth-w-8,Math.max(8,r.left+r.width/2-w/2))+"px";const h=tip.offsetHeight;tip.style.top=(r.bottom+6+h>innerHeight-8?r.top-6-h:r.bottom+6)+"px";},380);});
   document.addEventListener("mousedown",hide,true);document.addEventListener("scroll",hide,true);

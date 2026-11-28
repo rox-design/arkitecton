@@ -206,6 +206,11 @@ document.addEventListener("change",e=>{
   const f=t.files&&t.files[0];if(!f)return;
   if(t.id==="scanIn"){const fs=[...t.files];t.value="";if(fs.length>1)onScanFiles(fs);else onScanFile(f);}else if(t.dataset.imp){closePop();handleImport(t.dataset.imp,f,t.dataset.id);t.value="";}
 });
+/* cost estimate preview: the total follows every change */
+const kvSum=()=>{const box=document.querySelector("[data-kv]");if(!box)return;let s=0;box.querySelectorAll(".kvr").forEach((r,i)=>{const on=document.getElementById("kvOn"+i),a=document.getElementById("kvA"+i);r.classList.toggle("off",!on.checked);if(on.checked){const v=num(a.value);if(isFinite(v))s+=v;}});
+  const el=document.getElementById("kvSum");if(el)el.textContent=nf2.format(s);const c=document.getElementById("kvChk");if(c)c.classList.toggle("bad",Math.abs(s-(+c.dataset.total))>0.5);};
+document.addEventListener("input",e=>{if(e.target.closest&&e.target.closest("[data-kv]"))kvSum();});
+document.addEventListener("change",e=>{if(e.target.closest&&e.target.closest("[data-kv]"))kvSum();});
 document.addEventListener("input",e=>{if(e.target.getAttribute&&e.target.getAttribute("aria-invalid")){e.target.removeAttribute("aria-invalid");const fe=e.target.closest(".f")&&e.target.closest(".f").querySelector(".ferr");if(fe)fe.remove();}if(e.target.id==="pSearch"){const fold=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase(),q=fold(e.target.value.trim()),sh=document.querySelector(".psw");let n=0;sh.querySelectorAll(".pitem").forEach(b=>{const on=!q||fold(b.dataset.q).includes(q);b.hidden=!on;if(on)n++;});sh.querySelectorAll(".plist").forEach(l=>{l.hidden=![...l.querySelectorAll(".pitem")].some(b=>!b.hidden);});const dd=sh.querySelector(".pdone");if(dd&&q)dd.open=true;sh.querySelector(".pnone").hidden=n>0;return;}if(S.form&&S.form.f==="fee"&&e.target.closest&&e.target.closest("#frm"))feeCalcUpdate();});
 /* ---------- swipe between the main areas on a phone (same order as the tab bar) ----------
    the page follows the finger 1:1, a short flick is enough, and the next page

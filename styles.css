@@ -1378,3 +1378,24 @@ section.tsec.foldable>.sh>.fold{grid-row:1/3;grid-column:5;margin-left:0}
   .rows:not(.ainv-m):has(>.row:not(.brow))>*{grid-column:1/-1}
   .rows:not(.ainv-m):has(>.row:not(.brow))>.row:not(.brow){grid-template-columns:subgrid}
 }
+
+/* cost estimate preview: one row per BKP item, switch off or correct the amount */
+.fields>.wide,.kvprev{grid-column:1/-1}
+.kvprev{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.kvprev .kvh,.kvprev .kvr,.kvprev .kvt{display:grid;grid-template-columns:40px 72px minmax(0,1fr) 140px;align-items:center;gap:10px;min-height:48px;border-bottom:1px solid var(--line)}
+.kvprev .kvh{min-height:36px;font-size:.75rem;color:var(--faint);text-transform:uppercase;letter-spacing:.06em}
+.kvprev .kvh span:last-child,.kvprev .kvt b{text-align:right}
+.kvprev .kvr input[type=checkbox]{width:22px;height:22px;justify-self:center;accent-color:var(--ink)}
+.kvprev .kvc{font-variant-numeric:tabular-nums;color:var(--muted)}
+.kvprev .kvn{overflow-wrap:break-word;hyphens:auto;min-width:0}
+.kvprev .kva{font:inherit;text-align:right;min-height:40px;padding:0 10px;border:1px solid var(--line2);border-radius:10px;background:var(--bg);color:var(--ink);width:100%;box-sizing:border-box}
+.kvprev .kvr.off .kvc,.kvprev .kvr.off .kvn,.kvprev .kvr.off .kva{opacity:.45}
+.kvprev .kvt{border-bottom:0;font-weight:500}
+.kvprev .kvt b{font-weight:600;padding-right:10px}
+.kvprev #kvChk{margin:4px 0 0;text-align:right}
+.kvprev #kvChk.bad{color:var(--warn,#a1580e)}
+@media (max-width:520px){
+  .kvprev .kvr{grid-template-columns:30px minmax(0,1fr) 108px;grid-template-areas:"c k a" "c n a";gap:0 8px;padding:6px 0;align-items:center}
+  .kvprev .kvr input[type=checkbox]{grid-area:c}.kvprev .kvr .kvc{grid-area:k;font-size:.8125rem}.kvprev .kvr .kvn{grid-area:n}.kvprev .kvr .kva{grid-area:a}
+  .kvprev .kvh{grid-template-columns:30px minmax(0,1fr) 108px;gap:8px}.kvprev .kvh span:nth-child(3){display:none}
+  .kvprev .kvt{grid-template-columns:30px minmax(0,1fr) 108px;gap:8px}.kvprev .kvt span:first-child{display:none}}

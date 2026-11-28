@@ -63,6 +63,18 @@ function formDef(){
       body:`<div class="f wide"><label for="fCRole">${L("Rolle","Role")}</label><select id="fCRole">${Object.keys(ROLES).map(k=>`<option value="${k}"${c.role===k?" selected":""}>${tx(ROLES[k])}</option>`).join("")}</select></div>`
         +fld("fCFirm",L("Arbeitgeber","Employer"),c.firm||"",{wide:true})+fld("fCFrom",L("Von (Jahr)","From (year)"),c.from||"",{mode:"numeric",req:true})+fld("fCTo",L("Bis (Jahr)","To (year)"),c.to||"",{mode:"numeric",hint:L("Leer lassen, wenn die Rolle heute noch gilt.","Leave empty if the role is current.")}),
       del:i>=0};}
+  if(F.f==="kvimport"){const k=S.kvDraft||{rows:[]},pp=D.projects.find(x=>x.id===k.pid)||{},old=(pp.budget||[]).length,sum=k.rows.reduce((a,x)=>a+x.kv,0);
+    const lost=old?[...new Set((D.contracts||[]).filter(w=>w.pid===pp.id&&!k.rows.some(x=>x.bkp===w.bkp)).map(w=>w.bkp))]:[];
+    const note=[old?L(`Ersetzt die ${old} bestehenden Budgetpositionen. Mit «Rückgängig» lässt sich das zurücknehmen.`,`Replaces the ${old} existing budget items. «Undo» brings them back.`):"",
+      lost.length?L(`Werkverträge mit BKP ${lost.join(", ")} fehlen im neuen KV: diese Positionen bleiben mit Betrag 0 erhalten.`,`Contracts with BKP ${lost.join(", ")} are missing from the new estimate: these items stay with amount 0.`):"",
+      k.groups?L(`${k.groups} Gruppensummen (z. B. «21 Rohbau 1») nicht übernommen, damit nichts doppelt zählt.`,`${k.groups} group totals (e.g. «21 Shell 1») not taken over, so nothing counts twice.`):""].filter(Boolean);
+    return {title:L("Kostenvoranschlag übernehmen","Take over cost estimate"),save:old?L("Ersetzen und übernehmen","Replace and take over"):L(`${k.rows.length} Positionen übernehmen`,`Take over ${k.rows.length} items`),
+      body:`<p class="hint wide">${esc(k.name||"")} · ${L("Bitte prüfen: Positionen abwählen oder Beträge korrigieren.","Please check: switch items off or correct amounts.")}</p>`
+      +(note.length?`<div class="notice wide"><span class="ic warn" aria-hidden="true">!</span><span>${note.map(esc).join(" ")}</span></div>`:"")
+      +`<div class="kvprev wide" data-kv><div class="kvh"><span></span><span>BKP</span><span>${L("Bezeichnung","Name")}</span><span>CHF</span></div>`
+      +k.rows.map((x,i)=>`<label class="kvr"><input type="checkbox" id="kvOn${i}"${x.on?" checked":""} aria-label="${esc(x.bkp+" "+x.name)}"><span class="kvc">${esc(x.bkp)}</span><span class="kvn">${esc(x.name)}</span><input id="kvA${i}" class="kva" inputmode="decimal" autocomplete="off" value="${nf2.format(x.kv)}" aria-label="${esc(L("Betrag ","Amount ")+x.bkp)}"></label>`).join("")
+      +`<div class="kvt"><span></span><span></span><span>${L("Summe","Total")}</span><b id="kvSum">${nf2.format(sum)}</b></div>`
+      +(k.total?`<p class="hint" id="kvChk" data-total="${k.total}">${L("Total im Dokument: ","Total in the document: ")}${chf(k.total)}</p>`:"")+`</div>`};}
   if(F.f==="offersum"){const w=W(F.id)||{},o=S.offerDraft||{};const k=K(w.k)||{};
     return {title:L("Offerte · ","Offer · ")+esc(k.name||""),body:`<p class="hint wide">${esc(o.name||"")}</p>`+fld("fOfferSum",L("Offertsumme CHF","Offer total CHF"),o.sum!=null?nf2.format(o.sum):"",{mode:"decimal",wide:true,req:true,hint:o.sum!=null?L("Aus dem PDF gelesen. Bitte mit der Offerte vergleichen.","Read from the PDF. Please check against the offer."):L("Im PDF wurde keine Summe gefunden. Bitte eintragen.","No total found in the PDF. Please enter it.")})
       +`<label class="chk wide"><input type="checkbox" id="fOfferAsSum"${!w.sum?" checked":""}> ${L("Als Vertragssumme übernehmen","Use as contract sum")}${w.sum?` <span class="hint">(${L("heute ","now ")+chf(w.sum,false)})</span>`:""}</label>`};}
@@ -93,7 +105,7 @@ function readZk(){const F=S.form;if(!F||!F.lines)return;F.lines=F.lines.map((z,i
 function formHTML(){
   const d=formDef(); if(!d) return "";
   const delKey="delform";
-  return `<div class="scrim" data-act="close"></div><div class="sheet${S.form.f==="fee"?" wide":""}" role="dialog" aria-modal="true" aria-labelledby="fT">
+  return `<div class="scrim" data-act="close"></div><div class="sheet${S.form.f==="fee"||S.form.f==="kvimport"?" wide":""}" role="dialog" aria-modal="true" aria-labelledby="fT">
     <div class="ohead"><h2 id="fT" style="font-size:1.125rem;font-weight:500">${esc(d.title)}</h2><button type="button" class="x" data-act="close" aria-label="${L("Schliessen","Close")}">×</button></div>
     <form id="frm" class="obody" novalidate><div class="fields">${d.body}</div><span class="err" id="formErr" role="alert"></span>
     ${d.del?(S.confirm===delKey?`<button type="button" class="ghost danger" data-act="form-del">${L("Wirklich löschen?","Really delete?")}</button>`:`<button type="button" class="ghost" data-act="ask" data-c="${delKey}">${L("Löschen","Delete")}</button>`):""}</form>
@@ -160,6 +172,15 @@ function submitForm(){
     backTo();render();return toast(L("Gespeichert","Saved"));
   }
   if(F.f==="fee") return saveFee(F,fail);
+  if(F.f==="kvimport"){const k=S.kvDraft,pp=k&&D.projects.find(x=>x.id===k.pid);if(!pp)return;
+    const rows=[];for(let i=0;i<k.rows.length;i++){const on=document.getElementById("kvOn"+i),a=document.getElementById("kvA"+i);if(!on||!on.checked)continue;const v=num(a.value);
+      if(!(v>=0)||!isFinite(v))return fail(L("Bitte einen gültigen Betrag eintragen.","Please enter a valid amount."),"kvA"+i);const x=k.rows[i];
+      const s=STD_BKP.find(y=>y[0]===x.bkp)||EX_BKP_EXTRA.find(y=>y[0]===x.bkp);rows.push({bkp:x.bkp,de:x.name,en:s&&s[1]===x.name?s[2]:x.name,kv:r2(v)});}
+    if(!rows.length)return fail(L("Bitte mindestens eine Position auswählen.","Please select at least one item."));
+    snap();const keep=(pp.budget||[]).filter(b=>D.contracts.some(w=>w.pid===pp.id&&w.bkp===b.bkp)&&!rows.some(r=>r.bkp===b.bkp)).map(b=>({bkp:b.bkp,de:b.de,en:b.en,kv:0}));
+    pp.budget=rows.concat(keep).sort((a,b)=>a.bkp.localeCompare(b.bkp,"de",{numeric:true}));
+    S.kvDraft=null;closeAll();D.pid=pp.id;go("budget");S.tsel="bud:all";saveData();render();
+    return toast(L(`${rows.length} Positionen übernommen · `,`${rows.length} items taken over · `)+chf(rows.reduce((a,r)=>a+r.kv,0),false),0,false,true);}
   if(F.f==="offersum"){const w=W(F.id),o=S.offerDraft||{};const v=num(val("fOfferSum"));if(!w)return;if(!(v>0))return toast(L("Bitte die Offertsumme eintragen.","Please enter the offer total."));
     w.offerPdf={doc:o.doc,sum:r2(v),date:iso(TODAY),name:o.name};if(document.getElementById("fOfferAsSum")&&document.getElementById("fOfferAsSum").checked)w.sum=r2(v);
     S.offerDraft=null;backTo();render();return toast(L("Offerte gespeichert · ","Offer saved · ")+chf(v,false));}
@@ -234,10 +255,10 @@ function sheetDef(key){
   if(key==="k-add"){const inP=new Set(PC().map(w=>w.k)),others=D.contractors.filter(k=>!inP.has(k.id)&&!(k.pid===D.pid&&!D.contracts.some(w=>w.k===k.id))).sort((a,b)=>a.name.localeCompare(b.name));
     return {title:L("Handwerker erfassen","Add contractor"),groups:[["",[Object.assign(bt(L("Neuen Handwerker erfassen","Add new contractor"),"form"),{f:"contractor"})]],...(others.length?[[L("Aus Ihrem Büro zuweisen","Assign from your office"),others.map(k=>Object.assign(bt(k.name,"form",k.id),{f:"contract"}))]]:[])]};}
   if(key==="handwerker") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Hochladen","Upload"),[im(L("Handwerkerliste importieren","Import contractor list"),"contractors")]],[L("Herunterladen","Download"),[ex(L("Handwerkerliste","Contractor list"),"x-contractors")]]]};
-  if(key==="budget") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Kostenstand für die Bauherrschaft","Cost status for the client"),"cost-pdf"),ex(L("Bauabrechnung","Construction account"),"final-pdf"),ex(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client"),"x-report"),ex(L("Budget nach BKP","Budget by BKP"),"x-budget")]]]};
+  if(key==="budget") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Hochladen","Upload"),[im(L("Kostenvoranschlag hochladen","Upload cost estimate"),"kv",D.pid)]],[L("Herunterladen","Download"),[ex(L("Kostenstand für die Bauherrschaft","Cost status for the client"),"cost-pdf"),ex(L("Bauabrechnung","Construction account"),"final-pdf"),ex(L("Kostenübersicht für die Bauherrschaft","Cost overview for the client"),"x-report"),ex(L("Budget nach BKP","Budget by BKP"),"x-budget"),ex(L("Vorlage Kostenvoranschlag","Cost estimate template"),"x-kv-template")]]]};
   /* draft: the «···» next to the project name: what this tab offers besides its main action, then the project itself */
   if(key==="pmenu"){const sub=S.view==="rechnungen"?(S.rtab==="deb"?null:sheetDef("rechnungen")):S.view==="handwerker"?sheetDef("handwerker"):S.view==="budget"?sheetDef("budget"):null;
-    return {title:P()?P().name:"",groups:[...(sub?sub.groups:[]),[L("Projekt","Project"),[bt(L("Projekt bearbeiten","Edit project"),"form-project-edit",D.pid),bt(L("Neues Projekt","New project"),"form-project")]]]};}
+    return {title:P()?P().name:"",groups:[...(sub?sub.groups:[]),[L("Projekt","Project"),[...(S.view==="budget"?[]:[im(L("Kostenvoranschlag hochladen","Upload cost estimate"),"kv",D.pid)]),bt(L("Projekt bearbeiten","Edit project"),"form-project-edit",D.pid),bt(L("Neues Projekt","New project"),"form-project")]]]};}
   if(key==="tender") return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Verfahrensliste","Procedure list"),"x-tenders"),ex(L("Referenzliste","Reference list"),"x-refs")]]]};
   if(key.startsWith("t:")) return {title:L("Weitere Aktionen","More actions"),groups:[[L("Herunterladen","Download"),[ex(L("Referenzen für diese Bewerbung","References for this bid"),"x-refs",key.slice(2))]]]};
   /* the «···» of a document on the phone: the same three actions as the menu on the desktop */
@@ -393,6 +414,37 @@ function guessOfferSum(lines){
   const key=/(gesamt|total|offertsumme|offertbetrag|endbetrag|nettobetrag|zu bezahlen|inkl\.? ?mwst)/i;
   let best=null;lines.forEach(l=>{if(key.test(l)){const a=amt(l);if(a.length){const v=Math.max(...a);if(!best||v>=best)best=v;}}});
   if(best)return best;const all=lines.flatMap(amt);return all.length?Math.max(...all):null;}
+/* ---------- cost estimate (KV) from Excel or CSV ----------
+   Reads every row with a BKP code (2, 21, 211, 211.1 …) and an amount. Rows that have finer rows below them
+   (group totals such as «2 Gebäude» or «21 Rohbau 1») are not taken over, so nothing is counted twice. */
+const KV_CODE=/^\s*(?:BKP\s*)?(\d{1,3}(?:\.\d{1,3}){0,2})(?:\s+(.*))?$/i;
+function parseKV(sheets){
+  const amt=v=>{if(typeof v==="number")return v;const s=String(v==null?"":v).trim();if(!/\d/.test(s)||/[a-z]{3,}/i.test(s.replace(/chf|fr/gi,"")))return null;const n=num(s);return isFinite(n)?n:null;};
+  let best=null;
+  for(const rows of sheets){
+    const found=[];let total=null,head=-1;
+    rows.forEach(r=>{const cells=r.map(x=>x==null?"":x);
+      const hi=cells.findIndex(x=>/betrag|total|kosten|kv|chf|summe/i.test(String(x))&&typeof x==="string"&&!KV_CODE.test(x));if(head<0&&hi>=0&&!cells.some(x=>KV_CODE.test(String(x))&&typeof x!=="number"))head=hi;
+      let ci=-1,code="",name="";
+      for(let i=0;i<Math.min(cells.length,3);i++){const v=cells[i];if(v===""||v==null)continue;const s=typeof v==="number"?String(v):String(v);const m=s.match(KV_CODE);
+        if(m&&(typeof v!=="number"||(Number.isInteger(v)?v<1000:true))){ci=i;code=m[1];name=(m[2]||"").trim();}break;}
+      if(ci<0){const lab=cells.find(x=>typeof x==="string"&&/total|summe|gesamt/i.test(x));if(lab){const ns=cells.map(amt).filter(x=>x!=null&&x>0);if(ns.length)total=Math.max(total||0,...ns);}return;}
+      if(!name){const t=cells.slice(ci+1).find(x=>typeof x==="string"&&x.trim()&&amt(x)==null);name=t?String(t).trim():"";}
+      const nums=cells.map((x,i)=>i>ci?amt(x):null);found.push({code,name,nums});});
+    if(!found.length)continue;
+    /* the amount column: the header that says Betrag/Total/CHF, else the column with the largest sum */
+    const sums={};found.forEach(f=>f.nums.forEach((n,i)=>{if(n!=null)sums[i]=(sums[i]||0)+Math.abs(n);}));
+    let col=head>=0&&sums[head]?head:+Object.keys(sums).sort((a,b)=>sums[b]-sums[a])[0];
+    const list=[];found.forEach(f=>{const v=f.nums[col];if(v==null||!(v>0))return;const ex=list.find(x=>x.bkp===f.code);if(ex){ex.kv=r2(ex.kv+v);return;}list.push({bkp:f.code,name:f.name||bkpCat(f.code)||"BKP "+f.code,kv:r2(v)});});
+    const leaves=list.filter(x=>!list.some(y=>y!==x&&kvBelow(y.bkp,x.bkp)));
+    if(!best||leaves.length>best.rows.length)best={rows:leaves,total,groups:list.length-leaves.length};
+  }
+  return best||{rows:[],total:null,groups:0};
+}
+/* is code c a finer position inside parent? 211 in 21 and 2, 211.1 in 211, never 2 in 21 */
+function kvBelow(c,parent){if(c===parent)return false;const [cm,cs]=c.split("."),[pm,ps]=parent.split(".");
+  if(ps!==undefined)return cm===pm&&cs!==undefined&&c.startsWith(parent+".");
+  return cm===pm?cs!==undefined:cm.length>pm.length&&cm.startsWith(pm);}
 async function handleImport(kind,file,id){
   if(!file)return;
   if(kind==="logo"){const url=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(file);});const im=new Image();im.src=url;await new Promise(r=>{im.onload=r;im.onerror=r;});
@@ -404,6 +456,13 @@ async function handleImport(kind,file,id){
     if(!out.length)return toast(L("Keine BKP-Codes gefunden. Spalte A: Nummer, Spalte B: Bezeichnung.","No BKP codes found. Column A: number, column B: name."));
     D.bkpList=out;D.bkpListInfo={name:file.name,date:iso(TODAY)};saveData();render();const sub=out.filter(o=>o[0].includes(".")).length;
     return toast(out.length+L(" Codes geladen"," codes loaded")+(sub?" · "+sub+L(" Unterpositionen"," sub-items"):""));}
+  if(kind==="kv"){const p=D.projects.find(x=>x.id===(id||D.pid));if(!p)return;
+    if(!/\.(xlsx|xls|csv)$/i.test(file.name))return toast(L("Bitte den Kostenvoranschlag als Excel oder CSV wählen.","Please choose the cost estimate as Excel or CSV."));
+    let sheets;try{await libXLSX();const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});sheets=wb.SheetNames.map(n=>XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:"",raw:true}));}
+    catch(e){return toast(L("Datei nicht lesbar.","File not readable."));}
+    const r=parseKV(sheets);
+    if(!r.rows.length)return toast(L("Keine BKP-Positionen mit Betrag gefunden. Erwartet: BKP-Nummer, Bezeichnung, Betrag.","No BKP items with amounts found. Expected: BKP number, name, amount."));
+    D.pid=p.id;S.kvDraft={pid:p.id,name:file.name,total:r.total,groups:r.groups,rows:r.rows.map(x=>({...x,on:true}))};openForm("kvimport",p.id);return;}
   if(kind==="offerpdf"){const w=W(id);if(!w)return;
     if(!isPdf(file))return toast(L("Bitte die Offerte als PDF wählen.","Please choose the offer as PDF."));
     toast(L("Offerte wird gelesen …","Reading offer …"));
@@ -478,6 +537,14 @@ const EXPORT={
     wbSave("Budget-BKP-"+pslug()+".xlsx",[{name:"Budget BKP",widths:[8,30,18,14,14,14,14,14,14],rows:headRows(L("Budget nach BKP","Budget by BKP")).concat([["BKP",L("Arbeitsgattung","Trade"),L("Kostenvoranschlag","Estimate"),L("Vergeben","Awarded"),L("Abgerechnet","Billed"),L("Ausbezahlt","Paid out"),L("Rückbehalt","Retention"),L("Zu prüfen","To check"),L("Rest","Remaining")]],body)}]);},
   "x-invoices"(){wbSave("Rechnungen-"+pslug()+".xlsx",[{name:L("Rechnungen","Invoices"),widths:[16,26,7,18,12,12,14,14,14,14,34],rows:headRows(L("Rechnungsliste","Invoice list")).concat(invRows(PI().slice().sort((a,b)=>toDate(a.date)-toDate(b.date)),true))}]);},
   "x-contractors"(){wbSave("Handwerkerliste.xlsx",[{name:L("Handwerker","Contractors"),widths:[28,26,8,18,30,34,16],rows:[[L("Firma","Company"),L("Strasse","Street"),L("PLZ","ZIP"),L("Ort","City"),"IBAN",L("E-Mail","Email"),L("Telefon","Phone")]].concat(D.contractors.map(k=>[k.name,k.street,k.zip,k.city,k.iban,k.email,k.phone]))}]);},
+  /* a cost estimate as offices keep it in Excel: groups with their totals and the positions below, so the upload can be tried at once */
+  "x-kv-template"(){const R=[["2",L("Gebäude","Building"),""],["21",L("Rohbau 1","Shell 1"),""],["211",L("Baumeisterarbeiten","Builder works"),""],["211.1",L("Baustelleneinrichtung","Site installation"),42000],["211.5",L("Beton- und Stahlbetonarbeiten","Concrete works"),318000],["211.6",L("Maurerarbeiten","Masonry"),96000],["214",L("Montagebau in Holz","Timber construction"),74000],
+      ["22",L("Rohbau 2","Shell 2"),""],["221",L("Fenster, Aussentüren, Tore","Windows, external doors, gates"),118000],["222",L("Spenglerarbeiten","Sheet metal work"),36000],["224",L("Bedachungsarbeiten","Roofing"),88000],["226",L("Fassadenputze","Facade plaster"),64000],
+      ["23",L("Elektroanlagen","Electrical"),""],["230",L("Elektroanlagen","Electrical installations"),142000],["24",L("Heizung, Lüftung, Klima","Heating, ventilation, AC"),""],["240",L("Heizungsanlagen","Heating"),126000],["25",L("Sanitäranlagen","Plumbing"),""],["250",L("Sanitäranlagen","Plumbing installations"),168000],
+      ["27",L("Ausbau 1","Fit-out 1"),""],["271",L("Gipserarbeiten","Plastering"),92000],["273",L("Schreinerarbeiten","Joinery"),84000],["28",L("Ausbau 2","Fit-out 2"),""],["281",L("Bodenbeläge","Floor coverings"),102000],["285",L("Malerarbeiten","Painting"),58000],["29",L("Honorare","Fees"),""],["291",L("Architekt","Architect"),236000]];
+    const leaf=c=>!R.some(r=>r[0]!==c&&kvBelow(r[0],c));const sumOf=c=>R.filter(r=>r[2]!==""&&(r[0]===c||kvBelow(r[0],c))).reduce((a,r)=>a+r[2],0);
+    const rows=R.map(r=>[r[0],r[1],r[2]===""?sumOf(r[0]):r[2]]);const tot=sumOf("2");
+    wbSave(L("Vorlage-Kostenvoranschlag.xlsx","Template-cost-estimate.xlsx"),[{name:L("Kostenvoranschlag","Cost estimate"),widths:[10,40,16],rows:[["BKP",L("Bezeichnung","Name"),L("Betrag CHF","Amount CHF")]].concat(rows,[["",L("Total","Total"),tot]])}]);},
   "x-template"(){wbSave("Vorlage-Offerte.xlsx",[{name:L("Offerte","Offer"),widths:[6,40,10,10,14],rows:[["Pos",L("Beschreibung","Description"),L("Einheit","Unit"),L("Menge","Quantity"),L("Einheitspreis","Unit price")]]}]);},
   "x-dossier"(id){const k=K(id),w=CW(id);if(!w)return toast(L("Kein Werkvertrag","No contract"));
     const inv=D.invoices.filter(i=>i.w===w.id).sort((a,b)=>toDate(a.date)-toDate(b.date)),c=compare(w);

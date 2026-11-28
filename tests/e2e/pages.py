@@ -98,12 +98,13 @@ async def main():
         await pg.evaluate(f"closeAll();D.pid='{pid}';S.kid=null;go('budget')");await pg.wait_for_timeout(250)
         ok(f'{tag}: Budget {pid}: alle Kacheln antippbar, keine leer',await pg.evaluate("[...document.querySelectorAll('#main .stats .stat')].every(e=>e.tagName==='BUTTON'&&e.dataset.act==='sheet')"))
         ok(f'{tag}: Budget {pid}: unter den Kacheln nichts, was in den Blättern steht',await pg.evaluate("![...document.querySelectorAll('#main .tnext,#main .brow,#main .bgroup')].some(e=>!e.closest('#tpanel'))"))
-        if not mob: ok(f'Desktop: Budget {pid} öffnet mit dem Kostenvoranschlag unter den Kacheln',await pg.evaluate("S.tsel==='bud:all'&&document.querySelectorAll('#tpanel .brow').length===budgetRows().length"))
+        if not mob: ok(f'Desktop: Budget {pid} öffnet mit dem Kostenvoranschlag unter den Kacheln',await pg.evaluate("S.tsel==='bud:all'")and await pg.evaluate("(()=>{let n=0;while(n++<60){const g=document.querySelector('.bgroup[aria-expanded=false]');if(!g)break;g.click();}return 1})()")and await pg.evaluate("document.querySelectorAll('#tpanel .brow').length===budgetRows().length"))
         for k in ['all','aw','no','over']:
           await pg.evaluate("closeAll();S.tsel=null;render()");await pg.wait_for_timeout(100)
           exp=await pg.evaluate(f"budgetRows().filter(BUD_F['{k}']).length")
           await pg.click(f'[data-k="bud:{k}"]');await pg.wait_for_timeout(250)
-          ok(f'{tag}: Budget-Kachel {k} zeigt so viele Positionen wie sie zählt',await pg.evaluate("document.querySelectorAll('"+SH+" .brow').length")==exp)
+          await pg.evaluate("(()=>{let n=0;while(n++<60){const g=document.querySelector('.bgroup[aria-expanded=false]');if(!g)break;g.click();}return 1})()");await pg.wait_for_timeout(100)
+          ok(f'{tag}: Budget-Kachel {k} zeigt so viele Positionen wie sie zählt (aufgeklappt)',await pg.evaluate("document.querySelectorAll('"+SH+" .brow').length")==exp)
         if not mob:
           ok(f'{tag}: Budget unter den Kacheln breit genug für die Tabelle',await pg.evaluate("document.querySelector('"+SH+"').getBoundingClientRect().width")>=700)
       await pg.evaluate("closeAll();D.pid='p1';go('budget');S.tsel=null;render()");await pg.wait_for_timeout(200)
@@ -131,6 +132,15 @@ async def main():
       await pg.evaluate("document.querySelector('[data-k=income]').click()");await pg.wait_for_timeout(400)
       ok(f'{tag}: Diagramm-Beschriftung bleibt 12 px, egal wie breit',await pg.evaluate("[...document.querySelectorAll('.income .chart svg text.ax')].every(t=>{const h=t.getBoundingClientRect().height;return h>10&&h<18})"))
       await pg.evaluate("closeAll();S.tsel=null;render()")
+      # BKP tree: the main group opens and closes its levels, sums add up
+      await pg.evaluate("closeAll();S.bopen={};D.pid='p1';go('uebersicht');go('budget');S.tsel='bud:all';render()");await pg.wait_for_timeout(200)
+      if not mob:
+        tr=await pg.evaluate("(()=>{const g=document.querySelector('#tpanel .bgroup.lv0[data-id=\"2\"]');const n0=document.querySelectorAll('#tpanel .bgroup.lv1').length;g.click();const n1=document.querySelectorAll('#tpanel .bgroup.lv1').length;return [n0,n1]})()")
+        ok(f'{tag}: BKP-Baum: Hauptgruppe 2 klappt ihre Gruppen zu',tr[0]>0 and tr[1]<tr[0],tr)
+        sm=await pg.evaluate("(()=>{const rs=budgetRows().filter(r=>String(r.b.bkp).startsWith('21'));return rs.reduce((a,r)=>a+(r.kv||0),0)})()")
+        await pg.evaluate("closeAll();S.bopen={};S.tsel='bud:all';render()");await pg.wait_for_timeout(100)
+        ok(f'{tag}: BKP-Baum: Summe der Gruppe 21 stimmt',await pg.evaluate("num(document.querySelector('#tpanel .bgroup[data-id=\"21\"] .kvc').textContent)")==sm)
+      await pg.evaluate("closeAll();S.bopen={};S.tsel=null;render()")
       ok(f'{tag}: Keine JS-Fehler',not errs,errs[:3])
       await ctx.close()
     await b.close()

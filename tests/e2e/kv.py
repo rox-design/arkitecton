@@ -32,6 +32,7 @@ async def main():
       bud=await pg.evaluate("P().budget.map(b=>b.bkp+':'+b.kv)")
       ok(f'{tag}: 15 Positionen übernommen, Unterpositionen wie 211.5 dabei',len(bud)==15 and '211.5:300000' in bud and not any(x.startswith('211.1:') for x in bud),bud[:4])
       ok(f'{tag}: Danach im Reiter Budget',await pg.evaluate("S.view")=='budget')
+      ok(f'{tag}: Namen der Zwischenstufen aus dem KV gespeichert',await pg.evaluate("P().bkpGroups['21']==='Rohbau 1'&&P().bkpGroups['211']==='Baumeisterarbeiten'"))
       # a second upload replaces, keeps contracted items, and can be undone
       await pg.evaluate("()=>{const k=D.contractors[0];D.contracts.push({id:newId('w'),pid:D.pid,k:k.id,bkp:'211.5',sum:290000,ret:0});}")
       csv=os.path.join(tempfile.mkdtemp(),'kv2.csv')

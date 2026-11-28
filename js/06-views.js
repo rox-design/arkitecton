@@ -287,9 +287,25 @@ function budgetTable(rows){
     const act=`data-act="kv-explain" data-id="${r.b.bkp}"`;
     const sub=(r.kv?`<span class="bmob">KV ${nf0.format(r.kv)} · ${fcL} ${nf0.format(r.forecast)} · </span>`:"")+(r.rev?`<span class="l-n">${L("revidiert, ursprünglich ","revised, originally ")+nf0.format(r.b.kv||0)}</span> · `:"")+(r.none?L("nicht vergeben","not awarded"):[r.awarded?L("vergeben ","awarded ")+nf0.format(r.awarded):L("ohne Werkvertrag","no contract"),r.billed+r.open?L("abgerechnet ","billed ")+nf0.format(r.billed+r.open):""].filter(Boolean).join(" · "));
     return ONE_BROW(r,act,sub,base,pc);};
-  const grp=[...new Set(rows.map(r=>bkpMain(r.b.bkp)))].sort();
-  const br=grp.map(g=>{const rs=rows.filter(r=>bkpMain(r.b.bkp)===g),kv=rs.reduce((a,r)=>a+(r.kv||0),0),aw=rs.reduce((a,r)=>a+(r.forecast||0),0),rest=rs.reduce((a,r)=>a+(r.kv?r.rest:0),0);
-    return `<div class="bgroup"><span class="code">${g}</span><span class="gn">${esc(bkpMainName(g))}</span><span class="kvc">${kv?chf(kv,false):"–"}</span><span class="nums">${aw?chf(aw,false):"–"}</span><span class="rest${rest<0?" up":rs.every(r=>r.none)?" mute":""}">${kv&&!rs.every(r=>r.none)?chf(rest,false):"–"}</span></div>`+rs.map(one).join("");}).join("");
+  /* BKP as a tree, like the cost estimate: main group (2), group (21), item (211), sub-item (211.1).
+     Every level with finer positions below is a row of its own with its sums and opens or closes. */
+  const chain=c=>{const [m,s]=String(c).split("."),out=[m.charAt(0)];if(m.length>=2)out.push(m.slice(0,2));if(m.length>=3)out.push(m.slice(0,3));if(s!==undefined)out.push(c);return [...new Set(out)];};
+  const root={kids:new Map(),rows:[]};
+  rows.forEach(r=>{let n=root;const ch=chain(r.b.bkp);ch.forEach((c,k)=>{if(k===ch.length-1){n.rows.push(r);return;}if(!n.kids.has(c))n.kids.set(c,{code:c,kids:new Map(),rows:[]});n=n.kids.get(c);});});
+  const all=rows.length>=budgetRows().length,pp=P()||{},gName=c=>((pp.bkpGroups||{})[c])||(c.length===1?bkpMainName(c):bkpCat(c))||"BKP "+c;
+  /* the full table opens at the main groups; a tile that shows a selection opens everything */
+  const isOpen=(c,lv)=>S.bopen&&c in S.bopen?S.bopen[c]:(!all||lv===0);
+  const flat=n=>[...n.rows,...[...n.kids.values()].flatMap(flat)];
+  const sortK=(a,b)=>String(a).localeCompare(String(b),"de",{numeric:true});
+  const draw=(n,lv)=>{
+    /* items and finer levels in BKP order, e.g. 211 (with 211.1 below) before 214 */
+    const own=n.rows.map(r=>[r.b.bkp,one(r).replace('class="brow row','style="--lv:'+lv+'" class="brow row')]);
+    const kids=[...n.kids.values()].map(g=>{
+      const rs=flat(g);
+      return [g.code,(()=>{const kv=rs.reduce((a,r)=>a+(r.kv||0),0),aw=rs.reduce((a,r)=>a+(r.forecast||0),0),rest=rs.reduce((a,r)=>a+(r.kv?r.rest:0),0),o=isOpen(g.code,lv);
+      return `<button type="button" class="bgroup lv${lv}" style="--lv:${lv}" data-act="bgrp" data-id="${g.code}" aria-expanded="${o}"><span class="code">${g.code}</span><span class="gn"><i class="car" aria-hidden="true"></i><span>${esc(gName(g.code))}${kv?`<span class="bmob gsub">KV ${nf0.format(kv)} · ${fcL} ${nf0.format(aw)}</span>`:""}</span></span><span class="kvc">${kv?chf(kv,false):"–"}</span><span class="nums">${aw?chf(aw,false):"–"}</span><span class="rest${rest<0?" up":rs.every(r=>r.none)?" mute":""}">${kv&&!rs.every(r=>r.none)?chf(rest,false):"–"}</span></button>${o?draw(g,lv+1):""}`;})()];});
+    return own.concat(kids).sort((a,b)=>sortK(a[0],b[0])).map(x=>x[1]).join("");};
+  const br=draw(root,0);
   return `<div class="btable"><div class="bhead"><span>BKP</span><span>${L("Arbeitsgattung","Trade")}</span><span class="kvc">${L("Kostenvoranschlag","Estimate")}</span><span class="nums">${fcL}</span><span class="rest">${L("Reserve","Reserve")}</span></div>${br}
     <div class="legend"><span><i class="c-paid"></i>${L("Bezahlt","Paid")}</span><span><i class="c-appr"></i>${L("Freigegeben","Approved")}</span><span><i class="c-open"></i>${L("Zu prüfen","To check")}</span><span><i style="width:1px;height:12px;background:var(--ink)"></i>${L("Kostenvoranschlag","Estimate")}</span></div></div>`;
 }

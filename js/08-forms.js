@@ -178,7 +178,7 @@ function submitForm(){
       const s=STD_BKP.find(y=>y[0]===x.bkp)||EX_BKP_EXTRA.find(y=>y[0]===x.bkp);rows.push({bkp:x.bkp,de:x.name,en:s&&s[1]===x.name?s[2]:x.name,kv:r2(v)});}
     if(!rows.length)return fail(L("Bitte mindestens eine Position auswählen.","Please select at least one item."));
     snap();const keep=(pp.budget||[]).filter(b=>D.contracts.some(w=>w.pid===pp.id&&w.bkp===b.bkp)&&!rows.some(r=>r.bkp===b.bkp)).map(b=>({bkp:b.bkp,de:b.de,en:b.en,kv:0}));
-    pp.budget=rows.concat(keep).sort((a,b)=>a.bkp.localeCompare(b.bkp,"de",{numeric:true}));
+    pp.budget=rows.concat(keep).sort((a,b)=>a.bkp.localeCompare(b.bkp,"de",{numeric:true}));pp.bkpGroups=k.names||{};
     S.kvDraft=null;closeAll();D.pid=pp.id;go("budget");S.tsel="bud:all";saveData();render();
     return toast(L(`${rows.length} Positionen übernommen · `,`${rows.length} items taken over · `)+chf(rows.reduce((a,r)=>a+r.kv,0),false),0,false,true);}
   if(F.f==="offersum"){const w=W(F.id),o=S.offerDraft||{};const v=num(val("fOfferSum"));if(!w)return;if(!(v>0))return toast(L("Bitte die Offertsumme eintragen.","Please enter the offer total."));
@@ -422,7 +422,7 @@ function parseKV(sheets){
   const amt=v=>{if(typeof v==="number")return v;const s=String(v==null?"":v).trim();if(!/\d/.test(s)||/[a-z]{3,}/i.test(s.replace(/chf|fr/gi,"")))return null;const n=num(s);return isFinite(n)?n:null;};
   let best=null;
   for(const rows of sheets){
-    const found=[];let total=null,head=-1;
+    const found=[],names={};let total=null,head=-1;
     rows.forEach(r=>{const cells=r.map(x=>x==null?"":x);
       const hi=cells.findIndex(x=>/betrag|total|kosten|kv|chf|summe/i.test(String(x))&&typeof x==="string"&&!KV_CODE.test(x));if(head<0&&hi>=0&&!cells.some(x=>KV_CODE.test(String(x))&&typeof x!=="number"))head=hi;
       let ci=-1,code="",name="";
@@ -430,14 +430,16 @@ function parseKV(sheets){
         if(m&&(typeof v!=="number"||(Number.isInteger(v)?v<1000:true))){ci=i;code=m[1];name=(m[2]||"").trim();}break;}
       if(ci<0){const lab=cells.find(x=>typeof x==="string"&&/total|summe|gesamt/i.test(x));if(lab){const ns=cells.map(amt).filter(x=>x!=null&&x>0);if(ns.length)total=Math.max(total||0,...ns);}return;}
       if(!name){const t=cells.slice(ci+1).find(x=>typeof x==="string"&&x.trim()&&amt(x)==null);name=t?String(t).trim():"";}
-      const nums=cells.map((x,i)=>i>ci?amt(x):null);found.push({code,name,nums});});
+      const nums=cells.map((x,i)=>i>ci?amt(x):null);found.push({code,name,nums});if(name&&!names[code])names[code]=name;});
     if(!found.length)continue;
     /* the amount column: the header that says Betrag/Total/CHF, else the column with the largest sum */
     const sums={};found.forEach(f=>f.nums.forEach((n,i)=>{if(n!=null)sums[i]=(sums[i]||0)+Math.abs(n);}));
     let col=head>=0&&sums[head]?head:+Object.keys(sums).sort((a,b)=>sums[b]-sums[a])[0];
     const list=[];found.forEach(f=>{const v=f.nums[col];if(v==null||!(v>0))return;const ex=list.find(x=>x.bkp===f.code);if(ex){ex.kv=r2(ex.kv+v);return;}list.push({bkp:f.code,name:f.name||bkpCat(f.code)||"BKP "+f.code,kv:r2(v)});});
     const leaves=list.filter(x=>!list.some(y=>y!==x&&kvBelow(y.bkp,x.bkp)));
-    if(!best||leaves.length>best.rows.length)best={rows:leaves,total,groups:list.length-leaves.length};
+    /* the names of the levels above the items (21 Rohbau 1, 211 Baumeisterarbeiten), as the estimate calls them */
+    const gn={};Object.keys(names).forEach(c=>{if(leaves.some(x=>kvBelow(x.bkp,c)))gn[c]=names[c];});
+    if(!best||leaves.length>best.rows.length)best={rows:leaves,total,groups:list.length-leaves.length,names:gn};
   }
   return best||{rows:[],total:null,groups:0};
 }
@@ -462,7 +464,7 @@ async function handleImport(kind,file,id){
     catch(e){return toast(L("Datei nicht lesbar.","File not readable."));}
     const r=parseKV(sheets);
     if(!r.rows.length)return toast(L("Keine BKP-Positionen mit Betrag gefunden. Erwartet: BKP-Nummer, Bezeichnung, Betrag.","No BKP items with amounts found. Expected: BKP number, name, amount."));
-    D.pid=p.id;S.kvDraft={pid:p.id,name:file.name,total:r.total,groups:r.groups,rows:r.rows.map(x=>({...x,on:true}))};openForm("kvimport",p.id);return;}
+    D.pid=p.id;S.kvDraft={pid:p.id,name:file.name,total:r.total,groups:r.groups,names:r.names||{},rows:r.rows.map(x=>({...x,on:true}))};openForm("kvimport",p.id);return;}
   if(kind==="offerpdf"){const w=W(id);if(!w)return;
     if(!isPdf(file))return toast(L("Bitte die Offerte als PDF wählen.","Please choose the offer as PDF."));
     toast(L("Offerte wird gelesen …","Reading offer …"));

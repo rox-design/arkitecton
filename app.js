@@ -87,6 +87,7 @@ document.addEventListener("click",e=>{
     case "to-fees":S.rtab="deb";go("rechnungen");break;
     case "rtab":S.rtab=el.dataset.t;render();break;
     case "open-fee":closeAll();S.fdrawer=id;renderOverlay();break;
+    case "bgrp":{S.bopen=S.bopen||{};S.bopen[id]=el.getAttribute("aria-expanded")!=="true";render();break;}
     case "fee-addline":readFeeLines();S.form.lines.push({t:"",q:1,u:L("pauschal","lump sum"),p:""});keepFeeFields(()=>renderOverlay());break;
     case "fee-delline":readFeeLines();S.form.lines.splice(+el.dataset.c,1);keepFeeFields(()=>renderOverlay());break;
     case "fee-paid":{snap();const f=FE(id);f.paid=iso(TODAY);logInv(f,L("Zahlung eingegangen","Payment received"));render();toast(L("Als bezahlt markiert","Marked as paid"),0,0,1);break;}

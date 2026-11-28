@@ -289,14 +289,10 @@ function budgetTable(rows){
     return ONE_BROW(r,act,sub,base,pc);};
   /* BKP as a tree, like the cost estimate: main group (2), group (21), item (211), sub-item (211.1).
      Every level with finer positions below is a row of its own with its sums and opens or closes. */
-  const chain=c=>{const [m,s]=String(c).split("."),out=[m.charAt(0)];if(m.length>=2)out.push(m.slice(0,2));if(m.length>=3)out.push(m.slice(0,3));if(s!==undefined)out.push(c);return [...new Set(out)];};
-  const root={kids:new Map(),rows:[]};
-  rows.forEach(r=>{let n=root;const ch=chain(r.b.bkp);ch.forEach((c,k)=>{if(k===ch.length-1){n.rows.push(r);return;}if(!n.kids.has(c))n.kids.set(c,{code:c,kids:new Map(),rows:[]});n=n.kids.get(c);});});
-  const all=rows.length>=budgetRows().length,pp=P()||{},gName=c=>((pp.bkpGroups||{})[c])||(c.length===1?bkpMainName(c):bkpCat(c))||"BKP "+c;
+  const root=bkpTree(rows),all=rows.length>=budgetRows().length,gName=bkpGroupName;
   /* the full table opens at the main groups; a tile that shows a selection opens everything */
   const isOpen=(c,lv)=>S.bopen&&c in S.bopen?S.bopen[c]:(!all||lv===0);
-  const flat=n=>[...n.rows,...[...n.kids.values()].flatMap(flat)];
-  const sortK=(a,b)=>String(a).localeCompare(String(b),"de",{numeric:true});
+  const flat=bkpLeaves,sortK=bkpSortK;
   const draw=(n,lv)=>{
     /* items and finer levels in BKP order, e.g. 211 (with 211.1 below) before 214 */
     const own=n.rows.map(r=>[r.b.bkp,one(r).replace('class="brow row','style="--lv:'+lv+'" class="brow row')]);

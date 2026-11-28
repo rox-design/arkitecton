@@ -18,6 +18,21 @@ const BKPCAT=()=>{const base=typeof BKP_ALL!=="undefined"?BKP_ALL:[],own=(D&&D.b
   const m=new Map(base.map(e=>[e[0],e[1]]));own.forEach(([c,n])=>m.set(c,n));_bkpKey=key;_bkpCache=[...m.entries()].sort((a,b)=>a[0].localeCompare(b[0]));return _bkpCache;};
 const bkpCat=c=>{const x=BKPCAT().find(e=>e[0]===String(c));return x?x[1]:"";};
 const bkpMain=c=>String(c||"").charAt(0);
+/* BKP levels: main group 2 › group 21 › item 211 › sub-item 211.1. Names of the levels above the items come from the uploaded
+   cost estimate (p.bkpGroups), otherwise from the BKP list */
+const bkpChain=c=>{const [m,s]=String(c).split("."),out=[m.charAt(0)];if(m.length>=2)out.push(m.slice(0,2));if(m.length>=3)out.push(m.slice(0,3));if(s!==undefined)out.push(String(c));return [...new Set(out)];};
+const bkpGroupName=c=>{const p=typeof P==="function"?P():null;return ((p&&p.bkpGroups)||{})[c]||(c.length===1?bkpMainName(c):bkpCat(c))||"BKP "+c;};
+const bkpSortK=(a,b)=>String(a).localeCompare(String(b),"de",{numeric:true});
+function bkpTree(rows){const root={kids:new Map(),rows:[]};
+  rows.forEach(r=>{let n=root;const ch=bkpChain(r.b.bkp);ch.forEach((c,k)=>{if(k===ch.length-1){n.rows.push(r);return;}if(!n.kids.has(c))n.kids.set(c,{code:c,kids:new Map(),rows:[]});n=n.kids.get(c);});});return root;}
+const bkpLeaves=n=>[...n.rows,...[...n.kids.values()].flatMap(bkpLeaves)];
+/* the tree as a list in BKP order: {code,name,lv,group,rows}. With depth, levels from depth-1 on are summed up into one line */
+function bkpOutline(rows,depth){const out=[];
+  const walk=(n,lv)=>{const items=n.rows.map(r=>({code:r.b.bkp,r})).concat([...n.kids.values()].map(g=>({code:g.code,g}))).sort((a,b)=>bkpSortK(a.code,b.code));
+    items.forEach(x=>{if(x.r){out.push({code:x.code,name:tx(x.r.b),lv,group:false,rows:[x.r]});return;}
+      const rs=bkpLeaves(x.g);if(depth&&lv>=depth-1){out.push({code:x.code,name:bkpGroupName(x.code),lv,group:false,rows:rs});return;}
+      out.push({code:x.code,name:bkpGroupName(x.code),lv,group:true,rows:rs});walk(x.g,lv+1);});};
+  walk(bkpTree(rows),0);return out;}
 const bkpMainName=d=>bkpCat(d)||({0:"Grundstück",1:"Vorbereitung",2:"Gebäude",3:"Betriebseinrichtungen",4:"Umgebung",5:"Baunebenkosten",9:"Ausstattung"})[d]||"";
 const bName=bkp=>{const b=B(bkp);if(b)return tx(b);const s=STD_BKP.find(x=>x[0]===bkp);if(s)return S.lang==="de"?s[1]:s[2];return bkpCat(bkp);};
 const projTitle=pp=>{const p=pp||P();return p?p.name+(p.place?", "+p.place:""):"";};
